@@ -5,15 +5,16 @@
  * @module domain/entities
  */
 
-import  Email from '../value-objects/Email';
+import Email from '../value-objects/Email';
+import FullName from '../value-objects/FullName';
 
 export class Actor {
   private readonly _id: string;
-  private readonly _name: string;
+  private readonly _name: FullName;
   private readonly _email: Email;
   private readonly _submissions: any[];
 
-  private constructor(id: string, name: string, email: Email, submissions: any[]) {
+  private constructor(id: string, name: FullName, email: Email, submissions: any[]) {
     this._id = id;
     this._name = name;
     this._email = email;
@@ -27,11 +28,7 @@ export class Actor {
    * @param {Email} email - Email address of the Actor.
    * @returns {Actor} - A new instance of Actor.
    */
-  static create(id: string, name: string, email: Email): Actor {
-    if (!name) {
-      throw new Error('Name cannot be empty.');
-    }
-
+  static create(id: string, name: FullName, email: Email): Actor {
     return new Actor(id, name, email, []);
   }
 
@@ -45,7 +42,7 @@ export class Actor {
   /**
    * @returns {string} - Actor's name.
    */
-  get name(): string {
+  get name(): FullName {
     return this._name;
   }
 

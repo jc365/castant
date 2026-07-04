@@ -5,13 +5,15 @@
  * @module domain/entities
  */
 
+import VideoUrl from '../value-objects/VideoUrl';
+
 export type SubmissionStatus = 'pending' | 'reviewed' | 'selected' | 'rejected';
 
 export default class Submission {
   private readonly _id: string;
   private readonly _actorId: string;
   private readonly _roundId: string;
-  private readonly _videoUrl: string;
+  private readonly _videoUrl: VideoUrl;
   private readonly _status: SubmissionStatus;
   private readonly _score: number | null;
   private readonly _feedback: string | null;
@@ -19,11 +21,8 @@ export default class Submission {
   /**
    * Crea una nueva instancia de Submission (estado inicial: 'pending').
    */
-  static create(id: string, actorId: string, roundId: string, videoUrl: string): Submission {
-    if (!videoUrl || videoUrl.trim().length === 0) {
-      throw new Error('Video URL cannot be empty');
-    }
-    return new Submission(id, actorId, roundId, videoUrl.trim());
+  static create(id: string, actorId: string, roundId: string, videoUrl: VideoUrl): Submission {
+    return new Submission(id, actorId, roundId, videoUrl);
   }
 
   /**
@@ -34,7 +33,7 @@ export default class Submission {
     id: string,
     actorId: string,
     roundId: string,
-    videoUrl: string,
+    videoUrl: VideoUrl,
     status: SubmissionStatus = 'pending',
     score: number | null = null,
     feedback: string | null = null
@@ -120,7 +119,7 @@ export default class Submission {
     return this._roundId;
   }
 
-  get videoUrl(): string {
+  get videoUrl(): VideoUrl {
     return this._videoUrl;
   }
 

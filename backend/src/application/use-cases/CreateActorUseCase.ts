@@ -6,6 +6,7 @@
 
 import Actor from '../../domain/entities/Actor';
 import Email from '../../domain/value-objects/Email';
+import FullName from '../../domain/value-objects/FullName';
 import IActorRepository from '../interfaces/IActorRepository';
 import { CreateActorInput } from '../dtos';
 
@@ -21,7 +22,8 @@ export class CreateActorUseCase {
     }
 
     const actorEmail = Email.create(email);
-    const actor = Actor.create(id, name, actorEmail);
+    const actorName = FullName.create(name);
+    const actor = Actor.create(id, actorName, actorEmail);
 
     await this.actorRepository.save(actor);
 

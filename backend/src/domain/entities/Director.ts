@@ -5,18 +5,19 @@
  * @module domain/entities
  */
 
-import  Email  from '../value-objects/Email';
+import Email from '../value-objects/Email';
+import FullName from '../value-objects/FullName';
 
 export default class Director {
   private readonly _id: string;
-  private readonly _name: string;
+  private readonly _name: FullName;
   private readonly _email: Email;
 
   /**
    * Private constructor for Director entity.
    * @private
    */
-  private constructor(id: string, name: string, email: Email) {
+  private constructor(id: string, name: FullName, email: Email) {
     this._id = id;
     this._name = name;
     this._email = email;
@@ -29,10 +30,7 @@ export default class Director {
    * @param {Email} email - The email object representing the Director's email address.
    * @returns {Director} A new instance of Director.
    */
-  static create(id: string, name: string, email: Email): Director {
-    if (name === '') {
-      throw new Error('Name cannot be empty');
-    }
+  static create(id: string, name: FullName, email: Email): Director {
     return new Director(id, name, email);
   }
 
@@ -48,7 +46,7 @@ export default class Director {
    * Gets the name of the Director.
    * @returns {string} The name of the Director.
    */
-  get name(): string {
+  get name(): FullName {
     return this._name;
   }
 

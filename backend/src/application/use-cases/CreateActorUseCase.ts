@@ -7,6 +7,7 @@
 import Actor from '../../domain/entities/Actor';
 import Email from '../../domain/value-objects/Email';
 import FullName from '../../domain/value-objects/FullName';
+import EntityId from '../../domain/value-objects/TypedId';
 import IActorRepository from '../interfaces/IActorRepository';
 import { CreateActorInput } from '../dtos';
 
@@ -21,9 +22,10 @@ export class CreateActorUseCase {
       throw new Error(`Email ${email} is already registered`);
     }
 
+    const actorId = EntityId.create<'Actor'>(id);
     const actorEmail = Email.create(email);
     const actorName = FullName.create(name);
-    const actor = Actor.create(id, actorName, actorEmail);
+    const actor = Actor.create(actorId, actorName, actorEmail);
 
     await this.actorRepository.save(actor);
 

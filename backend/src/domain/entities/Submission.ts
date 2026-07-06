@@ -5,23 +5,26 @@
  * @module domain/entities
  */
 
+import Feedback from '../value-objects/Feedback';
+import Score from '../value-objects/Score';
+import { ActorId, RoundId, SubmissionId } from '../value-objects/TypedId';
 import VideoUrl from '../value-objects/VideoUrl';
 
 export type SubmissionStatus = 'pending' | 'reviewed' | 'selected' | 'rejected';
 
 export default class Submission {
-  private readonly _id: string;
-  private readonly _actorId: string;
-  private readonly _roundId: string;
+  private readonly _id: SubmissionId;
+  private readonly _actorId: ActorId;
+  private readonly _roundId: RoundId;
   private readonly _videoUrl: VideoUrl;
   private readonly _status: SubmissionStatus;
-  private readonly _score: number | null;
-  private readonly _feedback: string | null;
+  private readonly _score: Score;
+  private readonly _feedback: Feedback;
 
   /**
    * Crea una nueva instancia de Submission (estado inicial: 'pending').
    */
-  static create(id: string, actorId: string, roundId: string, videoUrl: VideoUrl): Submission {
+  static create(id: SubmissionId, actorId: ActorId, roundId: RoundId, videoUrl: VideoUrl): Submission {
     return new Submission(id, actorId, roundId, videoUrl);
   }
 
@@ -30,13 +33,13 @@ export default class Submission {
    * Acepta todos los atributos (los opcionales pueden ser null/undefined).
    */
   private constructor(
-    id: string,
-    actorId: string,
-    roundId: string,
+    id: SubmissionId,
+    actorId: ActorId,
+    roundId: RoundId,
     videoUrl: VideoUrl,
     status: SubmissionStatus = 'pending',
-    score: number | null = null,
-    feedback: string | null = null
+    score: Score = Score.none(),
+    feedback: Feedback = Feedback.none()
   ) {
     this._id = id;
     this._actorId = actorId;
@@ -50,12 +53,9 @@ export default class Submission {
   /**
    * Revisa la submission (solo si está en estado 'pending').
    */
-  review(score: number, feedback: string): Submission {
+  review(score: Score, feedback: Feedback): Submission {
     if (this._status !== 'pending') {
       throw new Error('Only pending submissions can be reviewed');
-    }
-    if (score < 0 || score > 10) {
-      throw new Error('Score must be between 0 and 10');
     }
     return new Submission(
       this._id,
@@ -107,15 +107,15 @@ export default class Submission {
   // ============================================
   // Getters
   // ============================================
-  get id(): string {
+  get id(): SubmissionId {
     return this._id;
   }
 
-  get actorId(): string {
+  get actorId(): ActorId {
     return this._actorId;
   }
 
-  get roundId(): string {
+  get roundId(): RoundId {
     return this._roundId;
   }
 
@@ -127,11 +127,11 @@ export default class Submission {
     return this._status;
   }
 
-  get score(): number | null {
+  get score(): Score {
     return this._score;
   }
 
-  get feedback(): string | null {
+  get feedback(): Feedback {
     return this._feedback;
   }
 }

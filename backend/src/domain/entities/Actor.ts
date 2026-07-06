@@ -5,16 +5,17 @@
  * @module domain/entities
  */
 
+import { ActorId } from '../value-objects/TypedId';
 import Email from '../value-objects/Email';
 import FullName from '../value-objects/FullName';
 
 export class Actor {
-  private readonly _id: string;
+  private readonly _id: ActorId;
   private readonly _name: FullName;
   private readonly _email: Email;
   private readonly _submissions: any[];
 
-  private constructor(id: string, name: FullName, email: Email, submissions: any[]) {
+  private constructor(id: ActorId, name: FullName, email: Email, submissions: any[]) {
     this._id = id;
     this._name = name;
     this._email = email;
@@ -23,19 +24,19 @@ export class Actor {
 
   /**
    * @static
-   * @param {string} id - Unique identifier for the Actor.
-   * @param {string} name - Name of the Actor.
+   * @param {ActorId} id - Unique identifier for the Actor.
+   * @param {FullName} name - Name of the Actor.
    * @param {Email} email - Email address of the Actor.
    * @returns {Actor} - A new instance of Actor.
    */
-  static create(id: string, name: FullName, email: Email): Actor {
+  static create(id: ActorId, name: FullName, email: Email): Actor {
     return new Actor(id, name, email, []);
   }
 
   /**
-   * @returns {string} - Actor's unique identifier.
+   * @returns {ActorId} - Actor's unique identifier.
    */
-  get id(): string {
+  get id(): ActorId {
     return this._id;
   }
 

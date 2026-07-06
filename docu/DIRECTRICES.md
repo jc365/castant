@@ -23,6 +23,13 @@
   - DTOs: `CreateCastingDTO`, `SubmitVideoDTO`.
 - **Estructura de archivos:** Cada entidad, caso de uso, repositorio y adaptador en su propio archivo.
 - **Exportaciones:** Usar `export default` para clases principales y `export` para interfaces/tipos.
+- **Cabecera de archivo:** Todo archivo nuevo debe incluir un bloque JSDoc con `@file` y `@module`:
+  ```typescript
+  /**
+   * @file NombreDelArchivo.ts
+   * @module ruta/del/modulo
+   */
+  ```
 
 ## 4. Reglas de Negocio (Core)
 - Un **Casting** tiene múltiples **Rounds** (rondas).

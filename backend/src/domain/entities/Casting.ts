@@ -3,17 +3,18 @@
  * @module domain/entities
  */
 
+import CastingTitle from '../value-objects/CastingTitle';
+import Description from '../value-objects/Description';
+import { CastingId, DirectorId } from '../value-objects/TypedId';
+
 export default class Casting {
-  private _id: string;
-  private _title: string;
-  private _description: string;
-  private _directorId: string;
+  private _id: CastingId;
+  private _title: CastingTitle;
+  private _description: Description;
+  private _directorId: DirectorId;
   private _rounds: any[];
 
-  private constructor(id: string, title: string, description: string, directorId: string) {
-    if (!title.trim()) {
-      throw new Error('Title cannot be empty');
-    }
+  private constructor(id: CastingId, title: CastingTitle, description: Description, directorId: DirectorId) {
     this._id = id;
     this._title = title;
     this._description = description;
@@ -21,19 +22,19 @@ export default class Casting {
     this._rounds = [];
   }
 
-  public get id(): string {
+  public get id(): CastingId {
     return this._id;
   }
 
   public get title(): string {
-    return this._title;
+    return this._title.getValue();
   }
 
   public get description(): string {
-    return this._description;
+    return this._description.getValue();
   }
 
-  public get directorId(): string {
+  public get directorId(): DirectorId {
     return this._directorId;
   }
 

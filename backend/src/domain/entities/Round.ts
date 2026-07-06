@@ -5,13 +5,15 @@
  * @module domain/entities
  */
 
-export default class Round {
-  private readonly _id: string;
-  private readonly _number: number;
-  private readonly _castingId: string;
-  private readonly _actorIds: string[];
+import { ActorId, CastingId, RoundId } from '../value-objects/TypedId';
 
-  static create(id: string, number: number, castingId: string, actorIds: string[]): Round {
+export default class Round {
+  private readonly _id: RoundId;
+  private readonly _number: number;
+  private readonly _castingId: CastingId;
+  private readonly _actorIds: ActorId[];
+
+  static create(id: RoundId, number: number, castingId: CastingId, actorIds: ActorId[]): Round {
     if (number <= 0) {
       throw new Error('Number must be greater than 0');
     }
@@ -21,14 +23,14 @@ export default class Round {
     return new Round(id, number, castingId, actorIds);
   }
 
-  private constructor(id: string, number: number, castingId: string, actorIds: string[]) {
+  private constructor(id: RoundId, number: number, castingId: CastingId, actorIds: ActorId[]) {
     this._id = id;
     this._number = number;
     this._castingId = castingId;
     this._actorIds = actorIds;
   }
 
-  get id(): string {
+  get id(): RoundId {
     return this._id;
   }
 
@@ -36,12 +38,11 @@ export default class Round {
     return this._number;
   }
 
-  get castingId(): string {
+  get castingId(): CastingId {
     return this._castingId;
   }
 
-  get actorIds(): string[] {
+  get actorIds(): ActorId[] {
     return this._actorIds;
   }
 }
-

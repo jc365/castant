@@ -18,18 +18,31 @@ export interface CreateActorInput {
 //   actor: Actor; // Puedes importar Actor desde domain/entities
 // }
 
-// // ============================================
-// // DTOs para la entidad Casting
-// // ============================================
-// export interface CreateCastingInput {
-//   title: string;
-//   description: string;
-//   directorId: string;
-// }
+// ============================================
+// DTOs para la entidad Casting
+// ============================================
+export interface CreateCastingInput {
+  title: string;
+  description: string;
+  directorId: string;
+}
 
-// export interface CreateCastingOutput {
-//   casting: Casting;
-// }
+// ============================================
+// DTOs para la entidad Submission
+// ============================================
+export interface SubmitVideoInput {
+  actorId: string;
+  roundId: string;
+  videoUrl: string;
+}
+
+// ============================================
+// DTOs para la entidad Round
+// ============================================
+export interface SelectActorsInput {
+  roundId: string;
+  selectedActorIds: string[];
+}
 
 // ============================================
 // Más DTOs...

@@ -22,6 +22,13 @@ export default class Casting {
     this._rounds = [];
   }
 
+  /**
+   * Crea una nueva instancia de Casting.
+   */
+  static create(id: CastingId, title: CastingTitle, description: Description, directorId: DirectorId): Casting {
+    return new Casting(id, title, description, directorId);
+  }
+
   public get id(): CastingId {
     return this._id;
   }

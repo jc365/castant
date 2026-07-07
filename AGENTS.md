@@ -3,51 +3,64 @@
 ## Stack
 
 - TypeScript 6.0 (`strict: true`, ES2020, `moduleResolution: node16`)
+- Backend: ESM (`"type": "module"`), `tsx` como runtime (`npm run dev`)
+- Express 5 + cors + dotenv
+- Prisma 7 con SQLite (`@prisma/adapter-libsql`, `@libsql/client`)
+- Logging: pino + pino-pretty + pino-http + nanoid
 - Jest 30 con `ts-jest` (ESM preset) — configurado en raíz
-- Sin Prisma, Express, Zod instalados (descritos en `docu/` pero no en `package.json`)
+- DB: SQLite en `backend/prisma/dev.db`
 
 ## Estructura del proyecto
 
 ```
 castant/
-├── backend/src/          ← código fuente (tsconfig propio)
-│   ├── domain/
-│   │   ├── entities/     ← Actor, Director, Casting, Round, Submission
-│   │   └── value-objects/← Email, FullName, VideoUrl, CastingTitle, Score, Feedback, Description, TypedId
-│   └── application/
-│       ├── interfaces/   ← IActorRepository, ICastingRepository, IRoundRepository, ISubmissionRepository, IDirectorRepository
-│       ├── use-cases/    ← CreateActorUseCase, CreateCastingUseCase, SubmitVideoUseCase, SelectActorsForNextRoundUseCase
-│       └── dtos/         ← CreateActorInput, CreateCastingInput, SubmitVideoInput, SelectActorsInput
-├── tests/                ← tests unitarios (tsconfig.tests.json, raíz)
+├── backend/
+│   ├── src/
+│   │   ├── domain/
+│   │   │   ├── entities/        ← Actor, Director, Casting, Round, Submission
+│   │   │   └── value-objects/   ← Email, FullName, VideoUrl, CastingTitle, Score, Feedback, Description, TypedId
+│   │   ├── application/
+│   │   │   ├── interfaces/      ← IActorRepository, ICastingRepository, IRoundRepository, ISubmissionRepository, IDirectorRepository
+│   │   │   ├── use-cases/       ← CreateActorUseCase, CreateCastingUseCase, SubmitVideoUseCase, SelectActorsForNextRoundUseCase
+│   │   │   └── dtos/            ← CreateActorInput, CreateCastingInput, SubmitVideoInput, SelectActorsInput
+│   │   ├── infrastructure/
+│   │   │   ├── logging/         ← logger.ts (pino base), requestContext.ts (AsyncLocalStorage + middleware)
+│   │   │   ├── persistence/     ← prismaClient.ts, PrismaActorRepository.ts
+│   │   │   └── api/             ← (pendiente)
+│   │   └── index.ts             ← Express server, entrypoint
+│   ├── prisma/schema.prisma     ← modelos Prisma (SQLite)
+│   └── tsconfig.json
+├── tests/                       ← tests unitarios (tsconfig.tests.json, raíz)
 │   ├── unit/domain/value-objects/
 │   └── unit/application/use-cases/
-├── docu/                 ← documentación aspiracional (no es fuente de verdad)
+└── docu/                        ← documentación aspiracional (no es fuente de verdad)
 ```
-
-El proyecto sigue **Clean Architecture**: dominio → aplicación → (pendiente: infraestructura, interfaces).
 
 ## Comandos
 
 ```bash
-# Typecheck (sin output = ok)
+# Typecheck backend (sin output = ok)
 cd backend && npx tsc --noEmit
 
 # Tests (desde la raíz)
 npm test
 
-# Tests con cobertura
-npm test -- --coverage
+# Ejecutar servidor dev
+cd backend && npm run dev
 
-# Ejecutar un archivo
-npx ts-node src/<ruta>
+# Regenerar cliente Prisma tras cambios en schema.prisma
+cd backend && npx prisma generate
+
+# Sincronizar BD con schema
+cd backend && npx prisma db push
 ```
 
-**Ordén correcto:** `typecheck → test`
+**Orden correcto:** `typecheck → test`
 
-## TypedId — Gotcha importante
+## Gotchas
 
+**TypedId — parámetro genérico:**
 `EntityId<T>` es genérica. Los type aliases (`ActorId = EntityId<'Actor'>`) NO se usan como parámetro genérico:
-
 ```typescript
 // ❌ INCORRECTO — crea EntityId<EntityId<'Actor'>>
 const id = EntityId.create<ActorId>('123');
@@ -55,6 +68,15 @@ const id = EntityId.create<ActorId>('123');
 // ✅ CORRECTO — usa string literal type
 const id = EntityId.create<'Actor'>('123');
 ```
+
+**Prisma 7 — datasource URL:**
+La URL de conexión (`DATABASE_URL`) va en `prisma.config.ts` y `.env`, NO en `schema.prisma`. El schema solo declara el provider.
+
+**nanoid — versión:**
+Usar nanoid@3 (v4+ es ESM-only y rompe Jest). Ya está instalado como dependencia.
+
+**Prisma client — ruta de importación:**
+El cliente generado está en `src/generated/prisma/client`. Se importa como `import { PrismaClient } from '../../generated/prisma/client'`.
 
 ## Patrones de código
 
@@ -69,17 +91,30 @@ const id = EntityId.create<'Actor'>('123');
 - Reciben Value Objects ya construidos; no los crean internamente
 - Métodos que mutan estado retornan nueva instancia
 
+**Repositorios (Prisma):**
+- Implementan la interfaz de aplicación (`IActorRepository` etc.)
+- Usan `prismaClient.ts` (instancia singleton de PrismaClient)
+- `upsert` en `save()` para crear o actualizar
+- `toDomain()` privado para mapear registros Prisma → entidades de dominio
+
+**Logging:**
+- Logger base: `infrastructure/logging/logger.ts` (pino + pino-pretty en dev)
+- Logger enriquecido: `infrastructure/logging/requestContext.ts` — inyecta `requestId` automáticamente
+- En use cases: importar desde `requestContext`, NO desde `logger`
+- En routes/index.ts: importar `requestLogger` desde `requestContext`
+- pino-http configura `customProps` con `getRequestId()` para correlación automática
+
 **Convenciones:**
 - 2 espacios, punto y coma, comillas simples, máx 100 chars
 - `export default` para clases, `export` para interfaces/tipos
 - Cabecera JSDoc obligatoria (`@file`, `@module`) en cada archivo
+- Imports relativos sin extensión `.js` (funciona con tsx en runtime)
 
 ## Testing
 
 - Ubicación: `tests/unit/domain/value-objects/<Nombre>.test.ts` y `tests/unit/application/use-cases/<Nombre>.test.ts`
 - Imports: `import X from '../../../../backend/src/domain/value-objects/X'`
 - Patrón en Skill: `.opencode/skills/testing-pattern/SKILL.md`
-- 50+ tests, cobertura alta en casos de uso y VOs
 
 **Tests obligatorios para VOs:**
 - `create()`: caso feliz + casos de error (vacío, rango, formato)
@@ -90,21 +125,13 @@ const id = EntityId.create<'Actor'>('123');
 - Caso feliz + mocks de repositorios
 - Casos de error: validaciones de negocio, entidades no encontradas
 
-## Estado actual
+## API (rutas existentes)
 
-- **Value Objects:** Email, FullName, VideoUrl, CastingTitle, Score, Feedback, Description, TypedId
-- **Entidades:** Actor, Director, Casting, Round, Submission
-- **Repositorios (Interfaces):** IActorRepository, ICastingRepository, IRoundRepository, ISubmissionRepository, IDirectorRepository
-- **Casos de Uso:** CreateActorUseCase, CreateCastingUseCase, SubmitVideoUseCase, SelectActorsForNextRoundUseCase
-
-## Próximos pasos
-
-1. **Infraestructura:** Implementar repositorios con Prisma (ICastingRepository → PrismaCastingRepository, etc.)
-2. **Interfaces:** Controladores Express y rutas HTTP
-3. **Configuración:** Variables de entorno, conexión a BD
+- `GET /health` → `{ status: 'ok' }`
+- `GET /actors/:id` → actor en JSON o 404
+- `POST /actors` → crea actor (body: `{ id, name, email }`)
+- `DELETE /actors/:id` → elimina actor o 404
 
 ## Versionado de AGENTS.md
 
 **Regla obligatoria:** Cada vez que se vaya a actualizar este archivo, se debe crear una copia de seguridad de la versión anterior en el mismo directorio con el formato `AGENTS_<timestamp>.md`, donde `<timestamp>` sigue el patrón `YYYYMMDD_HHMMSS` (ej. `AGENTS_20260707_010639.md`).
-
-**Propósito:** Esta política garantiza la trazabilidad de los cambios en las directrices del proyecto y permite recuperar versiones anteriores si es necesario.

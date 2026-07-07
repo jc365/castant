@@ -10,6 +10,7 @@ import IActorRepository from '../interfaces/IActorRepository';
 import IRoundRepository from '../interfaces/IRoundRepository';
 import ISubmissionRepository from '../interfaces/ISubmissionRepository';
 import { SubmitVideoInput } from '../dtos';
+import logger from '../../infrastructure/logging/logger';
 
 export class SubmitVideoUseCase {
   constructor(
@@ -21,20 +22,25 @@ export class SubmitVideoUseCase {
   async execute(input: SubmitVideoInput): Promise<Submission> {
     const { actorId, roundId, videoUrl } = input;
 
+    logger.info({ actorId, roundId }, 'SubmitVideoUseCase: starting');
+
     const typedActorId = EntityId.create<'Actor'>(actorId);
     const existingActor = await this.actorRepository.findById(typedActorId);
     if (!existingActor) {
+      logger.error({ actorId }, 'SubmitVideoUseCase: actor not found');
       throw new Error(`Actor ${actorId} not found`);
     }
 
     const typedRoundId = EntityId.create<'Round'>(roundId);
     const existingRound = await this.roundRepository.findById(typedRoundId);
     if (!existingRound) {
+      logger.error({ roundId }, 'SubmitVideoUseCase: round not found');
       throw new Error(`Round ${roundId} not found`);
     }
 
     const isInvited = existingRound.actorIds.some(id => id.equals(typedActorId));
     if (!isInvited) {
+      logger.error({ actorId, roundId }, 'SubmitVideoUseCase: actor not invited');
       throw new Error(`Actor ${actorId} is not invited to round ${roundId}`);
     }
 
@@ -45,6 +51,7 @@ export class SubmitVideoUseCase {
 
     await this.submissionRepository.save(submission);
 
+    logger.info({ submissionId: submissionId.getValue() }, 'SubmitVideoUseCase: completed');
     return submission;
   }
 }

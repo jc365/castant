@@ -10,6 +10,7 @@ import EntityId from '../../domain/value-objects/TypedId';
 import ICastingRepository from '../interfaces/ICastingRepository';
 import IDirectorRepository from '../interfaces/IDirectorRepository';
 import { CreateCastingInput } from '../dtos';
+import logger from '../../infrastructure/logging/logger';
 
 export class CreateCastingUseCase {
   constructor(
@@ -20,9 +21,12 @@ export class CreateCastingUseCase {
   async execute(input: CreateCastingInput): Promise<Casting> {
     const { title, description, directorId } = input;
 
+    logger.info({ title, directorId }, 'CreateCastingUseCase: starting');
+
     const typedDirectorId = EntityId.create<'Director'>(directorId);
     const existingDirector = await this.directorRepository.findById(typedDirectorId);
     if (!existingDirector) {
+      logger.error({ directorId }, 'CreateCastingUseCase: director not found');
       throw new Error(`Director ${directorId} not found`);
     }
 
@@ -34,6 +38,7 @@ export class CreateCastingUseCase {
 
     await this.castingRepository.save(casting);
 
+    logger.info({ castingId: castingId.getValue() }, 'CreateCastingUseCase: completed');
     return casting;
   }
 }

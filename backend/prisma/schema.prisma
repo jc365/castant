@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Actor {
+  id          String       @id
+  name        String
+  email       String       @unique
+  rounds      RoundActor[]
+  submissions Submission[]
+}
+
+model Director {
+  id       String    @id
+  name     String
+  email    String    @unique
+  castings Casting[]
+}
+
+model Casting {
+  id          String    @id
+  title       String
+  description String
+  directorId  String
+  director    Director  @relation(fields: [directorId], references: [id])
+  rounds      Round[]
+}
+
+model Round {
+  id          String       @id
+  number      Int
+  castingId   String
+  casting     Casting      @relation(fields: [castingId], references: [id])
+  actors      RoundActor[]
+  submissions Submission[]
+}
+
+model RoundActor {
+  roundId String
+  round   Round  @relation(fields: [roundId], references: [id])
+  actorId String
+  actor   Actor  @relation(fields: [actorId], references: [id])
+
+  @@id([roundId, actorId])
+}
+
+model Submission {
+  id       String @id
+  actorId  String
+  roundId  String
+  videoUrl String
+  status   String @default("pending")
+  score    Int    @default(0)
+  feedback String @default("")
+
+  actor Actor @relation(fields: [actorId], references: [id])
+  round Round @relation(fields: [roundId], references: [id])
+}

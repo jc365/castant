@@ -10,7 +10,7 @@ import FullName from '../../domain/value-objects/FullName';
 import EntityId from '../../domain/value-objects/TypedId';
 import IActorRepository from '../interfaces/IActorRepository';
 import { CreateActorInput } from '../dtos';
-import logger from '../../infrastructure/logging/logger';
+import logger from '../../infrastructure/logging/requestContext';
 
 export class CreateActorUseCase {
   constructor(private readonly actorRepository: IActorRepository) {}

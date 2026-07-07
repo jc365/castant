@@ -8,7 +8,7 @@ import EntityId from '../../domain/value-objects/TypedId';
 import IRoundRepository from '../interfaces/IRoundRepository';
 import ISubmissionRepository from '../interfaces/ISubmissionRepository';
 import { SelectActorsInput } from '../dtos';
-import logger from '../../infrastructure/logging/logger';
+import logger from '../../infrastructure/logging/requestContext';
 
 export class SelectActorsForNextRoundUseCase {
   constructor(

@@ -10,7 +10,7 @@ import EntityId from '../../domain/value-objects/TypedId';
 import ICastingRepository from '../interfaces/ICastingRepository';
 import IDirectorRepository from '../interfaces/IDirectorRepository';
 import { CreateCastingInput } from '../dtos';
-import logger from '../../infrastructure/logging/logger';
+import logger from '../../infrastructure/logging/requestContext';
 
 export class CreateCastingUseCase {
   constructor(

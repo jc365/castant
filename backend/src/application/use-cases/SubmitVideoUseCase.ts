@@ -10,7 +10,7 @@ import IActorRepository from '../interfaces/IActorRepository';
 import IRoundRepository from '../interfaces/IRoundRepository';
 import ISubmissionRepository from '../interfaces/ISubmissionRepository';
 import { SubmitVideoInput } from '../dtos';
-import logger from '../../infrastructure/logging/logger';
+import logger from '../../infrastructure/logging/requestContext';
 
 export class SubmitVideoUseCase {
   constructor(

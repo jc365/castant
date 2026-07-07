@@ -1,2 +1,31 @@
 ###
-GET http://localhost:3000/helth
+GET http://localhost:3000/health
+
+###
+POST http://localhost:3000/actors HTTP/1.1
+content-type: application/json
+
+{
+    "id": "actor-456789",
+    "name": "el mras grande",
+    "email": "j3osgil4lo@example.com"
+    }
+
+###
+@hostname = localhost
+@port = 3000
+@host = {{hostname}}:{{port}}
+@contentType = application/json
+@createdAt = {{$datetime iso8601}}
+@modifiedBy = {{$processEnv USERNAME}}
+
+###
+
+@resource = actors
+@actor = actor-123
+@actor2 = actor-456
+
+GET http://{{host}}/{{resource}}/{{actor}} 
+
+###
+DELETE http://{{host}}/{{resource}}/{{actor2}} 

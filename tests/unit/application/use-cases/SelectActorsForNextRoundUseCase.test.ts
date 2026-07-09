@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { SelectActorsForNextRoundUseCase } from '../../../../backend/src/application/use-cases/SelectActorsForNextRoundUseCase';
 import IRoundRepository from '../../../../backend/src/application/interfaces/IRoundRepository';
 import ISubmissionRepository from '../../../../backend/src/application/interfaces/ISubmissionRepository';
@@ -11,17 +12,17 @@ describe('SelectActorsForNextRoundUseCase', () => {
 
   beforeEach(() => {
     roundRepo = {
-      findById: jest.fn(),
-      findByCastingId: jest.fn(),
-      save: jest.fn(),
-      delete: jest.fn(),
+      findById: vi.fn(),
+      findByCastingId: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
     };
     submissionRepo = {
-      findById: jest.fn(),
-      findByRoundId: jest.fn(),
-      findByActorId: jest.fn(),
-      save: jest.fn(),
-      delete: jest.fn(),
+      findById: vi.fn(),
+      findByRoundId: vi.fn(),
+      findByActorId: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
     };
     useCase = new SelectActorsForNextRoundUseCase(roundRepo, submissionRepo);
   });

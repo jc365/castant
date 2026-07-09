@@ -56,12 +56,11 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/v1', v1Router);
 
-const isMainModule = process.argv[1] && !process.argv[1].includes('jest');
+export default app;
 
-if (isMainModule) {
+// Solo inicia el servidor si se ejecuta directamente (no en tests)
+if (import.meta.url === `file://${process.argv[1]}`) {
   app.listen(port, () => {
     logger.info({ port }, 'Server started');
   });
 }
-
-export default app;

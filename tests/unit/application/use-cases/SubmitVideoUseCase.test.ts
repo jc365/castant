@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { SubmitVideoUseCase } from '../../../../backend/src/application/use-cases/SubmitVideoUseCase';
 import IActorRepository from '../../../../backend/src/application/interfaces/IActorRepository';
 import IRoundRepository from '../../../../backend/src/application/interfaces/IRoundRepository';
@@ -20,23 +21,23 @@ describe('SubmitVideoUseCase', () => {
 
   beforeEach(() => {
     actorRepo = {
-      findById: jest.fn(),
-      findByEmail: jest.fn(),
-      save: jest.fn(),
-      delete: jest.fn(),
+      findById: vi.fn(),
+      findByEmail: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
     };
     roundRepo = {
-      findById: jest.fn(),
-      findByCastingId: jest.fn(),
-      save: jest.fn(),
-      delete: jest.fn(),
+      findById: vi.fn(),
+      findByCastingId: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
     };
     submissionRepo = {
-      findById: jest.fn(),
-      findByRoundId: jest.fn(),
-      findByActorId: jest.fn(),
-      save: jest.fn(),
-      delete: jest.fn(),
+      findById: vi.fn(),
+      findByRoundId: vi.fn(),
+      findByActorId: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
     };
     useCase = new SubmitVideoUseCase(actorRepo, roundRepo, submissionRepo);
   });

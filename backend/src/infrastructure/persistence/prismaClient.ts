@@ -1,12 +1,8 @@
-/**
- * @file prismaClient.ts
- * @module infrastructure/persistence
- */
-
 import { PrismaClient } from '../../generated/prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 
-const adapter = new PrismaLibSql({ url: process.env.DATABASE_URL || 'file:./dev.db' });
-const prisma = new PrismaClient({ adapter });
+const url = process.env.DATABASE_URL || 'file:./dev.db';
+const adapter = new PrismaLibSql({ url });
 
+const prisma = new PrismaClient({ adapter });
 export default prisma;

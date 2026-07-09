@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { CreateCastingUseCase } from '../../../../backend/src/application/use-cases/CreateCastingUseCase';
 import ICastingRepository from '../../../../backend/src/application/interfaces/ICastingRepository';
 import IDirectorRepository from '../../../../backend/src/application/interfaces/IDirectorRepository';
@@ -13,15 +14,15 @@ describe('CreateCastingUseCase', () => {
 
   beforeEach(() => {
     castingRepo = {
-      findById: jest.fn(),
-      findByDirectorId: jest.fn(),
-      save: jest.fn(),
-      delete: jest.fn(),
+      findById: vi.fn(),
+      findByDirectorId: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
     };
     directorRepo = {
-      findById: jest.fn(),
-      save: jest.fn(),
-      delete: jest.fn(),
+      findById: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
     };
     useCase = new CreateCastingUseCase(castingRepo, directorRepo);
   });

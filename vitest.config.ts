@@ -8,11 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const testDbPath = path.resolve(__dirname, 'backend', 'test.db');
 
-// 👇 Eliminar base de datos anterior si existe
-if (fs.existsSync(testDbPath)) {
-  fs.unlinkSync(testDbPath);
-}
-
 process.env.DATABASE_URL = `file:${testDbPath}`;
 
 export default defineConfig({

@@ -64,7 +64,7 @@ router.post('/actors', async (req, res) => {
 });
 
 router.post('/castings', async (req, res) => {
-  requestLogger.info('POST /castings');
+  requestLogger.info({}, 'POST /castings');
 
   try {
     const { title, description, directorId } = req.body;

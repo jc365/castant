@@ -56,6 +56,12 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/v1', v1Router);
 
-app.listen(port, () => {
-  logger.info({ port }, 'Server started');
-});
+const isMainModule = process.argv[1] && !process.argv[1].includes('jest');
+
+if (isMainModule) {
+  app.listen(port, () => {
+    logger.info({ port }, 'Server started');
+  });
+}
+
+export default app;

@@ -1,29 +1,52 @@
-import Round from '../../../../backend/src/domain/entities/Round';
+import Round, { type RoundActorEntry } from '../../../../backend/src/domain/entities/Round';
 import EntityId from '../../../../backend/src/domain/value-objects/TypedId';
 
 describe('Round Entity', () => {
   const castingId = EntityId.create<'Casting'>('casting-1');
-  const actorIds = [
-    EntityId.create<'Actor'>('actor-1'),
-    EntityId.create<'Actor'>('actor-2'),
+  const actors: RoundActorEntry[] = [
+    { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+    { id: EntityId.create<'Actor'>('actor-2'), role: 'actor' },
   ];
 
   it('should create a round with create()', () => {
     const id = EntityId.create<'Round'>('round-1');
-    const round = Round.create(id, 1, castingId, actorIds);
+    const round = Round.create(id, 1, castingId, actors);
     expect(round.id.getValue()).toBe('round-1');
     expect(round.number).toBe(1);
     expect(round.castingId.getValue()).toBe('casting-1');
+    expect(round.actors).toHaveLength(2);
     expect(round.actorIds).toHaveLength(2);
   });
 
   it('should throw when number is 0', () => {
     const id = EntityId.create<'Round'>('round-1');
-    expect(() => Round.create(id, 0, castingId, actorIds)).toThrow('Number must be greater than 0');
+    expect(() => Round.create(id, 0, castingId, actors)).toThrow('Number must be greater than 0');
   });
 
-  it('should throw when actorIds is empty', () => {
+  it('should throw when actors list is empty', () => {
     const id = EntityId.create<'Round'>('round-1');
-    expect(() => Round.create(id, 1, castingId, [])).toThrow('Actor IDs list cannot be empty');
+    expect(() => Round.create(id, 1, castingId, [])).toThrow('Actors list cannot be empty');
+  });
+
+  it('should return only actor IDs from actorIds getter', () => {
+    const id = EntityId.create<'Round'>('round-1');
+    const mixedActors: RoundActorEntry[] = [
+      { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+      { id: EntityId.create<'Actor'>('preselector-1'), role: 'preselector' },
+    ];
+    const round = Round.create(id, 1, castingId, mixedActors);
+    expect(round.actorIds).toHaveLength(1);
+    expect(round.actorIds[0].getValue()).toBe('actor-1');
+  });
+
+  it('should return only preselector IDs from preselectorIds getter', () => {
+    const id = EntityId.create<'Round'>('round-1');
+    const mixedActors: RoundActorEntry[] = [
+      { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+      { id: EntityId.create<'Actor'>('preselector-1'), role: 'preselector' },
+    ];
+    const round = Round.create(id, 1, castingId, mixedActors);
+    expect(round.preselectorIds).toHaveLength(1);
+    expect(round.preselectorIds[0].getValue()).toBe('preselector-1');
   });
 });

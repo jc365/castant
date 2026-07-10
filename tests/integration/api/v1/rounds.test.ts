@@ -35,8 +35,8 @@ describe('POST /api/v1/rounds/select', () => {
     });
     await prisma.roundActor.createMany({
       data: [
-        { roundId: round.id, actorId: 'actor-1' },
-        { roundId: round.id, actorId: 'actor-2' },
+        { roundId: round.id, actorId: 'actor-1', role: 'actor' },
+        { roundId: round.id, actorId: 'actor-2', role: 'actor' },
       ],
     });
 
@@ -83,7 +83,7 @@ describe('POST /api/v1/rounds/select', () => {
       data: { id: 'round-1', number: 1, castingId: 'casting-1' },
     });
     await prisma.roundActor.create({
-      data: { roundId: round.id, actorId: 'actor-1' },
+      data: { roundId: round.id, actorId: 'actor-1', role: 'actor' },
     });
 
     const res = await request(app)
@@ -111,7 +111,7 @@ describe('POST /api/v1/rounds/select', () => {
       data: { id: 'round-1', number: 1, castingId: 'casting-1' },
     });
     await prisma.roundActor.create({
-      data: { roundId: round.id, actorId: 'actor-1' },
+      data: { roundId: round.id, actorId: 'actor-1', role: 'actor' },
     });
 
     const res = await request(app)

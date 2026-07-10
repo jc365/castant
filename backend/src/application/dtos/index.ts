@@ -44,6 +44,13 @@ export interface SelectActorsInput {
   selectedActorIds: string[];
 }
 
+export interface ManageRoundActorsInput {
+  roundId: string;
+  actors: { email: string; name?: string }[];
+  preselectors: { email: string; name?: string }[];
+  createNewRound?: boolean;
+}
+
 // ============================================
 // Más DTOs...
 // ============================================

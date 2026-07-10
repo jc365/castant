@@ -7,27 +7,34 @@
 
 import { ActorId, CastingId, RoundId } from '../value-objects/TypedId';
 
+export type RoundActorRole = 'actor' | 'preselector';
+
+export interface RoundActorEntry {
+  id: ActorId;
+  role: RoundActorRole;
+}
+
 export default class Round {
   private readonly _id: RoundId;
   private readonly _number: number;
   private readonly _castingId: CastingId;
-  private readonly _actorIds: ActorId[];
+  private readonly _actors: RoundActorEntry[];
 
-  static create(id: RoundId, number: number, castingId: CastingId, actorIds: ActorId[]): Round {
+  static create(id: RoundId, number: number, castingId: CastingId, actors: RoundActorEntry[]): Round {
     if (number <= 0) {
       throw new Error('Number must be greater than 0');
     }
-    if (actorIds.length === 0) {
-      throw new Error('Actor IDs list cannot be empty');
+    if (actors.length === 0) {
+      throw new Error('Actors list cannot be empty');
     }
-    return new Round(id, number, castingId, actorIds);
+    return new Round(id, number, castingId, actors);
   }
 
-  private constructor(id: RoundId, number: number, castingId: CastingId, actorIds: ActorId[]) {
+  private constructor(id: RoundId, number: number, castingId: CastingId, actors: RoundActorEntry[]) {
     this._id = id;
     this._number = number;
     this._castingId = castingId;
-    this._actorIds = actorIds;
+    this._actors = actors;
   }
 
   get id(): RoundId {
@@ -42,7 +49,15 @@ export default class Round {
     return this._castingId;
   }
 
+  get actors(): RoundActorEntry[] {
+    return this._actors;
+  }
+
   get actorIds(): ActorId[] {
-    return this._actorIds;
+    return this._actors.filter(a => a.role === 'actor').map(a => a.id);
+  }
+
+  get preselectorIds(): ActorId[] {
+    return this._actors.filter(a => a.role === 'preselector').map(a => a.id);
   }
 }

@@ -45,6 +45,7 @@ model RoundActor {
   round   Round  @relation(fields: [roundId], references: [id])
   actorId String
   actor   Actor  @relation(fields: [actorId], references: [id])
+  role    String @default("actor")
 
   @@id([roundId, actorId])
 }

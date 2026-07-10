@@ -3,7 +3,7 @@
  * @module application/use-cases/rounds
  */
 
-import Round from '../../domain/entities/Round';
+import Round, { type RoundActorEntry } from '../../domain/entities/Round';
 import EntityId from '../../domain/value-objects/TypedId';
 import IRoundRepository from '../interfaces/IRoundRepository';
 import ISubmissionRepository from '../interfaces/ISubmissionRepository';
@@ -28,7 +28,7 @@ export class SelectActorsForNextRoundUseCase {
       throw new Error(`Round ${roundId} not found`);
     }
 
-    const currentActorIds = currentRound.actorIds.map(a => a.getValue());
+    const currentActorIds = currentRound.actors.map(a => a.id.getValue());
     for (const actorId of selectedActorIds) {
       if (!currentActorIds.includes(actorId)) {
         logger.error({ actorId, roundId }, 'SelectActorsForNextRoundUseCase: actor not invited');
@@ -36,15 +36,19 @@ export class SelectActorsForNextRoundUseCase {
       }
     }
 
-    const typedActorIds = selectedActorIds.map(id => EntityId.create<'Actor'>(id));
-    if (typedActorIds.length === 0) {
+    if (selectedActorIds.length === 0) {
       logger.error({}, 'SelectActorsForNextRoundUseCase: empty selection');
       throw new Error('Selected actors list cannot be empty');
     }
 
+    const actors: RoundActorEntry[] = selectedActorIds.map(id => ({
+      id: EntityId.create<'Actor'>(id),
+      role: 'actor' as const,
+    }));
+
     const newRoundId = EntityId.create<'Round'>(crypto.randomUUID());
     const nextNumber = currentRound.number + 1;
-    const newRound = Round.create(newRoundId, nextNumber, currentRound.castingId, typedActorIds);
+    const newRound = Round.create(newRoundId, nextNumber, currentRound.castingId, actors);
 
     await this.roundRepository.save(newRound);
 

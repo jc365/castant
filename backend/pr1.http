@@ -2,19 +2,19 @@
 GET http://localhost:3000/health
 
 ###
-POST http://localhost:3000/actors HTTP/1.1
+POST http://localhost:3000/api/v1/actors 
 content-type: application/json
 
 {
-    "id": "actor-456789",
+    "id": "actor-45789",
     "name": "el mras grande",
-    "email": "j3osgil4lo@example.com"
+    "email": "j3ousgil4lo@example.com"
     }
 
 ###
 @hostname = localhost
 @port = 3000
-@host = {{hostname}}:{{port}}
+@host = {{hostname}}:{{port}}/api/v1
 @contentType = application/json
 @createdAt = {{$datetime iso8601}}
 @modifiedBy = {{$processEnv USERNAME}}
@@ -23,9 +23,9 @@ content-type: application/json
 
 @resource = actors
 @actor = actor-123
-@actor2 = actor-456
+@actor2 = actor-45789
 
-GET http://{{host}}/{{resource}}/{{actor}} 
+GET http://{{host}}/{{resource}}/{{actor2}} 
 
 ###
 DELETE http://{{host}}/{{resource}}/{{actor2}} 

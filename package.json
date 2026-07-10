@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "vitest --run",
+    "test:verbo": "vitest --run --reporter=verbose",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage --run",
     "test:integration": "vitest --run tests/integration"

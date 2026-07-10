@@ -6,9 +6,13 @@
 import { Router } from 'express';
 import { CreateActorUseCase } from '../../../application/use-cases/CreateActorUseCase';
 import { CreateCastingUseCase } from '../../../application/use-cases/CreateCastingUseCase';
+import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUseCase';
+import { SelectActorsForNextRoundUseCase } from '../../../application/use-cases/SelectActorsForNextRoundUseCase';
 import PrismaActorRepository from '../../persistence/PrismaActorRepository';
 import PrismaCastingRepository from '../../persistence/PrismaCastingRepository';
 import PrismaDirectorRepository from '../../persistence/PrismaDirectorRepository';
+import PrismaRoundRepository from '../../persistence/PrismaRoundRepository';
+import PrismaSubmissionRepository from '../../persistence/PrismaSubmissionRepository';
 import EntityId from '../../../domain/value-objects/TypedId';
 import requestLogger from '../../logging/requestContext';
 
@@ -20,6 +24,12 @@ const createActorUseCase = new CreateActorUseCase(actorRepository);
 const castingRepository = new PrismaCastingRepository();
 const directorRepository = new PrismaDirectorRepository();
 const createCastingUseCase = new CreateCastingUseCase(castingRepository, directorRepository);
+
+const roundRepository = new PrismaRoundRepository();
+const submissionRepository = new PrismaSubmissionRepository();
+const submitVideoUseCase = new SubmitVideoUseCase(actorRepository, roundRepository, submissionRepository);
+
+const selectActorsUseCase = new SelectActorsForNextRoundUseCase(roundRepository, submissionRepository);
 
 router.get('/actors/:id', async (req, res) => {
   const { id } = req.params;
@@ -108,6 +118,75 @@ router.delete('/actors/:id', async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     requestLogger.error({ error: message, id }, 'DELETE /actors/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.post('/submissions', async (req, res) => {
+  requestLogger.info({}, 'POST /submissions');
+
+  try {
+    const { actorId, roundId, videoUrl } = req.body;
+    const submission = await submitVideoUseCase.execute({ actorId, roundId, videoUrl });
+    res.status(201).json({
+      id: submission.id.getValue(),
+      actorId: submission.actorId.getValue(),
+      roundId: submission.roundId.getValue(),
+      videoUrl: submission.videoUrl.getValue(),
+      status: submission.status,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message.includes('not found')) {
+      requestLogger.error({ error: message }, 'POST /submissions: not found');
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('not invited')) {
+      requestLogger.error({ error: message }, 'POST /submissions: actor not invited');
+      res.status(400).json({ error: message });
+      return;
+    }
+    if (message.includes('Invalid video URL') || message.includes('Video URL')) {
+      requestLogger.error({ error: message }, 'POST /submissions: invalid video URL');
+      res.status(400).json({ error: message });
+      return;
+    }
+    requestLogger.error({ error: message }, 'POST /submissions failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.post('/rounds/select', async (req, res) => {
+  requestLogger.info({}, 'POST /rounds/select');
+
+  try {
+    const { roundId, selectedActorIds } = req.body;
+    const round = await selectActorsUseCase.execute({ roundId, selectedActorIds });
+    res.status(201).json({
+      id: round.id.getValue(),
+      number: round.number,
+      castingId: round.castingId.getValue(),
+      actorIds: round.actorIds.map((a) => a.getValue()),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message.includes('not found')) {
+      requestLogger.error({ error: message }, 'POST /rounds/select: round not found');
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('not invited')) {
+      requestLogger.error({ error: message }, 'POST /rounds/select: actor not invited');
+      res.status(400).json({ error: message });
+      return;
+    }
+    if (message.includes('empty') || message.includes('Empty')) {
+      requestLogger.error({ error: message }, 'POST /rounds/select: empty selection');
+      res.status(400).json({ error: message });
+      return;
+    }
+    requestLogger.error({ error: message }, 'POST /rounds/select failed');
     res.status(400).json({ error: message });
   }
 });

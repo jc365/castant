@@ -1,0 +1,53 @@
+# Capítulo 8: Refactorización del Modelo de Usuarios y Consolidación de la Capa de Aplicación
+
+## 8.1. Introducción
+
+Tras la implementación inicial de la capa de aplicación, se identificó una evolución necesaria en el modelo de dominio: la entidad `Actor` había trascendido su significado original. Originalmente concebida para representar a un intérprete en un casting, su uso se había extendido para abarcar a todos los participantes del sistema (actores, preselectores, directores, etc.), que podían desempeñar diferentes roles según el contexto.
+
+Esta sesión se centró en dos grandes objetivos:
+1.  **Refactorizar la entidad `Actor` a `User`**, alineando el modelo de dominio con la realidad del negocio.
+2.  **Consolidar la lógica de gestión de participantes** en rondas, unificando el tratamiento de actores y preselectores.
+3.  **Implementar el caso de uso de valoración de videos (`ReviewSubmissionUseCase`)**, completando el ciclo de evaluación del casting.
+
+## 8.2. Refactorización de `Actor` a `User`
+
+La decisión de renombrar `Actor` a `User` responde a la necesidad de un modelo de dominio más expresivo y general. Un `User` es una persona que participa en el sistema, y su rol (actor, preselector, director) se determina por su relación con una ronda o un casting, no por un atributo fijo de la entidad.
+
+### 8.2.1. Cambios Estructurales
+
+| Componente | Antes | Después |
+|------------|-------|---------|
+| **Entidad** | `Actor` | `User` |
+| **ID** | `ActorId` | `UserId` (con `ActorId` como alias deprecated) |
+| **Repositorio** | `IActorRepository` | `IUserRepository` |
+| **Implementación** | `PrismaActorRepository` | `PrismaUserRepository` |
+| **Caso de Uso** | `CreateActorUseCase` | `CreateUserUseCase` |
+| **Endpoint** | `/api/v1/actors` | `/api/v1/users` |
+| **Tabla en BD** | `Actor` | `User` |
+
+### 8.2.2. Estrategia de Migración
+
+Para garantizar la estabilidad del sistema, se siguió una estrategia de migración por capas:
+1.  **Domain:** Se renombró la entidad y se actualizaron los Value Objects (`TypedId`).
+2.  **Application:** Se renombraron los repositorios y casos de uso.
+3.  **Infrastructure:** Se actualizó el repositorio Prisma y el esquema de la base de datos.
+4.  **API:** Se actualizaron los endpoints y DTOs.
+5.  **Tests:** Se adaptaron todos los tests a la nueva nomenclatura.
+
+Se mantuvo compatibilidad hacia atrás mediante alias (ej. `ActorId` como alias de `UserId`) para minimizar el impacto en el código existente.
+
+## 8.3. Consolidación de la Gestión de Participantes
+
+La lógica de gestión de participantes en rondas se refactorizó para unificar el tratamiento de actores y preselectores, y para hacer el código más legible y eficiente.
+
+### 8.3.1. Estructura del DTO
+
+Se adoptó un DTO con listas separadas por rol, en lugar de una lista única con un campo `role`:
+
+```typescript
+export interface ManageRoundParticipantsInput {
+  roundId: string;
+  actors: { email: string; name?: string }[];
+  preselectors: { email: string; name?: string }[];
+  createNewRound?: boolean;
+}

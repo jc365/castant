@@ -106,10 +106,12 @@ export class ManageRoundParticipantsUseCase {
     role: RoundParticipantRole
   ): RoundParticipantEntry[] {
 
-    const combinedIds = new Set([
-      ...currentParticipants.filter(p => p.role === role).map(p => p.id.getValue()),
-      ...newIds,
-    ]);
+    const combinedIds = new Set(
+      [
+        ...currentParticipants.filter(p => p.role === role).map(p => p.id.getValue()),
+        ...newIds,
+      ]
+    );
 
     return Array.from(combinedIds).map(id => ({
       id: EntityId.create<'User'>(id),

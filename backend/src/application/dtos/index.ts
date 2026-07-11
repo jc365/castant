@@ -58,5 +58,24 @@ export interface ManageRoundParticipantsInput {
 }
 
 // ============================================
+// DTOs para Review Submission
+// ============================================
+export interface ReviewSubmissionInput {
+  submissionId: string;
+  score: number;
+  feedback: string;
+}
+
+export interface ReviewSubmissionOutput {
+  id: string;
+  actorId: string;
+  roundId: string;
+  videoUrl: string;
+  status: string;
+  score: number | null;
+  feedback: string | null;
+}
+
+// ============================================
 // Más DTOs...
 // ============================================

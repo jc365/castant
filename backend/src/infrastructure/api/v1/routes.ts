@@ -9,6 +9,7 @@ import { CreateCastingUseCase } from '../../../application/use-cases/CreateCasti
 import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUseCase';
 import { SelectActorsForNextRoundUseCase } from '../../../application/use-cases/SelectActorsForNextRoundUseCase';
 import { ManageRoundParticipantsUseCase } from '../../../application/use-cases/rounds/ManageRoundParticipantsUseCase';
+import { ReviewSubmissionUseCase } from '../../../application/use-cases/submissions/ReviewSubmissionUseCase';
 import PrismaUserRepository from '../../persistence/PrismaUserRepository';
 import PrismaCastingRepository from '../../persistence/PrismaCastingRepository';
 import PrismaDirectorRepository from '../../persistence/PrismaDirectorRepository';
@@ -32,6 +33,7 @@ const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepositor
 
 const selectActorsUseCase = new SelectActorsForNextRoundUseCase(roundRepository, submissionRepository);
 const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository);
+const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository);
 
 router.get('/users/:id', async (req, res) => {
   const { id } = req.params;
@@ -221,6 +223,48 @@ router.post('/rounds/participants', async (req, res) => {
       return;
     }
     requestLogger.error({ error: message }, 'POST /rounds/participants failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.patch('/submissions/:id/review', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'PATCH /submissions/:id/review');
+
+  try {
+    const { score, feedback } = req.body;
+    const submission = await reviewSubmissionUseCase.execute({
+      submissionId: id,
+      score,
+      feedback,
+    });
+    res.json({
+      id: submission.id.getValue(),
+      actorId: submission.actorId.getValue(),
+      roundId: submission.roundId.getValue(),
+      videoUrl: submission.videoUrl.getValue(),
+      status: submission.status,
+      score: submission.score.getValue(),
+      feedback: submission.feedback.getValue(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message.includes('not found')) {
+      requestLogger.error({ error: message }, 'PATCH /submissions/:id/review: not found');
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('already reviewed')) {
+      requestLogger.error({ error: message }, 'PATCH /submissions/:id/review: already reviewed');
+      res.status(400).json({ error: message });
+      return;
+    }
+    if (message.includes('Score must be') || message.includes('Feedback')) {
+      requestLogger.error({ error: message }, 'PATCH /submissions/:id/review: invalid input');
+      res.status(400).json({ error: message });
+      return;
+    }
+    requestLogger.error({ error: message }, 'PATCH /submissions/:id/review failed');
     res.status(400).json({ error: message });
   }
 });

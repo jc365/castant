@@ -3,7 +3,7 @@
  * @module infrastructure/persistence
  */
 
-import Round, { type RoundActorEntry, type RoundActorRole } from '../../domain/entities/Round';
+import Round, { type RoundParticipantEntry, type RoundParticipantRole } from '../../domain/entities/Round';
 import EntityId, { type CastingId, type RoundId, type ActorId } from '../../domain/value-objects/TypedId';
 import type IRoundRepository from '../../application/interfaces/IRoundRepository';
 import prisma from './prismaClient';
@@ -34,7 +34,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
         number: round.number,
         castingId: round.castingId.getValue(),
         actors: {
-          create: round.actors.map((entry) => ({
+          create: round.participants.map((entry) => ({
             actorId: entry.id.getValue(),
             role: entry.role,
           })),
@@ -44,7 +44,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
         number: round.number,
         actors: {
           deleteMany: {},
-          create: round.actors.map((entry) => ({
+          create: round.participants.map((entry) => ({
             actorId: entry.id.getValue(),
             role: entry.role,
           })),
@@ -65,10 +65,10 @@ export default class PrismaRoundRepository implements IRoundRepository {
   private toDomain(record: { id: string; number: number; castingId: string; actors: { actorId: string; role: string }[] }): Round {
     const roundId = EntityId.create<'Round'>(record.id);
     const castingId = EntityId.create<'Casting'>(record.castingId);
-    const actors: RoundActorEntry[] = record.actors.map((a) => ({
+    const participants: RoundParticipantEntry[] = record.actors.map((a) => ({
       id: EntityId.create<'Actor'>(a.actorId),
-      role: a.role as RoundActorRole,
+      role: a.role as RoundParticipantRole,
     }));
-    return Round.create(roundId, record.number, castingId, actors);
+    return Round.create(roundId, record.number, castingId, participants);
   }
 }

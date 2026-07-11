@@ -44,7 +44,7 @@ export interface SelectActorsInput {
   selectedActorIds: string[];
 }
 
-export interface ManageRoundActorsInput {
+export interface ManageRoundParticipantsInput {
   roundId: string;
   actors: { email: string; name?: string }[];
   preselectors: { email: string; name?: string }[];

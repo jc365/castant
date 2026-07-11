@@ -4,7 +4,7 @@ import IActorRepository from '../../../../backend/src/application/interfaces/IAc
 import IRoundRepository from '../../../../backend/src/application/interfaces/IRoundRepository';
 import ISubmissionRepository from '../../../../backend/src/application/interfaces/ISubmissionRepository';
 import { Actor } from '../../../../backend/src/domain/entities/Actor';
-import Round, { type RoundActorEntry } from '../../../../backend/src/domain/entities/Round';
+import Round, { type RoundParticipantEntry } from '../../../../backend/src/domain/entities/Round';
 import EntityId from '../../../../backend/src/domain/value-objects/TypedId';
 import Email from '../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../backend/src/domain/value-objects/FullName';
@@ -44,8 +44,8 @@ describe('SubmitVideoUseCase', () => {
 
   it('should create a submission when actor is invited to round', async () => {
     const actor = Actor.create(actorId, FullName.create('John Doe'), Email.create('john@test.com'));
-    const actors: RoundActorEntry[] = [{ id: actorId, role: 'actor' }];
-    const round = Round.create(roundId, 1, castingId, actors);
+    const participants: RoundParticipantEntry[] = [{ id: actorId, role: 'actor' }];
+    const round = Round.create(roundId, 1, castingId, participants);
 
     actorRepo.findById.mockResolvedValue(actor);
     roundRepo.findById.mockResolvedValue(round);
@@ -97,8 +97,8 @@ describe('SubmitVideoUseCase', () => {
   it('should throw when actor is not invited to round', async () => {
     const otherActorId = EntityId.create<'Actor'>('actor-other');
     const actor = Actor.create(actorId, FullName.create('John Doe'), Email.create('john@test.com'));
-    const actors: RoundActorEntry[] = [{ id: otherActorId, role: 'actor' }];
-    const round = Round.create(roundId, 1, castingId, actors);
+    const participants: RoundParticipantEntry[] = [{ id: otherActorId, role: 'actor' }];
+    const round = Round.create(roundId, 1, castingId, participants);
 
     actorRepo.findById.mockResolvedValue(actor);
     roundRepo.findById.mockResolvedValue(round);
@@ -116,8 +116,8 @@ describe('SubmitVideoUseCase', () => {
 
   it('should throw when video URL is invalid', async () => {
     const actor = Actor.create(actorId, FullName.create('John Doe'), Email.create('john@test.com'));
-    const actors: RoundActorEntry[] = [{ id: actorId, role: 'actor' }];
-    const round = Round.create(roundId, 1, castingId, actors);
+    const participants: RoundParticipantEntry[] = [{ id: actorId, role: 'actor' }];
+    const round = Round.create(roundId, 1, castingId, participants);
 
     actorRepo.findById.mockResolvedValue(actor);
     roundRepo.findById.mockResolvedValue(round);

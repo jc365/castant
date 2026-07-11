@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import { SelectActorsForNextRoundUseCase } from '../../../../backend/src/application/use-cases/SelectActorsForNextRoundUseCase';
 import IRoundRepository from '../../../../backend/src/application/interfaces/IRoundRepository';
 import ISubmissionRepository from '../../../../backend/src/application/interfaces/ISubmissionRepository';
-import Round, { type RoundActorEntry } from '../../../../backend/src/domain/entities/Round';
+import Round, { type RoundParticipantEntry } from '../../../../backend/src/domain/entities/Round';
 import EntityId from '../../../../backend/src/domain/value-objects/TypedId';
 
 describe('SelectActorsForNextRoundUseCase', () => {
@@ -30,11 +30,11 @@ describe('SelectActorsForNextRoundUseCase', () => {
   function makeRound(number: number, actorIds: string[]): Round {
     const id = EntityId.create<'Round'>(`round-${number}`);
     const castingId = EntityId.create<'Casting'>('casting-1');
-    const actors: RoundActorEntry[] = actorIds.map(a => ({
+    const participants: RoundParticipantEntry[] = actorIds.map(a => ({
       id: EntityId.create<'Actor'>(a),
       role: 'actor' as const,
     }));
-    return Round.create(id, number, castingId, actors);
+    return Round.create(id, number, castingId, participants);
   }
 
   it('should create the next round with selected actors', async () => {

@@ -1,20 +1,20 @@
 /**
- * @file ManageRoundActorsUseCase.test.ts
+ * @file ManageRoundParticipantsUseCase.test.ts
  * @module tests/unit/application/use-cases/rounds
  */
 
 import { vi } from 'vitest';
-import { ManageRoundActorsUseCase } from '../../../../../backend/src/application/use-cases/rounds/ManageRoundActorsUseCase';
+import { ManageRoundParticipantsUseCase } from '../../../../../backend/src/application/use-cases/rounds/ManageRoundParticipantsUseCase';
 import IActorRepository from '../../../../../backend/src/application/interfaces/IActorRepository';
 import IRoundRepository from '../../../../../backend/src/application/interfaces/IRoundRepository';
 import Actor from '../../../../../backend/src/domain/entities/Actor';
-import Round, { type RoundActorEntry } from '../../../../../backend/src/domain/entities/Round';
+import Round, { type RoundParticipantEntry } from '../../../../../backend/src/domain/entities/Round';
 import Email from '../../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../../backend/src/domain/value-objects/FullName';
 import EntityId from '../../../../../backend/src/domain/value-objects/TypedId';
 
-describe('ManageRoundActorsUseCase', () => {
-  let useCase: ManageRoundActorsUseCase;
+describe('ManageRoundParticipantsUseCase', () => {
+  let useCase: ManageRoundParticipantsUseCase;
   let actorRepo: jest.Mocked<IActorRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
 
@@ -31,13 +31,13 @@ describe('ManageRoundActorsUseCase', () => {
       save: vi.fn(),
       delete: vi.fn(),
     };
-    useCase = new ManageRoundActorsUseCase(actorRepo, roundRepo);
+    useCase = new ManageRoundParticipantsUseCase(actorRepo, roundRepo);
   });
 
-  function makeRound(number: number, actors: RoundActorEntry[]): Round {
+  function makeRound(number: number, participants: RoundParticipantEntry[]): Round {
     const id = EntityId.create<'Round'>(`round-${number}`);
     const castingId = EntityId.create<'Casting'>('casting-1');
-    return Round.create(id, number, castingId, actors);
+    return Round.create(id, number, castingId, participants);
   }
 
   function makeActor(id: string, email: string, name: string): Actor {
@@ -47,7 +47,7 @@ describe('ManageRoundActorsUseCase', () => {
     return Actor.create(actorId, actorName, actorEmail);
   }
 
-  describe('add actors to existing round', () => {
+  describe('add participants to existing round', () => {
     it('should add actors to an existing round', async () => {
       const currentRound = makeRound(1, [
         { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
@@ -63,8 +63,8 @@ describe('ManageRoundActorsUseCase', () => {
         preselectors: [],
       });
 
-      expect(result.actors).toHaveLength(2);
-      expect(result.actors[1].role).toBe('actor');
+      expect(result.participants).toHaveLength(2);
+      expect(result.participants[1].role).toBe('actor');
       expect(actorRepo.save).toHaveBeenCalledTimes(1);
       expect(roundRepo.save).toHaveBeenCalledTimes(1);
     });
@@ -84,8 +84,8 @@ describe('ManageRoundActorsUseCase', () => {
         preselectors: [{ email: 'pre@test.com', name: 'Pre Selector' }],
       });
 
-      expect(result.actors).toHaveLength(2);
-      expect(result.actors[1].role).toBe('preselector');
+      expect(result.participants).toHaveLength(2);
+      expect(result.participants[1].role).toBe('preselector');
       expect(actorRepo.save).toHaveBeenCalledTimes(1);
       expect(roundRepo.save).toHaveBeenCalledTimes(1);
     });
@@ -105,8 +105,8 @@ describe('ManageRoundActorsUseCase', () => {
         preselectors: [],
       });
 
-      expect(result.actors).toHaveLength(2);
-      expect(result.actors[1].id.getValue()).toBe('actor-1');
+      expect(result.participants).toHaveLength(2);
+      expect(result.participants[1].id.getValue()).toBe('actor-1');
       expect(actorRepo.save).not.toHaveBeenCalled();
     });
 
@@ -128,7 +128,7 @@ describe('ManageRoundActorsUseCase', () => {
         preselectors: [],
       });
 
-      expect(result.actors).toHaveLength(3);
+      expect(result.participants).toHaveLength(3);
       expect(actorRepo.save).toHaveBeenCalledTimes(2);
     });
   });
@@ -151,8 +151,8 @@ describe('ManageRoundActorsUseCase', () => {
       });
 
       expect(result.number).toBe(2);
-      expect(result.actors).toHaveLength(1);
-      expect(result.actors[0].role).toBe('actor');
+      expect(result.participants).toHaveLength(2);
+      expect(result.participants.every(p => p.role === 'actor')).toBe(true);
       expect(roundRepo.save).toHaveBeenCalledTimes(1);
     });
 

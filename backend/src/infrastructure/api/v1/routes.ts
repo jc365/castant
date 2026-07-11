@@ -8,6 +8,7 @@ import { CreateActorUseCase } from '../../../application/use-cases/CreateActorUs
 import { CreateCastingUseCase } from '../../../application/use-cases/CreateCastingUseCase';
 import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUseCase';
 import { SelectActorsForNextRoundUseCase } from '../../../application/use-cases/SelectActorsForNextRoundUseCase';
+import { ManageRoundParticipantsUseCase } from '../../../application/use-cases/rounds/ManageRoundParticipantsUseCase';
 import PrismaActorRepository from '../../persistence/PrismaActorRepository';
 import PrismaCastingRepository from '../../persistence/PrismaCastingRepository';
 import PrismaDirectorRepository from '../../persistence/PrismaDirectorRepository';
@@ -30,6 +31,7 @@ const submissionRepository = new PrismaSubmissionRepository();
 const submitVideoUseCase = new SubmitVideoUseCase(actorRepository, roundRepository, submissionRepository);
 
 const selectActorsUseCase = new SelectActorsForNextRoundUseCase(roundRepository, submissionRepository);
+const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(actorRepository, roundRepository);
 
 router.get('/actors/:id', async (req, res) => {
   const { id } = req.params;
@@ -187,6 +189,38 @@ router.post('/rounds/select', async (req, res) => {
       return;
     }
     requestLogger.error({ error: message }, 'POST /rounds/select failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.post('/rounds/participants', async (req, res) => {
+  requestLogger.info({}, 'POST /rounds/participants');
+
+  try {
+    const { roundId, actors, preselectors, createNewRound } = req.body;
+    const round = await manageParticipantsUseCase.execute({ roundId, actors: actors || [], preselectors: preselectors || [], createNewRound });
+    res.status(201).json({
+      id: round.id.getValue(),
+      number: round.number,
+      castingId: round.castingId.getValue(),
+      participants: round.participants.map((p) => ({
+        actorId: p.id.getValue(),
+        role: p.role,
+      })),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message.includes('not found')) {
+      requestLogger.error({ error: message }, 'POST /rounds/participants: round not found');
+      res.status(404).json({ error: message });
+      return;
+    }
+    if (message.includes('empty') || message.includes('Empty')) {
+      requestLogger.error({ error: message }, 'POST /rounds/participants: empty participants');
+      res.status(400).json({ error: message });
+      return;
+    }
+    requestLogger.error({ error: message }, 'POST /rounds/participants failed');
     res.status(400).json({ error: message });
   }
 });

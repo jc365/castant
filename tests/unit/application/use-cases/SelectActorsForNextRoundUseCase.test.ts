@@ -27,28 +27,28 @@ describe('SelectActorsForNextRoundUseCase', () => {
     useCase = new SelectActorsForNextRoundUseCase(roundRepo, submissionRepo);
   });
 
-  function makeRound(number: number, actorIds: string[]): Round {
+  function makeRound(number: number, userIds: string[]): Round {
     const id = EntityId.create<'Round'>(`round-${number}`);
     const castingId = EntityId.create<'Casting'>('casting-1');
-    const participants: RoundParticipantEntry[] = actorIds.map(a => ({
-      id: EntityId.create<'Actor'>(a),
+    const participants: RoundParticipantEntry[] = userIds.map(u => ({
+      id: EntityId.create<'User'>(u),
       role: 'actor' as const,
     }));
     return Round.create(id, number, castingId, participants);
   }
 
-  it('should create the next round with selected actors', async () => {
-    const currentRound = makeRound(1, ['actor-1', 'actor-2', 'actor-3']);
+  it('should create the next round with selected users', async () => {
+    const currentRound = makeRound(1, ['user-1', 'user-2', 'user-3']);
     roundRepo.findById.mockResolvedValue(currentRound);
     roundRepo.save.mockResolvedValue();
 
     const result = await useCase.execute({
       roundId: 'round-1',
-      selectedActorIds: ['actor-1', 'actor-3'],
+      selectedActorIds: ['user-1', 'user-3'],
     });
 
     expect(result.number).toBe(2);
-    expect(result.actorIds.map(a => a.getValue())).toEqual(['actor-1', 'actor-3']);
+    expect(result.actorIds.map(u => u.getValue())).toEqual(['user-1', 'user-3']);
     expect(roundRepo.save).toHaveBeenCalledTimes(1);
   });
 
@@ -56,25 +56,25 @@ describe('SelectActorsForNextRoundUseCase', () => {
     roundRepo.findById.mockResolvedValue(null);
 
     await expect(
-      useCase.execute({ roundId: 'round-999', selectedActorIds: ['actor-1'] })
+      useCase.execute({ roundId: 'round-999', selectedActorIds: ['user-1'] })
     ).rejects.toThrow('Round round-999 not found');
 
     expect(roundRepo.save).not.toHaveBeenCalled();
   });
 
-  it('should throw when actor is not invited to the round', async () => {
-    const currentRound = makeRound(1, ['actor-1', 'actor-2']);
+  it('should throw when user is not invited to the round', async () => {
+    const currentRound = makeRound(1, ['user-1', 'user-2']);
     roundRepo.findById.mockResolvedValue(currentRound);
 
     await expect(
-      useCase.execute({ roundId: 'round-1', selectedActorIds: ['actor-1', 'actor-99'] })
-    ).rejects.toThrow('Actor actor-99 is not invited to round round-1');
+      useCase.execute({ roundId: 'round-1', selectedActorIds: ['user-1', 'user-99'] })
+    ).rejects.toThrow('User user-99 is not invited to round round-1');
 
     expect(roundRepo.save).not.toHaveBeenCalled();
   });
 
-  it('should throw when selected actors list is empty', async () => {
-    const currentRound = makeRound(1, ['actor-1', 'actor-2']);
+  it('should throw when selected users list is empty', async () => {
+    const currentRound = makeRound(1, ['user-1', 'user-2']);
     roundRepo.findById.mockResolvedValue(currentRound);
 
     await expect(

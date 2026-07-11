@@ -4,12 +4,12 @@
  */
 
 import { Router } from 'express';
-import { CreateActorUseCase } from '../../../application/use-cases/CreateActorUseCase';
+import { CreateUserUseCase } from '../../../application/use-cases/CreateUserUseCase';
 import { CreateCastingUseCase } from '../../../application/use-cases/CreateCastingUseCase';
 import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUseCase';
 import { SelectActorsForNextRoundUseCase } from '../../../application/use-cases/SelectActorsForNextRoundUseCase';
 import { ManageRoundParticipantsUseCase } from '../../../application/use-cases/rounds/ManageRoundParticipantsUseCase';
-import PrismaActorRepository from '../../persistence/PrismaActorRepository';
+import PrismaUserRepository from '../../persistence/PrismaUserRepository';
 import PrismaCastingRepository from '../../persistence/PrismaCastingRepository';
 import PrismaDirectorRepository from '../../persistence/PrismaDirectorRepository';
 import PrismaRoundRepository from '../../persistence/PrismaRoundRepository';
@@ -19,8 +19,8 @@ import requestLogger from '../../logging/requestContext';
 
 const router = Router();
 
-const actorRepository = new PrismaActorRepository();
-const createActorUseCase = new CreateActorUseCase(actorRepository);
+const userRepository = new PrismaUserRepository();
+const createUserUseCase = new CreateUserUseCase(userRepository);
 
 const castingRepository = new PrismaCastingRepository();
 const directorRepository = new PrismaDirectorRepository();
@@ -28,49 +28,49 @@ const createCastingUseCase = new CreateCastingUseCase(castingRepository, directo
 
 const roundRepository = new PrismaRoundRepository();
 const submissionRepository = new PrismaSubmissionRepository();
-const submitVideoUseCase = new SubmitVideoUseCase(actorRepository, roundRepository, submissionRepository);
+const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepository, submissionRepository);
 
 const selectActorsUseCase = new SelectActorsForNextRoundUseCase(roundRepository, submissionRepository);
-const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(actorRepository, roundRepository);
+const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository);
 
-router.get('/actors/:id', async (req, res) => {
+router.get('/users/:id', async (req, res) => {
   const { id } = req.params;
-  requestLogger.info({ id }, 'GET /actors/:id');
+  requestLogger.info({ id }, 'GET /users/:id');
 
   try {
-    const actorId = EntityId.create<'Actor'>(id);
-    const actor = await actorRepository.findById(actorId);
+    const userId = EntityId.create<'User'>(id);
+    const user = await userRepository.findById(userId);
 
-    if (!actor) {
-      requestLogger.warn({ id }, 'GET /actors/:id: not found');
-      res.status(404).json({ error: 'Actor not found' });
+    if (!user) {
+      requestLogger.warn({ id }, 'GET /users/:id: not found');
+      res.status(404).json({ error: 'User not found' });
       return;
     }
 
     res.json({
-      id: actor.id.getValue(),
-      name: actor.name.getValue(),
-      email: actor.email.getValue(),
+      id: user.id.getValue(),
+      name: user.name.getValue(),
+      email: user.email.getValue(),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
-    requestLogger.error({ error: message, id }, 'GET /actors/:id failed');
+    requestLogger.error({ error: message, id }, 'GET /users/:id failed');
     res.status(400).json({ error: message });
   }
 });
 
-router.post('/actors', async (req, res) => {
+router.post('/users', async (req, res) => {
   try {
     const { id, name, email } = req.body;
-    const actor = await createActorUseCase.execute({ id, name, email });
+    const user = await createUserUseCase.execute({ id, name, email });
     res.status(201).json({
-      id: actor.id.getValue(),
-      name: actor.name.getValue(),
-      email: actor.email.getValue(),
+      id: user.id.getValue(),
+      name: user.name.getValue(),
+      email: user.email.getValue(),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
-    requestLogger.error({ error: message }, 'POST /actors failed');
+    requestLogger.error({ error: message }, 'POST /users failed');
     res.status(400).json({ error: message });
   }
 });
@@ -99,27 +99,27 @@ router.post('/castings', async (req, res) => {
   }
 });
 
-router.delete('/actors/:id', async (req, res) => {
+router.delete('/users/:id', async (req, res) => {
   const { id } = req.params;
-  requestLogger.info({ id }, 'DELETE /actors/:id');
+  requestLogger.info({ id }, 'DELETE /users/:id');
 
   try {
-    const actorId = EntityId.create<'Actor'>(id);
-    const existing = await actorRepository.findById(actorId);
+    const userId = EntityId.create<'User'>(id);
+    const existing = await userRepository.findById(userId);
 
     if (!existing) {
-      requestLogger.warn({ id }, 'DELETE /actors/:id: not found');
-      res.status(404).json({ error: 'Actor not found' });
+      requestLogger.warn({ id }, 'DELETE /users/:id: not found');
+      res.status(404).json({ error: 'User not found' });
       return;
     }
 
-    await actorRepository.delete(actorId);
+    await userRepository.delete(userId);
 
-    requestLogger.info({ id }, 'DELETE /actors/:id: completed');
+    requestLogger.info({ id }, 'DELETE /users/:id: completed');
     res.status(204).send();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
-    requestLogger.error({ error: message, id }, 'DELETE /actors/:id failed');
+    requestLogger.error({ error: message, id }, 'DELETE /users/:id failed');
     res.status(400).json({ error: message });
   }
 });
@@ -145,7 +145,7 @@ router.post('/submissions', async (req, res) => {
       return;
     }
     if (message.includes('not invited')) {
-      requestLogger.error({ error: message }, 'POST /submissions: actor not invited');
+      requestLogger.error({ error: message }, 'POST /submissions: user not invited');
       res.status(400).json({ error: message });
       return;
     }
@@ -179,7 +179,7 @@ router.post('/rounds/select', async (req, res) => {
       return;
     }
     if (message.includes('not invited')) {
-      requestLogger.error({ error: message }, 'POST /rounds/select: actor not invited');
+      requestLogger.error({ error: message }, 'POST /rounds/select: user not invited');
       res.status(400).json({ error: message });
       return;
     }

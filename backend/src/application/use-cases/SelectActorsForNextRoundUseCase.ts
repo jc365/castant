@@ -32,7 +32,7 @@ export class SelectActorsForNextRoundUseCase {
     for (const actorId of selectedActorIds) {
       if (!currentActorIds.includes(actorId)) {
         logger.error({ actorId, roundId }, 'SelectActorsForNextRoundUseCase: actor not invited');
-        throw new Error(`Actor ${actorId} is not invited to round ${roundId}`);
+        throw new Error(`User ${actorId} is not invited to round ${roundId}`);
       }
     }
 

@@ -59,7 +59,13 @@ export default class EntityId<T extends string> {
 // IDs específicos del dominio
 // ============================================
 
+export type UserId = EntityId<'User'>;
+
+/**
+ * @deprecated Use UserId instead. Will be removed in future versions.
+ */
 export type ActorId = EntityId<'Actor'>;
+
 export type DirectorId = EntityId<'Director'>;
 export type CastingId = EntityId<'Casting'>;
 export type RoundId = EntityId<'Round'>;

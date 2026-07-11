@@ -5,9 +5,9 @@
 
 import { vi } from 'vitest';
 import { ManageRoundParticipantsUseCase } from '../../../../../backend/src/application/use-cases/rounds/ManageRoundParticipantsUseCase';
-import IActorRepository from '../../../../../backend/src/application/interfaces/IActorRepository';
+import IUserRepository from '../../../../../backend/src/application/interfaces/IUserRepository';
 import IRoundRepository from '../../../../../backend/src/application/interfaces/IRoundRepository';
-import Actor from '../../../../../backend/src/domain/entities/Actor';
+import User from '../../../../../backend/src/domain/entities/User';
 import Round, { type RoundParticipantEntry } from '../../../../../backend/src/domain/entities/Round';
 import Email from '../../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../../backend/src/domain/value-objects/FullName';
@@ -15,11 +15,11 @@ import EntityId from '../../../../../backend/src/domain/value-objects/TypedId';
 
 describe('ManageRoundParticipantsUseCase', () => {
   let useCase: ManageRoundParticipantsUseCase;
-  let actorRepo: jest.Mocked<IActorRepository>;
+  let userRepo: jest.Mocked<IUserRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
 
   beforeEach(() => {
-    actorRepo = {
+    userRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
       save: vi.fn(),
@@ -31,7 +31,7 @@ describe('ManageRoundParticipantsUseCase', () => {
       save: vi.fn(),
       delete: vi.fn(),
     };
-    useCase = new ManageRoundParticipantsUseCase(actorRepo, roundRepo);
+    useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo);
   });
 
   function makeRound(number: number, participants: RoundParticipantEntry[]): Round {
@@ -40,21 +40,21 @@ describe('ManageRoundParticipantsUseCase', () => {
     return Round.create(id, number, castingId, participants);
   }
 
-  function makeActor(id: string, email: string, name: string): Actor {
-    const actorId = EntityId.create<'Actor'>(id);
-    const actorEmail = Email.create(email);
-    const actorName = FullName.create(name);
-    return Actor.create(actorId, actorName, actorEmail);
+  function makeUser(id: string, email: string, name: string): User {
+    const userId = EntityId.create<'User'>(id);
+    const userEmail = Email.create(email);
+    const userName = FullName.create(name);
+    return User.create(userId, userName, userEmail);
   }
 
   describe('add participants to existing round', () => {
     it('should add actors to an existing round', async () => {
       const currentRound = makeRound(1, [
-        { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+        { id: EntityId.create<'User'>('user-1'), role: 'actor' },
       ]);
       roundRepo.findById.mockResolvedValue(currentRound);
-      actorRepo.findByEmail.mockResolvedValue(null);
-      actorRepo.save.mockResolvedValue();
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
       roundRepo.save.mockResolvedValue();
 
       const result = await useCase.execute({
@@ -65,17 +65,17 @@ describe('ManageRoundParticipantsUseCase', () => {
 
       expect(result.participants).toHaveLength(2);
       expect(result.participants[1].role).toBe('actor');
-      expect(actorRepo.save).toHaveBeenCalledTimes(1);
+      expect(userRepo.save).toHaveBeenCalledTimes(1);
       expect(roundRepo.save).toHaveBeenCalledTimes(1);
     });
 
     it('should add preselectors to an existing round', async () => {
       const currentRound = makeRound(1, [
-        { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+        { id: EntityId.create<'User'>('user-1'), role: 'actor' },
       ]);
       roundRepo.findById.mockResolvedValue(currentRound);
-      actorRepo.findByEmail.mockResolvedValue(null);
-      actorRepo.save.mockResolvedValue();
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
       roundRepo.save.mockResolvedValue();
 
       const result = await useCase.execute({
@@ -86,17 +86,17 @@ describe('ManageRoundParticipantsUseCase', () => {
 
       expect(result.participants).toHaveLength(2);
       expect(result.participants[1].role).toBe('preselector');
-      expect(actorRepo.save).toHaveBeenCalledTimes(1);
+      expect(userRepo.save).toHaveBeenCalledTimes(1);
       expect(roundRepo.save).toHaveBeenCalledTimes(1);
     });
 
-    it('should reuse existing actors by email', async () => {
-      const existingActor = makeActor('actor-1', 'existing@test.com', 'Existing Actor');
+    it('should reuse existing users by email', async () => {
+      const existingUser = makeUser('user-1', 'existing@test.com', 'Existing User');
       const currentRound = makeRound(1, [
-        { id: EntityId.create<'Actor'>('existing'), role: 'actor' },
+        { id: EntityId.create<'User'>('existing'), role: 'actor' },
       ]);
       roundRepo.findById.mockResolvedValue(currentRound);
-      actorRepo.findByEmail.mockResolvedValue(existingActor);
+      userRepo.findByEmail.mockResolvedValue(existingUser);
       roundRepo.save.mockResolvedValue();
 
       const result = await useCase.execute({
@@ -106,41 +106,41 @@ describe('ManageRoundParticipantsUseCase', () => {
       });
 
       expect(result.participants).toHaveLength(2);
-      expect(result.participants[1].id.getValue()).toBe('actor-1');
-      expect(actorRepo.save).not.toHaveBeenCalled();
+      expect(result.participants[1].id.getValue()).toBe('user-1');
+      expect(userRepo.save).not.toHaveBeenCalled();
     });
 
-    it('should handle duplicate actors in the same request', async () => {
+    it('should handle duplicate users in the same request', async () => {
       const currentRound = makeRound(1, [
-        { id: EntityId.create<'Actor'>('existing'), role: 'actor' },
+        { id: EntityId.create<'User'>('existing'), role: 'actor' },
       ]);
       roundRepo.findById.mockResolvedValue(currentRound);
-      actorRepo.findByEmail.mockResolvedValue(null);
-      actorRepo.save.mockResolvedValue();
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
       roundRepo.save.mockResolvedValue();
 
       const result = await useCase.execute({
         roundId: 'round-1',
         actors: [
-          { email: 'dup@test.com', name: 'Dup Actor' },
-          { email: 'dup@test.com', name: 'Dup Actor Again' },
+          { email: 'dup@test.com', name: 'Dup User' },
+          { email: 'dup@test.com', name: 'Dup User Again' },
         ],
         preselectors: [],
       });
 
       expect(result.participants).toHaveLength(3);
-      expect(actorRepo.save).toHaveBeenCalledTimes(2);
+      expect(userRepo.save).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('createNewRound', () => {
     it('should create a new round with actors when createNewRound is true', async () => {
       const currentRound = makeRound(1, [
-        { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+        { id: EntityId.create<'User'>('user-1'), role: 'actor' },
       ]);
       roundRepo.findById.mockResolvedValue(currentRound);
-      actorRepo.findByEmail.mockResolvedValue(null);
-      actorRepo.save.mockResolvedValue();
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
       roundRepo.save.mockResolvedValue();
 
       const result = await useCase.execute({
@@ -158,7 +158,7 @@ describe('ManageRoundParticipantsUseCase', () => {
 
     it('should throw when createNewRound is true but preselectors are provided', async () => {
       const currentRound = makeRound(1, [
-        { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+        { id: EntityId.create<'User'>('user-1'), role: 'actor' },
       ]);
       roundRepo.findById.mockResolvedValue(currentRound);
 
@@ -176,7 +176,7 @@ describe('ManageRoundParticipantsUseCase', () => {
 
     it('should throw when createNewRound is true but actors list is empty', async () => {
       const currentRound = makeRound(1, [
-        { id: EntityId.create<'Actor'>('actor-1'), role: 'actor' },
+        { id: EntityId.create<'User'>('user-1'), role: 'actor' },
       ]);
       roundRepo.findById.mockResolvedValue(currentRound);
 

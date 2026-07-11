@@ -6,13 +6,19 @@
  */
 
 // ============================================
-// DTOs para la entidad Actor
+// DTOs para la entidad User
 // ============================================
-export interface CreateActorInput {
+export interface CreateUserInput {
   id: string;
   name: string;
   email: string;
 }
+
+/**
+ * @deprecated Use CreateUserInput instead. Will be removed in future versions.
+ */
+export const CreateActorInput = CreateUserInput;
+export type CreateActorInput = CreateUserInput;
 
 // export interface CreateActorOutput {
 //   actor: Actor; // Puedes importar Actor desde domain/entities

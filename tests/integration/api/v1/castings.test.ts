@@ -13,7 +13,7 @@ beforeEach(async () => {
   await prisma.round.deleteMany();
   await prisma.casting.deleteMany();
   await prisma.director.deleteMany();
-  await prisma.actor.deleteMany();
+  await prisma.user.deleteMany();
 });
 
 describe('POST /api/v1/castings', () => {

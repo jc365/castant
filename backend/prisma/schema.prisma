@@ -7,7 +7,7 @@ datasource db {
   provider = "sqlite"
 }
 
-model Actor {
+model User {
   id          String       @id
   name        String
   email       String       @unique
@@ -44,7 +44,7 @@ model RoundActor {
   roundId String
   round   Round  @relation(fields: [roundId], references: [id])
   actorId String
-  actor   Actor  @relation(fields: [actorId], references: [id])
+  actor   User   @relation(fields: [actorId], references: [id])
   role    String @default("actor")
 
   @@id([roundId, actorId])
@@ -59,6 +59,6 @@ model Submission {
   score    Int    @default(0)
   feedback String @default("")
 
-  actor Actor @relation(fields: [actorId], references: [id])
+  actor User   @relation(fields: [actorId], references: [id])
   round Round @relation(fields: [roundId], references: [id])
 }

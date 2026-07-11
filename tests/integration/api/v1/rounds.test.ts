@@ -13,7 +13,7 @@ beforeEach(async () => {
   await prisma.round.deleteMany();
   await prisma.casting.deleteMany();
   await prisma.director.deleteMany();
-  await prisma.actor.deleteMany();
+  await prisma.user.deleteMany();
 });
 
 describe('POST /api/v1/rounds/select', () => {
@@ -24,10 +24,10 @@ describe('POST /api/v1/rounds/select', () => {
     const casting = await prisma.casting.create({
       data: { id: 'casting-1', title: 'Casting Test', description: 'Desc', directorId: 'dir-1' },
     });
-    await prisma.actor.create({
+    await prisma.user.create({
       data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
     });
-    await prisma.actor.create({
+    await prisma.user.create({
       data: { id: 'actor-2', name: 'Actor Two', email: 'a2@test.com' },
     });
     const round = await prisma.round.create({
@@ -73,10 +73,10 @@ describe('POST /api/v1/rounds/select', () => {
     await prisma.casting.create({
       data: { id: 'casting-1', title: 'Casting Test', description: 'Desc', directorId: 'dir-1' },
     });
-    await prisma.actor.create({
+    await prisma.user.create({
       data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
     });
-    await prisma.actor.create({
+    await prisma.user.create({
       data: { id: 'actor-99', name: 'Actor Not Invited', email: 'a99@test.com' },
     });
     const round = await prisma.round.create({
@@ -104,7 +104,7 @@ describe('POST /api/v1/rounds/select', () => {
     await prisma.casting.create({
       data: { id: 'casting-1', title: 'Casting Test', description: 'Desc', directorId: 'dir-1' },
     });
-    await prisma.actor.create({
+    await prisma.user.create({
       data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
     });
     const round = await prisma.round.create({

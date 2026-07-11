@@ -3,19 +3,19 @@
  * @module application/use-cases/rounds
  */
 
-import Actor from '../../../domain/entities/Actor';
+import User from '../../../domain/entities/User';
 import Round, { type RoundParticipantEntry, type RoundParticipantRole } from '../../../domain/entities/Round';
 import Email from '../../../domain/value-objects/Email';
 import FullName from '../../../domain/value-objects/FullName';
 import EntityId from '../../../domain/value-objects/TypedId';
-import IActorRepository from '../../interfaces/IActorRepository';
+import IUserRepository from '../../interfaces/IUserRepository';
 import IRoundRepository from '../../interfaces/IRoundRepository';
 import { ManageRoundParticipantsInput } from '../../dtos';
 import logger from '../../../infrastructure/logging/requestContext';
 
 export class ManageRoundParticipantsUseCase {
   constructor(
-    private readonly actorRepository: IActorRepository,
+    private readonly userRepository: IUserRepository,
     private readonly roundRepository: IRoundRepository
   ) { }
 
@@ -43,8 +43,8 @@ export class ManageRoundParticipantsUseCase {
       }
     }
 
-    const actorIds = await this.detectAndAddActors(actorInputs);
-    const preselectorIds = await this.detectAndAddActors(preselectorInputs);
+    const actorIds = await this.detectAndAddUsers(actorInputs);
+    const preselectorIds = await this.detectAndAddUsers(preselectorInputs);
 
     const actorEntries = this.buildParticipantEntries(currentRound.participants, actorIds, 'actor');
     const preselectorEntries = this.buildParticipantEntries(currentRound.participants, preselectorIds, 'preselector');
@@ -79,22 +79,22 @@ export class ManageRoundParticipantsUseCase {
     return updatedRound;
   }
 
-  private async detectAndAddActors(inputs: { email: string; name?: string }[]): Promise<Set<string>> {
+  private async detectAndAddUsers(inputs: { email: string; name?: string }[]): Promise<Set<string>> {
     const ids = new Set<string>();
 
     for (const input of inputs) {
       const email = Email.create(input.email);
-      let actor = await this.actorRepository.findByEmail(email.getValue());
+      let user = await this.userRepository.findByEmail(email.getValue());
 
-      if (!actor) {
-        const actorId = EntityId.create<'Actor'>(crypto.randomUUID());
+      if (!user) {
+        const userId = EntityId.create<'User'>(crypto.randomUUID());
         const name = FullName.create(input.name || input.email.split('@')[0]);
-        actor = Actor.create(actorId, name, email);
-        await this.actorRepository.save(actor);
-        logger.info({ actorId: actorId.getValue(), email: input.email }, 'ManageRoundParticipantsUseCase: created new participant');
+        user = User.create(userId, name, email);
+        await this.userRepository.save(user);
+        logger.info({ userId: userId.getValue(), email: input.email }, 'ManageRoundParticipantsUseCase: created new participant');
       }
 
-      ids.add(actor.id.getValue());
+      ids.add(user.id.getValue());
     }
 
     return ids;
@@ -112,21 +112,8 @@ export class ManageRoundParticipantsUseCase {
     ]);
 
     return Array.from(combinedIds).map(id => ({
-      id: EntityId.create<'Actor'>(id),
+      id: EntityId.create<'User'>(id),
       role,
     }));
   }
-
-  private OC_buildParticipantEntries(
-    currentParticipants: RoundParticipantEntry[],
-    newIds: Set<string>,
-    role: RoundParticipantRole
-  ): RoundParticipantEntry[] {
-    const existingIds = new Set(
-      currentParticipants.filter(p => p.role === role).map(p => p.id.getValue())
-    );
-    const combinedIds = new Set([...existingIds, ...newIds]);
-    return Array.from(combinedIds).map(id => ({ id: EntityId.create<'Actor'>(id), role }));
-  }
-
 }

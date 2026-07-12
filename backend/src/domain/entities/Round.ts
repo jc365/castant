@@ -20,12 +20,9 @@ export default class Round {
   private readonly _castingId: string;
   private readonly _participants: RoundParticipantEntry[];
 
-  static create(number: number, castingId: string, participants: RoundParticipantEntry[], id?: string): Round {
+  static create(number: number, castingId: string, participants: RoundParticipantEntry[] = [], id?: string): Round {
     if (number <= 0) {
       throw new Error('Number must be greater than 0');
-    }
-    if (participants.length === 0) {
-      throw new Error('Participants list cannot be empty');
     }
     const finalId = id || genUUID('round');
     return new Round(finalId, number, castingId, participants);

@@ -22,9 +22,9 @@ const userRepository = new PrismaUserRepository();
 const createUserUseCase = new CreateUserUseCase(userRepository);
 
 const castingRepository = new PrismaCastingRepository();
-const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRepository);
-
 const roundRepository = new PrismaRoundRepository();
+const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRepository, roundRepository);
+
 const submissionRepository = new PrismaSubmissionRepository();
 const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepository, submissionRepository);
 
@@ -86,6 +86,14 @@ router.post('/castings', async (req, res) => {
       participants: casting.participants.map((p) => ({
         userId: p.userId,
         role: p.role,
+      })),
+      rounds: casting.rounds.map((r) => ({
+        id: r.id,
+        number: r.number,
+        participants: r.participants.map((p) => ({
+          actorId: p.id,
+          role: p.role,
+        })),
       })),
     });
   } catch (error) {

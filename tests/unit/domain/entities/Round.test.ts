@@ -25,8 +25,13 @@ describe('Round Entity', () => {
     expect(() => Round.create(0, 'casting-1', participants, 'round-1')).toThrow('Number must be greater than 0');
   });
 
-  it('should throw when participants list is empty', () => {
-    expect(() => Round.create(1, 'casting-1', [], 'round-1')).toThrow('Participants list cannot be empty');
+  it('should create a round with empty participants', () => {
+    const round = Round.create(1, 'casting-1', [], 'round-1');
+    expect(round.id).toBe('round-1');
+    expect(round.number).toBe(1);
+    expect(round.castingId).toBe('casting-1');
+    expect(round.participants).toHaveLength(0);
+    expect(round.actorIds).toHaveLength(0);
   });
 
   it('should return only actor IDs from actorIds getter', () => {

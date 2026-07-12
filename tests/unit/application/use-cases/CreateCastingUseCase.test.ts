@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import { CreateCastingUseCase } from '../../../../backend/src/application/use-cases/CreateCastingUseCase';
 import ICastingRepository from '../../../../backend/src/application/interfaces/ICastingRepository';
 import IUserRepository from '../../../../backend/src/application/interfaces/IUserRepository';
+import IRoundRepository from '../../../../backend/src/application/interfaces/IRoundRepository';
 import User from '../../../../backend/src/domain/entities/User';
 import Email from '../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../backend/src/domain/value-objects/FullName';
@@ -10,6 +11,7 @@ describe('CreateCastingUseCase', () => {
   let useCase: CreateCastingUseCase;
   let castingRepo: jest.Mocked<ICastingRepository>;
   let userRepo: jest.Mocked<IUserRepository>;
+  let roundRepo: jest.Mocked<IRoundRepository>;
 
   beforeEach(() => {
     castingRepo = {
@@ -24,13 +26,20 @@ describe('CreateCastingUseCase', () => {
       save: vi.fn(),
       delete: vi.fn(),
     };
-    useCase = new CreateCastingUseCase(castingRepo, userRepo);
+    roundRepo = {
+      findById: vi.fn(),
+      findByCastingId: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
+    };
+    useCase = new CreateCastingUseCase(castingRepo, userRepo, roundRepo);
   });
 
   it('should create a casting when director user exists', async () => {
     const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
     userRepo.findByEmail.mockResolvedValue(user);
     castingRepo.save.mockResolvedValue();
+    roundRepo.save.mockResolvedValue();
 
     const result = await useCase.execute({
       title: 'Casting Principal',
@@ -50,6 +59,7 @@ describe('CreateCastingUseCase', () => {
     userRepo.findByEmail.mockResolvedValue(null);
     userRepo.save.mockResolvedValue();
     castingRepo.save.mockResolvedValue();
+    roundRepo.save.mockResolvedValue();
 
     const result = await useCase.execute({
       title: 'Casting Principal',
@@ -63,6 +73,28 @@ describe('CreateCastingUseCase', () => {
     expect(result.participants[0].role).toBe('director');
     expect(userRepo.save).toHaveBeenCalledTimes(1);
     expect(castingRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('should create an initial round (Round 1) with empty participants', async () => {
+    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
+    userRepo.findByEmail.mockResolvedValue(user);
+    castingRepo.save.mockResolvedValue();
+    roundRepo.save.mockResolvedValue();
+
+    const result = await useCase.execute({
+      title: 'Casting Principal',
+      description: 'Buscamos protagonista',
+      directorEmail: 'jane@test.com',
+      directorName: 'Jane Doe',
+    });
+
+    expect(result.rounds).toHaveLength(1);
+    expect(result.rounds[0].number).toBe(1);
+    expect(result.rounds[0].participants).toHaveLength(0);
+    expect(roundRepo.save).toHaveBeenCalledTimes(1);
+    const savedRound = roundRepo.save.mock.calls[0][0];
+    expect(savedRound.number).toBe(1);
+    expect(savedRound.participants).toHaveLength(0);
   });
 
   it('should throw when title is invalid', async () => {

@@ -4,12 +4,14 @@
  */
 
 import Casting from '../../domain/entities/Casting';
+import Round from '../../domain/entities/Round';
 import User from '../../domain/entities/User';
 import CastingTitle from '../../domain/value-objects/CastingTitle';
 import Description from '../../domain/value-objects/Description';
 import Email from '../../domain/value-objects/Email';
 import FullName from '../../domain/value-objects/FullName';
 import ICastingRepository from '../interfaces/ICastingRepository';
+import IRoundRepository from '../interfaces/IRoundRepository';
 import IUserRepository from '../interfaces/IUserRepository';
 import { CreateCastingInput } from '../dtos';
 import logger from '../../infrastructure/logging/requestContext';
@@ -17,7 +19,8 @@ import logger from '../../infrastructure/logging/requestContext';
 export class CreateCastingUseCase {
   constructor(
     private readonly castingRepository: ICastingRepository,
-    private readonly userRepository: IUserRepository
+    private readonly userRepository: IUserRepository,
+    private readonly roundRepository: IRoundRepository
   ) {}
 
   async execute(input: CreateCastingInput): Promise<Casting> {
@@ -43,7 +46,12 @@ export class CreateCastingUseCase {
 
     await this.castingRepository.save(casting);
 
+    const initialRound = Round.create(1, casting.id, []);
+    await this.roundRepository.save(initialRound);
+
+    const castingWithRound = casting.addRound(initialRound);
+
     logger.info({ castingId: casting.id }, 'CreateCastingUseCase: completed');
-    return casting;
+    return castingWithRound;
   }
 }

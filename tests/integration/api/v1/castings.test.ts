@@ -17,7 +17,7 @@ beforeEach(async () => {
 });
 
 describe('POST /api/v1/castings', () => {
-  it('should create a casting with director as participant (201)', async () => {
+  it('should create a casting with director as participant and initial round (201)', async () => {
     await prisma.user.create({
       data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
     });
@@ -38,6 +38,8 @@ describe('POST /api/v1/castings', () => {
     expect(res.body.participants).toHaveLength(1);
     expect(res.body.participants[0].role).toBe('director');
     expect(res.body.participants[0].userId).toBe('user-1');
+    expect(res.body.rounds).toHaveLength(1);
+    expect(res.body.rounds[0].number).toBe(1);
   });
 
   it('should create a new user as director when user does not exist (201)', async () => {
@@ -55,6 +57,8 @@ describe('POST /api/v1/castings', () => {
     expect(res.body.title).toBe('Casting Principal');
     expect(res.body.participants).toHaveLength(1);
     expect(res.body.participants[0].role).toBe('director');
+    expect(res.body.rounds).toHaveLength(1);
+    expect(res.body.rounds[0].number).toBe(1);
 
     const user = await prisma.user.findUnique({ where: { email: 'new@test.com' } });
     expect(user).not.toBeNull();
@@ -103,7 +107,7 @@ describe('GET /api/v1/castings', () => {
 });
 
 describe('GET /api/v1/castings/:id', () => {
-  it('should return a casting with participants (200)', async () => {
+  it('should return a casting with participants and rounds (200)', async () => {
     await prisma.user.create({
       data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
     });
@@ -113,6 +117,9 @@ describe('GET /api/v1/castings/:id', () => {
     await prisma.participant.create({
       data: { userId: 'user-1', castingId: 'casting-1', role: 'director' },
     });
+    await prisma.round.create({
+      data: { id: 'round-1', number: 1, castingId: 'casting-1' },
+    });
 
     const res = await request(app).get('/api/v1/castings/casting-1');
 
@@ -120,7 +127,8 @@ describe('GET /api/v1/castings/:id', () => {
     expect(res.body.title).toBe('Casting Test');
     expect(res.body.participants).toHaveLength(1);
     expect(res.body.participants[0].role).toBe('director');
-    expect(res.body.rounds).toBeDefined();
+    expect(res.body.rounds).toHaveLength(1);
+    expect(res.body.rounds[0].number).toBe(1);
   });
 
   it('should return 404 when casting does not exist', async () => {

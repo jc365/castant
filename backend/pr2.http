@@ -96,7 +96,7 @@ content-type: application/json
 GET http://localhost:3000/api/v1/castings
 
 ### 11. Obtener un casting por ID (GET /api/v1/castings/:id)
-@castingId = casting-7f9482ce-24d4-472a-85fc-464b3472d67b
+@castingId = casting-3c12880b-ea04-4097-aaa2-9e1d675b457d
 
 GET http://localhost:3000/api/v1/castings/{{castingId}}
 
@@ -107,7 +107,7 @@ GET http://localhost:3000/api/v1/castings/{{castingId}}
 ### 12. Gestionar participantes en una ronda (POST /api/v1/rounds/participants)
 # Primero necesitamos un roundId. Lo obtenemos del casting creado.
 # En el casting anterior, el sistema crea una ronda inicial automáticamente.
-@roundId = round-1
+@roundId = round-a89417e9-7491-42e2-8d53-2e1ab0ee170f
 
 POST http://localhost:3000/api/v1/rounds/participants
 content-type: application/json
@@ -141,7 +141,7 @@ content-type: application/json
 }
 
 ### 14. Obtener una ronda por ID (GET /api/v1/rounds/:id)
-@roundIdToGet = round-1
+@roundIdToGet = round-a89417e9-7491-42e2-8d53-2e1ab0ee170f
 GET http://localhost:3000/api/v1/rounds/{{roundIdToGet}}
 
 ### 15. Obtener las submissions de una ronda (GET /api/v1/rounds/:id/submissions)
@@ -154,7 +154,7 @@ GET http://localhost:3000/api/v1/rounds/{{roundIdToGet}}/submissions
 ### 16. Enviar un video (POST /api/v1/submissions)
 # Necesitamos el ID del actor (user-actor-1) y el roundId
 @actorId = user-actor-1
-@roundIdForSubmission = round-1
+@roundIdForSubmission = round-a89417e9-7491-42e2-8d53-2e1ab0ee170f
 
 POST http://localhost:3000/api/v1/submissions
 content-type: application/json
@@ -182,14 +182,14 @@ content-type: application/json
 
 ### 18. Revisar un video (PATCH /api/v1/submissions/:id/review)
 # Primero necesitamos un submissionId del paso anterior
-@submissionId = submission-123
+@submissionId = submission-bc435dfa-a092-4e30-ad79-1f505e188b43
 
 PATCH http://localhost:3000/api/v1/submissions/{{submissionId}}/review
 content-type: application/json
 
 {
-    "score": 8,
-    "feedback": "Excelente interpretación. La emoción en la escena final es muy convincente."
+    "score": 4,
+    "feedback": "Floja interpretación. La emoción en la escena final es muy convincente."
 }
 
 ### 19. Revisar otro video

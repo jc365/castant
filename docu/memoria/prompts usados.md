@@ -141,3 +141,37 @@ Nota: Si PrismaRoundRepository o PrismaSubmissionRepository no existen, créalos
 
 
 
+para refactorizar:
+"Refactoriza el sistema para que la generación de IDs sea responsabilidad de las entidades (o de una función centralizada) y no de los casos de uso. El ID se generará en el create de cada entidad.
+
+Cambios:
+
+    Eliminar genUUID de los casos de uso. Cada entidad generará su propio ID en el método create.
+
+    Modificar todas las entidades para que el método create no requiera un ID (o lo reciba como opcional para tests).
+
+    Actualizar todos los casos de uso para que no pasen ID al crear entidades.
+
+    Actualizar tests para reflejar el cambio.
+
+    Eliminar TypedId y toda su lógica.
+
+    Actualizar AGENTS.md.
+
+Ejemplo de entidad (User.ts):
+typescript
+
+export class User {
+  private constructor(
+    private readonly _id: string,
+    private readonly _name: FullName,
+    private readonly _email: Email
+  ) {}
+
+  static create(name: FullName, email: Email, id?: string): User {
+    const finalId = id || genUUID('user');
+    return new User(finalId, name, email);
+  }
+}
+
+IMPORTANTE: No modifiques las importaciones de ningún archivo. No añadas extensiones .js."

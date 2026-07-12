@@ -5,39 +5,40 @@
  * @module domain/entities
  */
 
-import { ActorId, CastingId, RoundId } from '../value-objects/TypedId';
+import genUUID from '../utils/genUUID';
 
 export type RoundParticipantRole = 'actor' | 'preselector';
 
 export interface RoundParticipantEntry {
-  id: ActorId;
+  id: string;
   role: RoundParticipantRole;
 }
 
 export default class Round {
-  private readonly _id: RoundId;
+  private readonly _id: string;
   private readonly _number: number;
-  private readonly _castingId: CastingId;
+  private readonly _castingId: string;
   private readonly _participants: RoundParticipantEntry[];
 
-  static create(id: RoundId, number: number, castingId: CastingId, participants: RoundParticipantEntry[]): Round {
+  static create(number: number, castingId: string, participants: RoundParticipantEntry[], id?: string): Round {
     if (number <= 0) {
       throw new Error('Number must be greater than 0');
     }
     if (participants.length === 0) {
       throw new Error('Participants list cannot be empty');
     }
-    return new Round(id, number, castingId, participants);
+    const finalId = id || genUUID('round');
+    return new Round(finalId, number, castingId, participants);
   }
 
-  private constructor(id: RoundId, number: number, castingId: CastingId, participants: RoundParticipantEntry[]) {
+  private constructor(id: string, number: number, castingId: string, participants: RoundParticipantEntry[]) {
     this._id = id;
     this._number = number;
     this._castingId = castingId;
     this._participants = participants;
   }
 
-  get id(): RoundId {
+  get id(): string {
     return this._id;
   }
 
@@ -45,7 +46,7 @@ export default class Round {
     return this._number;
   }
 
-  get castingId(): CastingId {
+  get castingId(): string {
     return this._castingId;
   }
 
@@ -53,11 +54,11 @@ export default class Round {
     return this._participants;
   }
 
-  get actorIds(): ActorId[] {
+  get actorIds(): string[] {
     return this._participants.filter(p => p.role === 'actor').map(p => p.id);
   }
 
-  get preselectorIds(): ActorId[] {
+  get preselectorIds(): string[] {
     return this._participants.filter(p => p.role === 'preselector').map(p => p.id);
   }
 }

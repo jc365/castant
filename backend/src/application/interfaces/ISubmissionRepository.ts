@@ -4,7 +4,6 @@
  */
 
 import Submission from '../../domain/entities/Submission';
-import { ActorId, RoundId, SubmissionId } from '../../domain/value-objects/TypedId';
 
 /**
  * Interface for the repository operations related to submissions.
@@ -15,21 +14,21 @@ export default interface ISubmissionRepository {
    * @param id - The unique identifier of the submission.
    * @returns A Promise that resolves to the found submission or null if not found.
    */
-  findById(id: SubmissionId): Promise<Submission | null>;
+  findById(id: string): Promise<Submission | null>;
 
   /**
    * Finds all submissions for a specific round.
    * @param roundId - The unique identifier of the round.
    * @returns A Promise that resolves to an array of submissions.
    */
-  findByRoundId(roundId: RoundId): Promise<Submission[]>;
+  findByRoundId(roundId: string): Promise<Submission[]>;
 
   /**
    * Finds all submissions made by a specific actor.
    * @param actorId - The unique identifier of the actor.
    * @returns A Promise that resolves to an array of submissions.
    */
-  findByActorId(actorId: ActorId): Promise<Submission[]>;
+  findByActorId(actorId: string): Promise<Submission[]>;
 
   /**
    * Saves a submission entity into the database.
@@ -43,5 +42,5 @@ export default interface ISubmissionRepository {
    * @param id - The unique identifier of the submission.
    * @returns A Promise that resolves when the deletion is completed.
    */
-  delete(id: SubmissionId): Promise<void>;
+  delete(id: string): Promise<void>;
 }

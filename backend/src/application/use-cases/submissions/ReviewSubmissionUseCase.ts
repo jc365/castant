@@ -6,7 +6,6 @@
 import Submission from '../../../domain/entities/Submission';
 import Score from '../../../domain/value-objects/Score';
 import Feedback from '../../../domain/value-objects/Feedback';
-import EntityId from '../../../domain/value-objects/TypedId';
 import ISubmissionRepository from '../../interfaces/ISubmissionRepository';
 import IRoundRepository from '../../interfaces/IRoundRepository';
 import ICastingRepository from '../../interfaces/ICastingRepository';
@@ -21,12 +20,11 @@ export class ReviewSubmissionUseCase {
   ) {}
 
   async execute(input: ReviewSubmissionInput): Promise<Submission> {
-    const { submissionId, score, feedback } = input;
+    const { submissionId, score, feedback, directorId } = input;
 
     logger.info({ submissionId }, 'ReviewSubmissionUseCase: starting');
 
-    const typedSubmissionId = EntityId.create<'Submission'>(submissionId);
-    const submission = await this.submissionRepository.findById(typedSubmissionId);
+    const submission = await this.submissionRepository.findById(submissionId);
     if (!submission) {
       logger.error({ submissionId }, 'ReviewSubmissionUseCase: submission not found');
       throw new Error('Submission not found');
@@ -44,7 +42,13 @@ export class ReviewSubmissionUseCase {
       throw new Error('Casting not found');
     }
 
-    // Director validation skipped in demo mode
+    if (directorId) {
+      const isDirector = casting.directorIds.some(id => id === directorId);
+      if (!isDirector) {
+        logger.error({ submissionId, directorId }, 'ReviewSubmissionUseCase: not authorized');
+        throw new Error('User is not the director of this casting');
+      }
+    }
 
     if (submission.status !== 'pending') {
       logger.error({ submissionId, status: submission.status }, 'ReviewSubmissionUseCase: already reviewed');

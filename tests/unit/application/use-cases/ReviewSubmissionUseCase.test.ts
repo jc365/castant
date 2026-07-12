@@ -6,7 +6,6 @@ import ICastingRepository from '../../../../backend/src/application/interfaces/I
 import Submission from '../../../../backend/src/domain/entities/Submission';
 import Round, { type RoundParticipantEntry } from '../../../../backend/src/domain/entities/Round';
 import Casting from '../../../../backend/src/domain/entities/Casting';
-import EntityId from '../../../../backend/src/domain/value-objects/TypedId';
 import VideoUrl from '../../../../backend/src/domain/value-objects/VideoUrl';
 import CastingTitle from '../../../../backend/src/domain/value-objects/CastingTitle';
 import Description from '../../../../backend/src/domain/value-objects/Description';
@@ -19,16 +18,12 @@ describe('ReviewSubmissionUseCase', () => {
   let roundRepo: jest.Mocked<IRoundRepository>;
   let castingRepo: jest.Mocked<ICastingRepository>;
 
-  const userId = EntityId.create<'User'>('user-1');
-  const roundId = EntityId.create<'Round'>('round-1');
-  const castingId = EntityId.create<'Casting'>('casting-1');
-  const directorId = EntityId.create<'Director'>('director-1');
-  const submissionId = EntityId.create<'Submission'>('submission-1');
-
-  const participants: RoundParticipantEntry[] = [{ id: userId, role: 'actor' }];
-  const round = Round.create(roundId, 1, castingId, participants);
-  const casting = Casting.create(castingId, CastingTitle.create('Test Casting'), Description.create('A test'), directorId);
-  const submission = Submission.create(submissionId, userId, roundId, VideoUrl.create('https://youtube.com/watch?v=abc123'));
+  const participants: RoundParticipantEntry[] = [{ id: 'user-1', role: 'actor' }];
+  const round = Round.create(1, 'casting-1', participants, 'round-1');
+  const casting = Casting.create(CastingTitle.create('Test Casting'), Description.create('A test'), [
+    { userId: 'director-1', role: 'director' },
+  ], 'casting-1');
+  const submission = Submission.create('user-1', 'round-1', VideoUrl.create('https://youtube.com/watch?v=abc123'), 'submission-1');
 
   beforeEach(() => {
     submissionRepo = {
@@ -46,7 +41,7 @@ describe('ReviewSubmissionUseCase', () => {
     };
     castingRepo = {
       findById: vi.fn(),
-      findByDirectorId: vi.fn(),
+      findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
     };
@@ -69,6 +64,40 @@ describe('ReviewSubmissionUseCase', () => {
     expect(result.score.getValue()).toBe(8);
     expect(result.feedback.getValue()).toBe('Great performance!');
     expect(submissionRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('should review when directorId is provided and user is director', async () => {
+    submissionRepo.findById.mockResolvedValue(submission);
+    roundRepo.findById.mockResolvedValue(round);
+    castingRepo.findById.mockResolvedValue(casting);
+    submissionRepo.save.mockResolvedValue();
+
+    const result = await useCase.execute({
+      submissionId: 'submission-1',
+      score: 8,
+      feedback: 'Great performance!',
+      directorId: 'director-1',
+    });
+
+    expect(result.status).toBe('reviewed');
+    expect(submissionRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('should throw when directorId is provided but user is not director', async () => {
+    submissionRepo.findById.mockResolvedValue(submission);
+    roundRepo.findById.mockResolvedValue(round);
+    castingRepo.findById.mockResolvedValue(casting);
+
+    await expect(
+      useCase.execute({
+        submissionId: 'submission-1',
+        score: 8,
+        feedback: 'Good',
+        directorId: 'not-a-director',
+      })
+    ).rejects.toThrow('User is not the director of this casting');
+
+    expect(submissionRepo.save).not.toHaveBeenCalled();
   });
 
   it('should throw when submission is not found', async () => {

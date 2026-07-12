@@ -9,20 +9,23 @@ import prisma from '../../../../backend/src/infrastructure/persistence/prismaCli
 
 beforeEach(async () => {
   await prisma.roundActor.deleteMany();
+  await prisma.participant.deleteMany();
   await prisma.submission.deleteMany();
   await prisma.round.deleteMany();
   await prisma.casting.deleteMany();
-  await prisma.director.deleteMany();
   await prisma.user.deleteMany();
 });
 
 describe('POST /api/v1/rounds/select', () => {
   it('should create a new round with selected actors (201)', async () => {
-    await prisma.director.create({
-      data: { id: 'dir-1', name: 'Test Director', email: 'dir@test.com' },
+    await prisma.user.create({
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
     });
     const casting = await prisma.casting.create({
-      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc', directorId: 'dir-1' },
+      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
+    });
+    await prisma.participant.create({
+      data: { userId: 'user-1', castingId: casting.id, role: 'director' },
     });
     await prisma.user.create({
       data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
@@ -67,11 +70,11 @@ describe('POST /api/v1/rounds/select', () => {
   });
 
   it('should return 400 when actor is not invited to the round', async () => {
-    await prisma.director.create({
-      data: { id: 'dir-1', name: 'Test Director', email: 'dir@test.com' },
+    await prisma.user.create({
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
     });
     await prisma.casting.create({
-      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc', directorId: 'dir-1' },
+      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
     });
     await prisma.user.create({
       data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
@@ -98,11 +101,11 @@ describe('POST /api/v1/rounds/select', () => {
   });
 
   it('should return 400 when selected actors list is empty', async () => {
-    await prisma.director.create({
-      data: { id: 'dir-1', name: 'Test Director', email: 'dir@test.com' },
+    await prisma.user.create({
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
     });
     await prisma.casting.create({
-      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc', directorId: 'dir-1' },
+      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
     });
     await prisma.user.create({
       data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },

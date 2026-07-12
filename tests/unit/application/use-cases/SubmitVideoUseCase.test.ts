@@ -5,7 +5,6 @@ import IRoundRepository from '../../../../backend/src/application/interfaces/IRo
 import ISubmissionRepository from '../../../../backend/src/application/interfaces/ISubmissionRepository';
 import User from '../../../../backend/src/domain/entities/User';
 import Round, { type RoundParticipantEntry } from '../../../../backend/src/domain/entities/Round';
-import EntityId from '../../../../backend/src/domain/value-objects/TypedId';
 import Email from '../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../backend/src/domain/value-objects/FullName';
 
@@ -14,10 +13,6 @@ describe('SubmitVideoUseCase', () => {
   let userRepo: jest.Mocked<IUserRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
   let submissionRepo: jest.Mocked<ISubmissionRepository>;
-
-  const userId = EntityId.create<'User'>('user-1');
-  const roundId = EntityId.create<'Round'>('round-1');
-  const castingId = EntityId.create<'Casting'>('casting-1');
 
   beforeEach(() => {
     userRepo = {
@@ -43,9 +38,9 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should create a submission when user is invited to round', async () => {
-    const user = User.create(userId, FullName.create('John Doe'), Email.create('john@test.com'));
-    const participants: RoundParticipantEntry[] = [{ id: userId, role: 'actor' }];
-    const round = Round.create(roundId, 1, castingId, participants);
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const participants: RoundParticipantEntry[] = [{ id: 'user-1', role: 'actor' }];
+    const round = Round.create(1, 'casting-1', participants, 'round-1');
 
     userRepo.findById.mockResolvedValue(user);
     roundRepo.findById.mockResolvedValue(round);
@@ -57,8 +52,8 @@ describe('SubmitVideoUseCase', () => {
       videoUrl: 'https://youtube.com/watch?v=abc123',
     });
 
-    expect(result.actorId.getValue()).toBe('user-1');
-    expect(result.roundId.getValue()).toBe('round-1');
+    expect(result.actorId).toBe('user-1');
+    expect(result.roundId).toBe('round-1');
     expect(result.videoUrl.getValue()).toBe('https://youtube.com/watch?v=abc123');
     expect(result.status).toBe('pending');
     expect(submissionRepo.save).toHaveBeenCalledTimes(1);
@@ -79,7 +74,7 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should throw when round is not found', async () => {
-    const user = User.create(userId, FullName.create('John Doe'), Email.create('john@test.com'));
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
     userRepo.findById.mockResolvedValue(user);
     roundRepo.findById.mockResolvedValue(null);
 
@@ -95,10 +90,9 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should throw when user is not invited to round', async () => {
-    const otherUserId = EntityId.create<'User'>('user-other');
-    const user = User.create(userId, FullName.create('John Doe'), Email.create('john@test.com'));
-    const participants: RoundParticipantEntry[] = [{ id: otherUserId, role: 'actor' }];
-    const round = Round.create(roundId, 1, castingId, participants);
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const participants: RoundParticipantEntry[] = [{ id: 'user-other', role: 'actor' }];
+    const round = Round.create(1, 'casting-1', participants, 'round-1');
 
     userRepo.findById.mockResolvedValue(user);
     roundRepo.findById.mockResolvedValue(round);
@@ -115,9 +109,9 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should throw when video URL is invalid', async () => {
-    const user = User.create(userId, FullName.create('John Doe'), Email.create('john@test.com'));
-    const participants: RoundParticipantEntry[] = [{ id: userId, role: 'actor' }];
-    const round = Round.create(roundId, 1, castingId, participants);
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const participants: RoundParticipantEntry[] = [{ id: 'user-1', role: 'actor' }];
+    const round = Round.create(1, 'casting-1', participants, 'round-1');
 
     userRepo.findById.mockResolvedValue(user);
     roundRepo.findById.mockResolvedValue(round);

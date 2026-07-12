@@ -6,14 +6,13 @@
 import User from '../../domain/entities/User';
 import Email from '../../domain/value-objects/Email';
 import FullName from '../../domain/value-objects/FullName';
-import EntityId, { type UserId } from '../../domain/value-objects/TypedId';
 import type IUserRepository from '../../application/interfaces/IUserRepository';
 import prisma from './prismaClient';
 
 export default class PrismaUserRepository implements IUserRepository {
-  async findById(id: UserId): Promise<User | null> {
+  async findById(id: string): Promise<User | null> {
     const record = await prisma.user.findUnique({
-      where: { id: id.getValue() },
+      where: { id },
     });
     if (!record) return null;
     return this.toDomain(record);
@@ -29,9 +28,9 @@ export default class PrismaUserRepository implements IUserRepository {
 
   async save(user: User): Promise<void> {
     await prisma.user.upsert({
-      where: { id: user.id.getValue() },
+      where: { id: user.id },
       create: {
-        id: user.id.getValue(),
+        id: user.id,
         name: user.name.getValue(),
         email: user.email.getValue(),
       },
@@ -42,17 +41,16 @@ export default class PrismaUserRepository implements IUserRepository {
     });
   }
 
-  async delete(id: UserId): Promise<void> {
+  async delete(id: string): Promise<void> {
     await prisma.user.delete({
-      where: { id: id.getValue() },
+      where: { id },
     });
   }
 
   private toDomain(record: { id: string; name: string; email: string }): User {
-    const userId = EntityId.create<'User'>(record.id);
     const userName = FullName.create(record.name);
     const userEmail = Email.create(record.email);
-    return User.create(userId, userName, userEmail);
+    return User.create(userName, userEmail, record.id);
   }
 }
 

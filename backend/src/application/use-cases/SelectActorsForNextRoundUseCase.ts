@@ -4,7 +4,6 @@
  */
 
 import Round, { type RoundParticipantEntry } from '../../domain/entities/Round';
-import EntityId from '../../domain/value-objects/TypedId';
 import IRoundRepository from '../interfaces/IRoundRepository';
 import ISubmissionRepository from '../interfaces/ISubmissionRepository';
 import { SelectActorsInput } from '../dtos';
@@ -21,14 +20,13 @@ export class SelectActorsForNextRoundUseCase {
 
     logger.info({ roundId, selectedActorIds }, 'SelectActorsForNextRoundUseCase: starting');
 
-    const typedRoundId = EntityId.create<'Round'>(roundId);
-    const currentRound = await this.roundRepository.findById(typedRoundId);
+    const currentRound = await this.roundRepository.findById(roundId);
     if (!currentRound) {
       logger.error({ roundId }, 'SelectActorsForNextRoundUseCase: round not found');
       throw new Error(`Round ${roundId} not found`);
     }
 
-    const currentActorIds = currentRound.participants.map(p => p.id.getValue());
+    const currentActorIds = currentRound.participants.map(p => p.id);
     for (const actorId of selectedActorIds) {
       if (!currentActorIds.includes(actorId)) {
         logger.error({ actorId, roundId }, 'SelectActorsForNextRoundUseCase: actor not invited');
@@ -42,17 +40,16 @@ export class SelectActorsForNextRoundUseCase {
     }
 
     const participants: RoundParticipantEntry[] = selectedActorIds.map(id => ({
-      id: EntityId.create<'Actor'>(id),
+      id,
       role: 'actor' as const,
     }));
 
-    const newRoundId = EntityId.create<'Round'>(crypto.randomUUID());
     const nextNumber = currentRound.number + 1;
-    const newRound = Round.create(newRoundId, nextNumber, currentRound.castingId, participants);
+    const newRound = Round.create(nextNumber, currentRound.castingId, participants);
 
     await this.roundRepository.save(newRound);
 
-    logger.info({ newRoundId: newRoundId.getValue() }, 'SelectActorsForNextRoundUseCase: completed');
+    logger.info({ newRoundId: newRound.id }, 'SelectActorsForNextRoundUseCase: completed');
     return newRound;
   }
 }

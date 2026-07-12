@@ -4,7 +4,6 @@
  */
 
 import Round from '../../domain/entities/Round';
-import { CastingId, RoundId } from '../../domain/value-objects/TypedId';
 
 /**
  * Interface for the repository operations related to rounds.
@@ -15,14 +14,14 @@ export default interface IRoundRepository {
    * @param id - The unique identifier of the round.
    * @returns A Promise that resolves to the found round or null if not found.
    */
-  findById(id: RoundId): Promise<Round | null>;
+  findById(id: string): Promise<Round | null>;
 
   /**
    * Finds all rounds belonging to a specific casting.
    * @param castingId - The unique identifier of the casting.
    * @returns A Promise that resolves to an array of rounds.
    */
-  findByCastingId(castingId: CastingId): Promise<Round[]>;
+  findByCastingId(castingId: string): Promise<Round[]>;
 
   /**
    * Saves a round entity into the database.
@@ -36,5 +35,5 @@ export default interface IRoundRepository {
    * @param id - The unique identifier of the round.
    * @returns A Promise that resolves when the deletion is completed.
    */
-  delete(id: RoundId): Promise<void>;
+  delete(id: string): Promise<void>;
 }

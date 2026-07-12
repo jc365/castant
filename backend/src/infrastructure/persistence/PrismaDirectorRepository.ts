@@ -6,14 +6,13 @@
 import Director from '../../domain/entities/Director';
 import Email from '../../domain/value-objects/Email';
 import FullName from '../../domain/value-objects/FullName';
-import EntityId, { type DirectorId } from '../../domain/value-objects/TypedId';
 import type IDirectorRepository from '../../application/interfaces/IDirectorRepository';
 import prisma from './prismaClient';
 
 export default class PrismaDirectorRepository implements IDirectorRepository {
-  async findById(id: DirectorId): Promise<Director | null> {
+  async findById(id: string): Promise<Director | null> {
     const record = await prisma.director.findUnique({
-      where: { id: id.getValue() },
+      where: { id },
     });
     if (!record) return null;
     return this.toDomain(record);
@@ -21,9 +20,9 @@ export default class PrismaDirectorRepository implements IDirectorRepository {
 
   async save(director: Director): Promise<void> {
     await prisma.director.upsert({
-      where: { id: director.id.getValue() },
+      where: { id: director.id },
       create: {
-        id: director.id.getValue(),
+        id: director.id,
         name: director.name.getValue(),
         email: director.email.getValue(),
       },
@@ -34,16 +33,15 @@ export default class PrismaDirectorRepository implements IDirectorRepository {
     });
   }
 
-  async delete(id: DirectorId): Promise<void> {
+  async delete(id: string): Promise<void> {
     await prisma.director.delete({
-      where: { id: id.getValue() },
+      where: { id },
     });
   }
 
   private toDomain(record: { id: string; name: string; email: string }): Director {
-    const directorId = EntityId.create<'Director'>(record.id);
     const directorName = FullName.create(record.name);
     const directorEmail = Email.create(record.email);
-    return Director.create(directorId, directorName, directorEmail);
+    return Director.create(directorName, directorEmail, record.id);
   }
 }

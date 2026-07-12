@@ -4,7 +4,6 @@
  */
 
 import Casting from '../../domain/entities/Casting';
-import { CastingId, DirectorId } from '../../domain/value-objects/TypedId';
 
 /**
  * Interface for the repository operations related to castings.
@@ -15,14 +14,13 @@ export default interface ICastingRepository {
    * @param id - The unique identifier of the casting.
    * @returns A Promise that resolves to the found casting or null if not found.
    */
-  findById(id: CastingId): Promise<Casting | null>;
+  findById(id: string): Promise<Casting | null>;
 
   /**
-   * Finds all castings created by a specific director.
-   * @param directorId - The unique identifier of the director.
-   * @returns A Promise that resolves to an array of castings.
+   * Finds all castings.
+   * @returns A Promise that resolves to an array of all castings.
    */
-  findByDirectorId(directorId: DirectorId): Promise<Casting[]>;
+  findAll(): Promise<Casting[]>;
 
   /**
    * Saves a casting entity into the database.
@@ -36,5 +34,5 @@ export default interface ICastingRepository {
    * @param id - The unique identifier of the casting.
    * @returns A Promise that resolves when the deletion is completed.
    */
-  delete(id: CastingId): Promise<void>;
+  delete(id: string): Promise<void>;
 }

@@ -4,23 +4,22 @@
  */
 
 import Round, { type RoundParticipantEntry, type RoundParticipantRole } from '../../domain/entities/Round';
-import EntityId, { type CastingId, type RoundId, type ActorId } from '../../domain/value-objects/TypedId';
 import type IRoundRepository from '../../application/interfaces/IRoundRepository';
 import prisma from './prismaClient';
 
 export default class PrismaRoundRepository implements IRoundRepository {
-  async findById(id: RoundId): Promise<Round | null> {
+  async findById(id: string): Promise<Round | null> {
     const record = await prisma.round.findUnique({
-      where: { id: id.getValue() },
+      where: { id },
       include: { actors: true },
     });
     if (!record) return null;
     return this.toDomain(record);
   }
 
-  async findByCastingId(castingId: CastingId): Promise<Round[]> {
+  async findByCastingId(castingId: string): Promise<Round[]> {
     const records = await prisma.round.findMany({
-      where: { castingId: castingId.getValue() },
+      where: { castingId },
       include: { actors: true },
     });
     return records.map((r) => this.toDomain(r));
@@ -28,14 +27,14 @@ export default class PrismaRoundRepository implements IRoundRepository {
 
   async save(round: Round): Promise<void> {
     await prisma.round.upsert({
-      where: { id: round.id.getValue() },
+      where: { id: round.id },
       create: {
-        id: round.id.getValue(),
+        id: round.id,
         number: round.number,
-        castingId: round.castingId.getValue(),
+        castingId: round.castingId,
         actors: {
           create: round.participants.map((entry) => ({
-            actorId: entry.id.getValue(),
+            actorId: entry.id,
             role: entry.role,
           })),
         },
@@ -45,7 +44,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
         actors: {
           deleteMany: {},
           create: round.participants.map((entry) => ({
-            actorId: entry.id.getValue(),
+            actorId: entry.id,
             role: entry.role,
           })),
         },
@@ -53,22 +52,20 @@ export default class PrismaRoundRepository implements IRoundRepository {
     });
   }
 
-  async delete(id: RoundId): Promise<void> {
+  async delete(id: string): Promise<void> {
     await prisma.roundActor.deleteMany({
-      where: { roundId: id.getValue() },
+      where: { roundId: id },
     });
     await prisma.round.delete({
-      where: { id: id.getValue() },
+      where: { id },
     });
   }
 
   private toDomain(record: { id: string; number: number; castingId: string; actors: { actorId: string; role: string }[] }): Round {
-    const roundId = EntityId.create<'Round'>(record.id);
-    const castingId = EntityId.create<'Casting'>(record.castingId);
     const participants: RoundParticipantEntry[] = record.actors.map((a) => ({
-      id: EntityId.create<'Actor'>(a.actorId),
+      id: a.actorId,
       role: a.role as RoundParticipantRole,
     }));
-    return Round.create(roundId, record.number, castingId, participants);
+    return Round.create(record.number, record.castingId, participants, record.id);
   }
 }

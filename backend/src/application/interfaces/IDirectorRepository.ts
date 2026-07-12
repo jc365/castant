@@ -4,7 +4,6 @@
  */
 
 import Director from '../../domain/entities/Director';
-import { DirectorId } from '../../domain/value-objects/TypedId';
 
 /**
  * Interface for the repository operations related to directors.
@@ -15,7 +14,7 @@ export default interface IDirectorRepository {
    * @param id - The unique identifier of the director.
    * @returns A Promise that resolves to the found director or null if not found.
    */
-  findById(id: DirectorId): Promise<Director | null>;
+  findById(id: string): Promise<Director | null>;
 
   /**
    * Saves a director entity into the database.
@@ -29,5 +28,5 @@ export default interface IDirectorRepository {
    * @param id - The unique identifier of the director.
    * @returns A Promise that resolves when the deletion is completed.
    */
-  delete(id: DirectorId): Promise<void>;
+  delete(id: string): Promise<void>;
 }

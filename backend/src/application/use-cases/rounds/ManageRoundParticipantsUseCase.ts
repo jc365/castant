@@ -7,7 +7,6 @@ import User from '../../../domain/entities/User';
 import Round, { type RoundParticipantEntry, type RoundParticipantRole } from '../../../domain/entities/Round';
 import Email from '../../../domain/value-objects/Email';
 import FullName from '../../../domain/value-objects/FullName';
-import EntityId from '../../../domain/value-objects/TypedId';
 import IUserRepository from '../../interfaces/IUserRepository';
 import IRoundRepository from '../../interfaces/IRoundRepository';
 import { ManageRoundParticipantsInput } from '../../dtos';
@@ -24,8 +23,7 @@ export class ManageRoundParticipantsUseCase {
 
     logger.info({ roundId, actorCount: actorInputs.length, preselectorCount: preselectorInputs.length }, 'ManageRoundParticipantsUseCase: starting');
 
-    const typedRoundId = EntityId.create<'Round'>(roundId);
-    const currentRound = await this.roundRepository.findById(typedRoundId);
+    const currentRound = await this.roundRepository.findById(roundId);
     if (!currentRound) {
       logger.error({ roundId }, 'ManageRoundParticipantsUseCase: round not found');
       throw new Error(`Round ${roundId} not found`);
@@ -55,24 +53,22 @@ export class ManageRoundParticipantsUseCase {
     ];
 
     if (createNewRound) {
-      const newRoundId = EntityId.create<'Round'>(crypto.randomUUID());
       const newNumber = currentRound.number + 1;
       const newRound = Round.create(
-        newRoundId,
         newNumber,
         currentRound.castingId,
         updatedParticipants
       );
       await this.roundRepository.save(newRound);
-      logger.info({ newRoundId: newRoundId.getValue() }, 'ManageRoundParticipantsUseCase: created new round');
+      logger.info({ newRoundId: newRound.id }, 'ManageRoundParticipantsUseCase: created new round');
       return newRound;
     }
 
     const updatedRound = Round.create(
-      currentRound.id,
       currentRound.number,
       currentRound.castingId,
-      updatedParticipants
+      updatedParticipants,
+      currentRound.id
     );
     await this.roundRepository.save(updatedRound);
     logger.info({ roundId }, 'ManageRoundParticipantsUseCase: completed');
@@ -87,14 +83,13 @@ export class ManageRoundParticipantsUseCase {
       let user = await this.userRepository.findByEmail(email.getValue());
 
       if (!user) {
-        const userId = EntityId.create<'User'>(crypto.randomUUID());
         const name = FullName.create(input.name || input.email.split('@')[0]);
-        user = User.create(userId, name, email);
+        user = User.create(name, email);
         await this.userRepository.save(user);
-        logger.info({ userId: userId.getValue(), email: input.email }, 'ManageRoundParticipantsUseCase: created new participant');
+        logger.info({ userId: user.id, email: input.email }, 'ManageRoundParticipantsUseCase: created new participant');
       }
 
-      ids.add(user.id.getValue());
+      ids.add(user.id);
     }
 
     return ids;
@@ -108,13 +103,13 @@ export class ManageRoundParticipantsUseCase {
 
     const combinedIds = new Set(
       [
-        ...currentParticipants.filter(p => p.role === role).map(p => p.id.getValue()),
+        ...currentParticipants.filter(p => p.role === role).map(p => p.id),
         ...newIds,
       ]
     );
 
     return Array.from(combinedIds).map(id => ({
-      id: EntityId.create<'User'>(id),
+      id,
       role,
     }));
   }

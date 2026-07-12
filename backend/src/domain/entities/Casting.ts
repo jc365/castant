@@ -5,31 +5,46 @@
 
 import CastingTitle from '../value-objects/CastingTitle';
 import Description from '../value-objects/Description';
-import { CastingId, DirectorId } from '../value-objects/TypedId';
+import genUUID from '../utils/genUUID';
+
+export type CastingParticipantRole = 'director' | 'reviewer';
+
+export interface CastingParticipantEntry {
+  userId: string;
+  role: CastingParticipantRole;
+}
 
 export default class Casting {
-  private _id: CastingId;
+  private _id: string;
   private _title: CastingTitle;
   private _description: Description;
-  private _directorId: DirectorId;
+  private _participants: CastingParticipantEntry[];
   private _rounds: any[];
 
-  private constructor(id: CastingId, title: CastingTitle, description: Description, directorId: DirectorId) {
+  private constructor(
+    id: string,
+    title: CastingTitle,
+    description: Description,
+    participants: CastingParticipantEntry[]
+  ) {
     this._id = id;
     this._title = title;
     this._description = description;
-    this._directorId = directorId;
+    this._participants = participants;
     this._rounds = [];
   }
 
-  /**
-   * Crea una nueva instancia de Casting.
-   */
-  static create(id: CastingId, title: CastingTitle, description: Description, directorId: DirectorId): Casting {
-    return new Casting(id, title, description, directorId);
+  static create(
+    title: CastingTitle,
+    description: Description,
+    participants: CastingParticipantEntry[] = [],
+    id?: string
+  ): Casting {
+    const finalId = id || genUUID('casting');
+    return new Casting(finalId, title, description, participants);
   }
 
-  public get id(): CastingId {
+  public get id(): string {
     return this._id;
   }
 
@@ -41,8 +56,14 @@ export default class Casting {
     return this._description.getValue();
   }
 
-  public get directorId(): DirectorId {
-    return this._directorId;
+  public get participants(): CastingParticipantEntry[] {
+    return [...this._participants];
+  }
+
+  public get directorIds(): string[] {
+    return this._participants
+      .filter(p => p.role === 'director')
+      .map(p => p.userId);
   }
 
   public get rounds(): any[] {
@@ -50,9 +71,8 @@ export default class Casting {
   }
 
   public addRound(round: any): Casting {
-    const newCasting = new Casting(this._id, this._title, this._description, this._directorId);
+    const newCasting = new Casting(this._id, this._title, this._description, this._participants);
     newCasting._rounds = [...this._rounds, round];
     return newCasting;
   }
 }
-

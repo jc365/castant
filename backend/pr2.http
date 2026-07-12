@@ -1,0 +1,239 @@
+### ============================================
+### HEALTH CHECK
+### ============================================
+GET http://localhost:3000/health
+
+### ============================================
+### USERS (CREACIÓN Y GESTIÓN)
+### ============================================
+
+### 1. Crear un usuario SIN ID (auto-generado) — ✅ NUEVO
+POST http://localhost:3000/api/v1/users
+content-type: application/json
+
+{
+    "name": "Usuario Auto Generado",
+    "email": "auto.generado@example.com"
+}
+
+### 2. Crear un usuario CON ID específico
+POST http://localhost:3000/api/v1/users
+content-type: application/json
+
+{
+    "id": "user-director-1",
+    "name": "Director Ejemplo",
+    "email": "director@example.com"
+}
+
+### 3. Crear otro usuario CON ID específico
+POST http://localhost:3000/api/v1/users
+content-type: application/json
+
+{
+    "id": "user-actor-1",
+    "name": "Juan Pérez",
+    "email": "juan.perez@example.com"
+}
+
+### 4. Crear otro usuario CON ID específico
+POST http://localhost:3000/api/v1/users
+content-type: application/json
+
+{
+    "id": "user-actor-2",
+    "name": "María García",
+    "email": "maria.garcia@example.com"
+}
+
+### 5. Crear otro usuario CON ID específico
+POST http://localhost:3000/api/v1/users
+content-type: application/json
+
+{
+    "id": "user-preselector-1",
+    "name": "Preselector Ejemplo",
+    "email": "preselector@example.com"
+}
+
+### 6. Obtener un usuario por ID (GET /api/v1/users/:id)
+@userId = user-director-1
+GET http://localhost:3000/api/v1/users/{{userId}}
+
+### 7. Eliminar un usuario (DELETE /api/v1/users/:id)
+@userToDelete = user-actor-2
+DELETE http://localhost:3000/api/v1/users/{{userToDelete}}
+
+### ============================================
+### CASTINGS (CREACIÓN Y GESTIÓN)
+### ============================================
+
+### 8. Crear un casting (POST /api/v1/castings)
+# El director se crea/encuentra por email. Si no existe, se crea automáticamente.
+# Usa el email del director creado en el paso 2.
+POST http://localhost:3000/api/v1/castings
+content-type: application/json
+
+{
+    "title": "Casting para película de acción",
+    "description": "Buscamos protagonista para película de acción. Edad entre 25-35 años.",
+    "directorEmail": "director@example.com",
+    "directorName": "Director Ejemplo"
+}
+
+### 9. Crear otro casting
+POST http://localhost:3000/api/v1/castings
+content-type: application/json
+
+{
+    "title": "Casting para serie de TV",
+    "description": "Buscamos actor para serie de TV. Edad entre 20-30 años.",
+    "directorEmail": "director@example.com",
+    "directorName": "Director Ejemplo"
+}
+
+### 10. Listar todos los castings (GET /api/v1/castings)
+GET http://localhost:3000/api/v1/castings
+
+### 11. Obtener un casting por ID (GET /api/v1/castings/:id)
+@castingId = casting-7f9482ce-24d4-472a-85fc-464b3472d67b
+
+GET http://localhost:3000/api/v1/castings/{{castingId}}
+
+### ============================================
+### ROUNDS (GESTIÓN DE PARTICIPANTES)
+### ============================================
+
+### 12. Gestionar participantes en una ronda (POST /api/v1/rounds/participants)
+# Primero necesitamos un roundId. Lo obtenemos del casting creado.
+# En el casting anterior, el sistema crea una ronda inicial automáticamente.
+@roundId = round-1
+
+POST http://localhost:3000/api/v1/rounds/participants
+content-type: application/json
+
+{
+    "roundId": "{{roundId}}",
+    "actors": [
+        { "email": "juan.perez@example.com", "name": "Juan Pérez" },
+        { "email": "maria.garcia@example.com", "name": "María García" },
+        { "email": "actor3@example.com", "name": "Actor Tres" }
+    ],
+    "preselectors": [
+        { "email": "preselector@example.com", "name": "Preselector Ejemplo" }
+    ],
+    "createNewRound": false
+}
+
+### 13. Crear una nueva ronda con actores seleccionados (POST /api/v1/rounds/participants)
+# Selecciona algunos actores de la ronda actual para la siguiente ronda
+POST http://localhost:3000/api/v1/rounds/participants
+content-type: application/json
+
+{
+    "roundId": "{{roundId}}",
+    "actors": [
+        { "email": "juan.perez@example.com", "name": "Juan Pérez" },
+        { "email": "maria.garcia@example.com", "name": "María García" }
+    ],
+    "preselectors": [],
+    "createNewRound": true
+}
+
+### 14. Obtener una ronda por ID (GET /api/v1/rounds/:id)
+@roundIdToGet = round-1
+GET http://localhost:3000/api/v1/rounds/{{roundIdToGet}}
+
+### 15. Obtener las submissions de una ronda (GET /api/v1/rounds/:id/submissions)
+GET http://localhost:3000/api/v1/rounds/{{roundIdToGet}}/submissions
+
+### ============================================
+### SUBMISSIONS (ENVÍO DE VIDEOS)
+### ============================================
+
+### 16. Enviar un video (POST /api/v1/submissions)
+# Necesitamos el ID del actor (user-actor-1) y el roundId
+@actorId = user-actor-1
+@roundIdForSubmission = round-1
+
+POST http://localhost:3000/api/v1/submissions
+content-type: application/json
+
+{
+    "actorId": "{{actorId}}",
+    "roundId": "{{roundIdForSubmission}}",
+    "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+}
+
+### 17. Enviar otro video (de otro actor)
+@actorId2 = user-actor-2
+POST http://localhost:3000/api/v1/submissions
+content-type: application/json
+
+{
+    "actorId": "{{actorId2}}",
+    "roundId": "{{roundIdForSubmission}}",
+    "videoUrl": "https://www.youtube.com/watch?v=9bZkp7q19f0"
+}
+
+### ============================================
+### REVIEW (VALORACIÓN DE VIDEOS)
+### ============================================
+
+### 18. Revisar un video (PATCH /api/v1/submissions/:id/review)
+# Primero necesitamos un submissionId del paso anterior
+@submissionId = submission-123
+
+PATCH http://localhost:3000/api/v1/submissions/{{submissionId}}/review
+content-type: application/json
+
+{
+    "score": 8,
+    "feedback": "Excelente interpretación. La emoción en la escena final es muy convincente."
+}
+
+### 19. Revisar otro video
+@submissionId2 = submission-456
+PATCH http://localhost:3000/api/v1/submissions/{{submissionId2}}/review
+content-type: application/json
+
+{
+    "score": 6,
+    "feedback": "Buena actuación, pero necesita mejorar la dicción en las escenas de diálogo."
+}
+
+### ============================================
+### SELECT (SELECCIÓN DE ACTORES PARA SIGUIENTE RONDA)
+### ============================================
+
+### 20. Seleccionar actores para la siguiente ronda (POST /api/v1/rounds/select)
+# Necesitamos un roundId y una lista de actorIds seleccionados
+@roundIdForSelect = round-1
+
+POST http://localhost:3000/api/v1/rounds/select
+content-type: application/json
+
+{
+    "roundId": "{{roundIdForSelect}}",
+    "selectedActorIds": ["user-actor-1", "user-actor-2"]
+}
+
+### ============================================
+### VARIABLES GLOBALES
+### ============================================
+
+@hostname = localhost
+@port = 3000
+@host = {{hostname}}:{{port}}/api/v1
+@contentType = application/json
+@createdAt = {{$datetime iso8601}}
+@modifiedBy = {{$processEnv USERNAME}}
+
+### ============================================
+### EJEMPLO DE USO CON VARIABLES
+### ============================================
+
+### Obtener un usuario usando variables
+@resource = users
+@userIdVar = user-director-1
+GET http://{{host}}/{{resource}}/{{userIdVar}}

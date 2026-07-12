@@ -5,12 +5,12 @@
  * @module domain/entities
  */
 
-import { DirectorId } from '../value-objects/TypedId';
+import genUUID from '../utils/genUUID';
 import Email from '../value-objects/Email';
 import FullName from '../value-objects/FullName';
 
 export default class Director {
-  private readonly _id: DirectorId;
+  private readonly _id: string;
   private readonly _name: FullName;
   private readonly _email: Email;
 
@@ -18,7 +18,7 @@ export default class Director {
    * Private constructor for Director entity.
    * @private
    */
-  private constructor(id: DirectorId, name: FullName, email: Email) {
+  private constructor(id: string, name: FullName, email: Email) {
     this._id = id;
     this._name = name;
     this._email = email;
@@ -26,20 +26,21 @@ export default class Director {
 
   /**
    * Static method to create a new Director instance.
-   * @param {DirectorId} id - The unique identifier for the Director.
    * @param {FullName} name - The name of the Director. Must not be empty.
    * @param {Email} email - The email object representing the Director's email address.
+   * @param {string} [id] - Optional unique identifier for the Director.
    * @returns {Director} A new instance of Director.
    */
-  static create(id: DirectorId, name: FullName, email: Email): Director {
-    return new Director(id, name, email);
+  static create(name: FullName, email: Email, id?: string): Director {
+    const finalId = id || genUUID('director');
+    return new Director(finalId, name, email);
   }
 
   /**
    * Gets the ID of the Director.
-   * @returns {DirectorId} The unique identifier for the Director.
+   * @returns {string} The unique identifier for the Director.
    */
-  get id(): DirectorId {
+  get id(): string {
     return this._id;
   }
 
@@ -59,4 +60,3 @@ export default class Director {
     return this._email;
   }
 }
-

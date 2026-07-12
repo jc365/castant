@@ -5,17 +5,17 @@
  * @module domain/entities
  */
 
-import { UserId } from '../value-objects/TypedId';
+import genUUID from '../utils/genUUID';
 import Email from '../value-objects/Email';
 import FullName from '../value-objects/FullName';
 
 export class User {
-  private readonly _id: UserId;
+  private readonly _id: string;
   private readonly _name: FullName;
   private readonly _email: Email;
   private readonly _submissions: any[];
 
-  private constructor(id: UserId, name: FullName, email: Email, submissions: any[]) {
+  private constructor(id: string, name: FullName, email: Email, submissions: any[]) {
     this._id = id;
     this._name = name;
     this._email = email;
@@ -24,19 +24,20 @@ export class User {
 
   /**
    * @static
-   * @param {UserId} id - Unique identifier for the User.
    * @param {FullName} name - Name of the User.
    * @param {Email} email - Email address of the User.
+   * @param {string} [id] - Optional unique identifier for the User.
    * @returns {User} - A new instance of User.
    */
-  static create(id: UserId, name: FullName, email: Email): User {
-    return new User(id, name, email, []);
+  static create(name: FullName, email: Email, id?: string): User {
+    const finalId = id || genUUID('user');
+    return new User(finalId, name, email, []);
   }
 
   /**
-   * @returns {UserId} - User's unique identifier.
+   * @returns {string} - User's unique identifier.
    */
-  get id(): UserId {
+  get id(): string {
     return this._id;
   }
 

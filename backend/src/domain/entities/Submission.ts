@@ -7,15 +7,15 @@
 
 import Feedback from '../value-objects/Feedback';
 import Score from '../value-objects/Score';
-import { ActorId, RoundId, SubmissionId } from '../value-objects/TypedId';
 import VideoUrl from '../value-objects/VideoUrl';
+import genUUID from '../utils/genUUID';
 
 export type SubmissionStatus = 'pending' | 'reviewed' | 'selected' | 'rejected';
 
 export default class Submission {
-  private readonly _id: SubmissionId;
-  private readonly _actorId: ActorId;
-  private readonly _roundId: RoundId;
+  private readonly _id: string;
+  private readonly _actorId: string;
+  private readonly _roundId: string;
   private readonly _videoUrl: VideoUrl;
   private readonly _status: SubmissionStatus;
   private readonly _score: Score;
@@ -24,8 +24,9 @@ export default class Submission {
   /**
    * Crea una nueva instancia de Submission (estado inicial: 'pending').
    */
-  static create(id: SubmissionId, actorId: ActorId, roundId: RoundId, videoUrl: VideoUrl): Submission {
-    return new Submission(id, actorId, roundId, videoUrl);
+  static create(actorId: string, roundId: string, videoUrl: VideoUrl, id?: string): Submission {
+    const finalId = id || genUUID('submission');
+    return new Submission(finalId, actorId, roundId, videoUrl);
   }
 
   /**
@@ -33,9 +34,9 @@ export default class Submission {
    * Acepta todos los atributos (los opcionales pueden ser null/undefined).
    */
   private constructor(
-    id: SubmissionId,
-    actorId: ActorId,
-    roundId: RoundId,
+    id: string,
+    actorId: string,
+    roundId: string,
     videoUrl: VideoUrl,
     status: SubmissionStatus = 'pending',
     score: Score = Score.none(),
@@ -107,15 +108,15 @@ export default class Submission {
   // ============================================
   // Getters
   // ============================================
-  get id(): SubmissionId {
+  get id(): string {
     return this._id;
   }
 
-  get actorId(): ActorId {
+  get actorId(): string {
     return this._actorId;
   }
 
-  get roundId(): RoundId {
+  get roundId(): string {
     return this._roundId;
   }
 

@@ -9,17 +9,17 @@ import prisma from '../../../../backend/src/infrastructure/persistence/prismaCli
 
 beforeEach(async () => {
   await prisma.roundActor.deleteMany();
+  await prisma.participant.deleteMany();
   await prisma.submission.deleteMany();
   await prisma.round.deleteMany();
   await prisma.casting.deleteMany();
-  await prisma.director.deleteMany();
   await prisma.user.deleteMany();
 });
 
 describe('POST /api/v1/castings', () => {
-  it('should create a casting when director exists (201)', async () => {
-    await prisma.director.create({
-      data: { id: 'dir-1', name: 'Test Director', email: 'dir@test.com' },
+  it('should create a casting with director as participant (201)', async () => {
+    await prisma.user.create({
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
     });
 
     const res = await request(app)
@@ -27,32 +27,43 @@ describe('POST /api/v1/castings', () => {
       .send({
         title: 'Casting Principal',
         description: 'Buscamos protagonista',
-        directorId: 'dir-1',
+        directorEmail: 'dir@test.com',
+        directorName: 'Test Director',
       });
 
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
     expect(res.body.title).toBe('Casting Principal');
     expect(res.body.description).toBe('Buscamos protagonista');
-    expect(res.body.directorId).toBe('dir-1');
+    expect(res.body.participants).toHaveLength(1);
+    expect(res.body.participants[0].role).toBe('director');
+    expect(res.body.participants[0].userId).toBe('user-1');
   });
 
-  it('should return 404 when director does not exist', async () => {
+  it('should create a new user as director when user does not exist (201)', async () => {
     const res = await request(app)
       .post('/api/v1/castings')
       .send({
         title: 'Casting Principal',
         description: 'Buscamos protagonista',
-        directorId: 'dir-nonexistent',
+        directorEmail: 'new@test.com',
+        directorName: 'New Director',
       });
 
-    expect(res.status).toBe(404);
-    expect(res.body.error).toContain('not found');
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('id');
+    expect(res.body.title).toBe('Casting Principal');
+    expect(res.body.participants).toHaveLength(1);
+    expect(res.body.participants[0].role).toBe('director');
+
+    const user = await prisma.user.findUnique({ where: { email: 'new@test.com' } });
+    expect(user).not.toBeNull();
+    expect(user!.name).toBe('New Director');
   });
 
   it('should return 400 when title is empty', async () => {
-    await prisma.director.create({
-      data: { id: 'dir-1', name: 'Test Director', email: 'dir@test.com' },
+    await prisma.user.create({
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
     });
 
     const res = await request(app)
@@ -60,10 +71,62 @@ describe('POST /api/v1/castings', () => {
       .send({
         title: '',
         description: 'Buscamos protagonista',
-        directorId: 'dir-1',
+        directorEmail: 'dir@test.com',
+        directorName: 'Test Director',
       });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
+  });
+});
+
+describe('GET /api/v1/castings', () => {
+  it('should list all castings (200)', async () => {
+    await prisma.user.create({
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+    });
+    await prisma.casting.create({
+      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
+    });
+    await prisma.participant.create({
+      data: { userId: 'user-1', castingId: 'casting-1', role: 'director' },
+    });
+
+    const res = await request(app).get('/api/v1/castings');
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].title).toBe('Casting Test');
+    expect(res.body[0].participants).toHaveLength(1);
+  });
+});
+
+describe('GET /api/v1/castings/:id', () => {
+  it('should return a casting with participants (200)', async () => {
+    await prisma.user.create({
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+    });
+    await prisma.casting.create({
+      data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
+    });
+    await prisma.participant.create({
+      data: { userId: 'user-1', castingId: 'casting-1', role: 'director' },
+    });
+
+    const res = await request(app).get('/api/v1/castings/casting-1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Casting Test');
+    expect(res.body.participants).toHaveLength(1);
+    expect(res.body.participants[0].role).toBe('director');
+    expect(res.body.rounds).toBeDefined();
+  });
+
+  it('should return 404 when casting does not exist', async () => {
+    const res = await request(app).get('/api/v1/castings/casting-nonexistent');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('not found');
   });
 });

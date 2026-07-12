@@ -4,7 +4,6 @@
  */
 
 import User from '../../domain/entities/User';
-import { UserId } from '../../domain/value-objects/TypedId';
 
 /**
  * Interface for the repository operations related to users.
@@ -15,7 +14,7 @@ export default interface IUserRepository {
    * @param id - The unique identifier of the user.
    * @returns A Promise that resolves to the found user or null if not found.
    */
-  findById(id: UserId): Promise<User | null>;
+  findById(id: string): Promise<User | null>;
 
   /**
    * Finds a user by email address.
@@ -36,7 +35,7 @@ export default interface IUserRepository {
    * @param id - The unique identifier of the user.
    * @returns A Promise that resolves when the deletion is completed.
    */
-  delete(id: UserId): Promise<void>;
+  delete(id: string): Promise<void>;
 }
 
 /**

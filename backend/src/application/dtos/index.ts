@@ -9,7 +9,7 @@
 // DTOs para la entidad User
 // ============================================
 export interface CreateUserInput {
-  id: string;
+  id?: string;
   name: string;
   email: string;
 }
@@ -30,7 +30,8 @@ export type CreateActorInput = CreateUserInput;
 export interface CreateCastingInput {
   title: string;
   description: string;
-  directorId: string;
+  directorEmail: string;
+  directorName: string;
 }
 
 // ============================================
@@ -64,6 +65,7 @@ export interface ReviewSubmissionInput {
   submissionId: string;
   score: number;
   feedback: string;
+  directorId?: string;
 }
 
 export interface ReviewSubmissionOutput {

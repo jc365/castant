@@ -4,41 +4,46 @@
  */
 
 import Casting from '../../domain/entities/Casting';
+import User from '../../domain/entities/User';
 import CastingTitle from '../../domain/value-objects/CastingTitle';
 import Description from '../../domain/value-objects/Description';
-import EntityId from '../../domain/value-objects/TypedId';
+import Email from '../../domain/value-objects/Email';
+import FullName from '../../domain/value-objects/FullName';
 import ICastingRepository from '../interfaces/ICastingRepository';
-import IDirectorRepository from '../interfaces/IDirectorRepository';
+import IUserRepository from '../interfaces/IUserRepository';
 import { CreateCastingInput } from '../dtos';
 import logger from '../../infrastructure/logging/requestContext';
 
 export class CreateCastingUseCase {
   constructor(
     private readonly castingRepository: ICastingRepository,
-    private readonly directorRepository: IDirectorRepository
+    private readonly userRepository: IUserRepository
   ) {}
 
   async execute(input: CreateCastingInput): Promise<Casting> {
-    const { title, description, directorId } = input;
+    const { title, description, directorEmail, directorName } = input;
 
-    logger.info({ title, directorId }, 'CreateCastingUseCase: starting');
+    logger.info({ title, directorEmail }, 'CreateCastingUseCase: starting');
 
-    const typedDirectorId = EntityId.create<'Director'>(directorId);
-    const existingDirector = await this.directorRepository.findById(typedDirectorId);
-    if (!existingDirector) {
-      logger.error({ directorId }, 'CreateCastingUseCase: director not found');
-      throw new Error(`Director ${directorId} not found`);
+    const email = Email.create(directorEmail);
+    let directorUser = await this.userRepository.findByEmail(email.getValue());
+
+    if (!directorUser) {
+      const name = FullName.create(directorName);
+      directorUser = User.create(name, email);
+      await this.userRepository.save(directorUser);
     }
 
     const castingTitle = CastingTitle.create(title);
     const castingDescription = Description.create(description);
-    const castingId = EntityId.create<'Casting'>(crypto.randomUUID());
 
-    const casting = Casting.create(castingId, castingTitle, castingDescription, typedDirectorId);
+    const casting = Casting.create(castingTitle, castingDescription, [
+      { userId: directorUser.id, role: 'director' },
+    ]);
 
     await this.castingRepository.save(casting);
 
-    logger.info({ castingId: castingId.getValue() }, 'CreateCastingUseCase: completed');
+    logger.info({ castingId: casting.id }, 'CreateCastingUseCase: completed');
     return casting;
   }
 }

@@ -5,7 +5,6 @@
 
 import Submission from '../../domain/entities/Submission';
 import VideoUrl from '../../domain/value-objects/VideoUrl';
-import EntityId from '../../domain/value-objects/TypedId';
 import IUserRepository from '../interfaces/IUserRepository';
 import IRoundRepository from '../interfaces/IRoundRepository';
 import ISubmissionRepository from '../interfaces/ISubmissionRepository';
@@ -24,34 +23,31 @@ export class SubmitVideoUseCase {
 
     logger.info({ actorId, roundId }, 'SubmitVideoUseCase: starting');
 
-    const typedUserId = EntityId.create<'User'>(actorId);
-    const existingUser = await this.userRepository.findById(typedUserId);
+    const existingUser = await this.userRepository.findById(actorId);
     if (!existingUser) {
       logger.error({ actorId }, 'SubmitVideoUseCase: user not found');
       throw new Error(`User ${actorId} not found`);
     }
 
-    const typedRoundId = EntityId.create<'Round'>(roundId);
-    const existingRound = await this.roundRepository.findById(typedRoundId);
+    const existingRound = await this.roundRepository.findById(roundId);
     if (!existingRound) {
       logger.error({ roundId }, 'SubmitVideoUseCase: round not found');
       throw new Error(`Round ${roundId} not found`);
     }
 
-    const isInvited = existingRound.actorIds.some(id => id.equals(typedUserId));
+    const isInvited = existingRound.actorIds.some(id => id === actorId);
     if (!isInvited) {
       logger.error({ actorId, roundId }, 'SubmitVideoUseCase: user not invited');
       throw new Error(`User ${actorId} is not invited to round ${roundId}`);
     }
 
     const videoUrlVO = VideoUrl.create(videoUrl);
-    const submissionId = EntityId.create<'Submission'>(crypto.randomUUID());
 
-    const submission = Submission.create(submissionId, typedUserId, typedRoundId, videoUrlVO);
+    const submission = Submission.create(actorId, roundId, videoUrlVO);
 
     await this.submissionRepository.save(submission);
 
-    logger.info({ submissionId: submissionId.getValue() }, 'SubmitVideoUseCase: completed');
+    logger.info({ submissionId: submission.id }, 'SubmitVideoUseCase: completed');
     return submission;
   }
 }

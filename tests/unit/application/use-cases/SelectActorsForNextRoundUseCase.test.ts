@@ -3,7 +3,6 @@ import { SelectActorsForNextRoundUseCase } from '../../../../backend/src/applica
 import IRoundRepository from '../../../../backend/src/application/interfaces/IRoundRepository';
 import ISubmissionRepository from '../../../../backend/src/application/interfaces/ISubmissionRepository';
 import Round, { type RoundParticipantEntry } from '../../../../backend/src/domain/entities/Round';
-import EntityId from '../../../../backend/src/domain/value-objects/TypedId';
 
 describe('SelectActorsForNextRoundUseCase', () => {
   let useCase: SelectActorsForNextRoundUseCase;
@@ -28,13 +27,11 @@ describe('SelectActorsForNextRoundUseCase', () => {
   });
 
   function makeRound(number: number, userIds: string[]): Round {
-    const id = EntityId.create<'Round'>(`round-${number}`);
-    const castingId = EntityId.create<'Casting'>('casting-1');
     const participants: RoundParticipantEntry[] = userIds.map(u => ({
-      id: EntityId.create<'User'>(u),
+      id: u,
       role: 'actor' as const,
     }));
-    return Round.create(id, number, castingId, participants);
+    return Round.create(number, 'casting-1', participants, `round-${number}`);
   }
 
   it('should create the next round with selected users', async () => {
@@ -48,7 +45,7 @@ describe('SelectActorsForNextRoundUseCase', () => {
     });
 
     expect(result.number).toBe(2);
-    expect(result.actorIds.map(u => u.getValue())).toEqual(['user-1', 'user-3']);
+    expect(result.actorIds).toEqual(['user-1', 'user-3']);
     expect(roundRepo.save).toHaveBeenCalledTimes(1);
   });
 

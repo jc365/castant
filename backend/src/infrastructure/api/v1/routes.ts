@@ -7,7 +7,6 @@ import { Router } from 'express';
 import { CreateUserUseCase } from '../../../application/use-cases/CreateUserUseCase';
 import { CreateCastingUseCase } from '../../../application/use-cases/CreateCastingUseCase';
 import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUseCase';
-import { SelectActorsForNextRoundUseCase } from '../../../application/use-cases/SelectActorsForNextRoundUseCase';
 import { ManageRoundParticipantsUseCase } from '../../../application/use-cases/rounds/ManageRoundParticipantsUseCase';
 import { ReviewSubmissionUseCase } from '../../../application/use-cases/submissions/ReviewSubmissionUseCase';
 import PrismaUserRepository from '../../persistence/PrismaUserRepository';
@@ -28,7 +27,6 @@ const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRep
 const submissionRepository = new PrismaSubmissionRepository();
 const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepository, submissionRepository);
 
-const selectActorsUseCase = new SelectActorsForNextRoundUseCase(roundRepository, submissionRepository);
 const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository);
 const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository);
 
@@ -278,40 +276,6 @@ router.post('/submissions', async (req, res) => {
       return;
     }
     requestLogger.error({ error: message }, 'POST /submissions failed');
-    res.status(400).json({ error: message });
-  }
-});
-
-router.post('/rounds/select', async (req, res) => {
-  requestLogger.info({}, 'POST /rounds/select');
-
-  try {
-    const { roundId, selectedActorIds } = req.body;
-    const round = await selectActorsUseCase.execute({ roundId, selectedActorIds });
-    res.status(201).json({
-      id: round.id,
-      number: round.number,
-      castingId: round.castingId,
-      actorIds: round.actorIds,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    if (message.includes('not found')) {
-      requestLogger.error({ error: message }, 'POST /rounds/select: round not found');
-      res.status(404).json({ error: message });
-      return;
-    }
-    if (message.includes('not invited')) {
-      requestLogger.error({ error: message }, 'POST /rounds/select: user not invited');
-      res.status(400).json({ error: message });
-      return;
-    }
-    if (message.includes('empty') || message.includes('Empty')) {
-      requestLogger.error({ error: message }, 'POST /rounds/select: empty selection');
-      res.status(400).json({ error: message });
-      return;
-    }
-    requestLogger.error({ error: message }, 'POST /rounds/select failed');
     res.status(400).json({ error: message });
   }
 });

@@ -1,7 +1,29 @@
+### Crear usuario
+# @name actor1
+POST http://localhost:3000/api/v1/users
+Content-Type: application/json
+
+{
+  "name": "Usuario Auto Generado",
+  "email": "kjihgfedcbaauto.generado@example.com"
+}
+
+### Recuperar el id devuelto en el body
+@idactor1 = {{actor1.response.body.id}}
+
+### Utilizacion del id devuelto en la api anterior
+GET http://localhost:3000/api/v1/users/{{idactor1}}
+
+
+
 ### ============================================
 ### HEALTH CHECK
 ### ============================================
+# @name hola
 GET http://localhost:3000/health
+@pp = {{hola.response.status}}
+###
+GET http://localhost:3000/{{pp}}
 
 ### ============================================
 ### USERS (CREACIÓN Y GESTIÓN)
@@ -13,7 +35,7 @@ content-type: application/json
 
 {
     "name": "Usuario Auto Generado",
-    "email": "auto.generado@example.com"
+    "email": "aauto.generado@example.com"
 }
 
 ### 2. Crear un usuario CON ID específico

@@ -1,0 +1,288 @@
+### ============================================
+### VARIABLES GLOBALES (Para referencia)
+### ============================================
+
+@hostname = localhost
+@port = 3000
+@host = {{hostname}}:{{port}}/api/v1
+@contentType = application/json
+
+### ============================================
+### HEALTH CHECK
+### ============================================
+GET http://{{hostname}}:{{port}}/health
+
+### ============================================
+### 1. CREAR USUARIOS (Con captura de IDs)
+### ============================================
+
+### 1.1 Crear Director
+# @name createDirector
+POST http://{{host}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Director Principal",
+  "email": "director@casting.com"
+}
+
+### 1.2 Crear Actor 1
+# @name createActor1
+POST http://{{host}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Juan Pérez",
+  "email": "juan.perez@example.com"
+}
+
+### 1.3 Crear Actor 2
+# @name createActor2
+POST http://{{host}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "María García",
+  "email": "maria.garcia@example.com"
+}
+
+### 1.4 Crear Actor 3
+# @name createActor3
+POST http://{{host}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Carlos López",
+  "email": "carlos.lopez@example.com"
+}
+
+### 1.5 Crear Preselector
+# @name createPreselector
+POST http://{{host}}/users
+Content-Type: {{contentType}}
+
+{
+  "name": "Preselector Experto",
+  "email": "preselector@casting.com"
+}
+
+### ============================================
+### 2. CAPTURAR IDs DE USUARIOS
+### ============================================
+
+@directorId = {{createDirector.response.body.id}}
+@actor1Id = {{createActor1.response.body.id}}
+@actor2Id = {{createActor2.response.body.id}}
+@actor3Id = {{createActor3.response.body.id}}
+@preselectorId = {{createPreselector.response.body.id}}
+
+### ============================================
+### 3. VERIFICAR USUARIOS CREADOS
+### ============================================
+
+### 3.1 Verificar Director
+GET http://{{host}}/users/{{directorId}}
+
+### 3.2 Verificar Actor 1
+GET http://{{host}}/users/{{actor1Id}}
+
+### ============================================
+### 4. CREAR CASTING (Con el Director)
+### ============================================
+
+# @name createCasting
+POST http://{{host}}/castings
+Content-Type: {{contentType}}
+
+{
+  "title": "Casting para película de acción",
+  "description": "Buscamos protagonista para película de acción. Edad entre 25-35 años.",
+  "directorEmail": "director@casting.com",
+  "directorName": "Director Principal"
+}
+
+### ============================================
+### 5. CAPTURAR ID DEL CASTING Y RONDA
+### ============================================
+
+@castingId = {{createCasting.response.body.id}}
+@roundId = {{createCasting.response.body.rounds[0].id}}
+
+### ============================================
+### 6. VERIFICAR CASTING CREADO
+### ============================================
+
+GET http://{{host}}/castings/{{castingId}}
+
+### ============================================
+### 7. LISTAR TODOS LOS CASTINGS
+### ============================================
+
+GET http://{{host}}/castings
+
+### ============================================
+### 8. GESTIONAR PARTICIPANTES EN LA RONDA
+### ============================================
+
+# @name addParticipants
+POST http://{{host}}/rounds/participants
+Content-Type: {{contentType}}
+
+{
+  "roundId": "{{roundId}}",
+  "actors": [
+    { "email": "juan.perez@example.com", "name": "Juan Pérez" },
+    { "email": "maria.garcia@example.com", "name": "María García" },
+    { "email": "carlos.lopez@example.com", "name": "Carlos López" }
+  ],
+  "preselectors": [
+    { "email": "preselector@casting.com", "name": "Preselector Experto" }
+  ],
+  "createNewRound": false
+}
+
+### ============================================
+### 9. VERIFICAR RONDA ACTUALIZADA
+### ============================================
+
+GET http://{{host}}/rounds/{{roundId}}
+
+### ============================================
+### 10. ENVIAR VIDEOS (Submissions)
+### ============================================
+
+### 10.1 Actor 1 envía video
+# @name submitVideo1
+POST http://{{host}}/submissions
+Content-Type: {{contentType}}
+
+{
+  "actorId": "{{actor1Id}}",
+  "roundId": "{{roundId}}",
+  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+}
+
+### 10.2 Actor 2 envía video
+# @name submitVideo2
+POST http://{{host}}/submissions
+Content-Type: {{contentType}}
+
+{
+  "actorId": "{{actor2Id}}",
+  "roundId": "{{roundId}}",
+  "videoUrl": "https://www.youtube.com/watch?v=9bZkp7q19f0"
+}
+
+### 10.3 Actor 3 envía video
+# @name submitVideo3
+POST http://{{host}}/submissions
+Content-Type: {{contentType}}
+
+{
+  "actorId": "{{actor3Id}}",
+  "roundId": "{{roundId}}",
+  "videoUrl": "https://www.youtube.com/watch?v=JGwWNGJdvx8"
+}
+
+### ============================================
+### 11. CAPTURAR IDs DE SUBMISSIONS
+### ============================================
+
+@submission1Id = {{submitVideo1.response.body.id}}
+@submission2Id = {{submitVideo2.response.body.id}}
+@submission3Id = {{submitVideo3.response.body.id}}
+
+### ============================================
+### 12. VERIFICAR SUBMISSIONS DE LA RONDA
+### ============================================
+
+GET http://{{host}}/rounds/{{roundId}}/submissions
+
+### ============================================
+### 13. REVISAR VIDEOS (Review)
+### ============================================
+
+### 13.1 Revisar Submission 1
+PATCH http://{{host}}/submissions/{{submission1Id}}/review
+Content-Type: {{contentType}}
+
+{
+  "score": 8,
+  "feedback": "Excelente interpretación. La emoción en la escena final es muy convincente."
+}
+
+### 13.2 Revisar Submission 2
+PATCH http://{{host}}/submissions/{{submission2Id}}/review
+Content-Type: {{contentType}}
+
+{
+  "score": 6,
+  "feedback": "Buena actuación, pero necesita mejorar la dicción en las escenas de diálogo."
+}
+
+### 13.3 Revisar Submission 3
+PATCH http://{{host}}/submissions/{{submission3Id}}/review
+Content-Type: {{contentType}}
+
+{
+  "score": 9,
+  "feedback": "Interpretación brillante. Tiene presencia y carisma."
+}
+
+### ============================================
+### 14. CREAR NUEVA RONDA CON ACTORES SELECCIONADOS
+### ============================================
+### (Flujo unificado: createNewRound = true)
+### ============================================
+
+# @name createNewRound
+POST http://{{host}}/rounds/participants
+Content-Type: {{contentType}}
+
+{
+  "roundId": "{{roundId}}",
+  "actors": [
+    { "email": "juan.perez@example.com", "name": "Juan Pérez" },
+    { "email": "carlos.lopez@example.com", "name": "Carlos López" }
+  ],
+  "preselectors": [
+    { "email": "carlos.lopez@example.com", "name": "Carlos López" }
+  ],
+  "createNewRound": false
+}
+
+### ============================================
+### 15. CAPTURAR ID DE NUEVA RONDA
+### ============================================
+
+@newRoundId = {{createNewRound.response.body.id}}
+
+### ============================================
+### 16. VERIFICAR NUEVA RONDA
+### ============================================
+
+GET http://{{host}}/rounds/{{newRoundId}}
+
+### ============================================
+### 17. VERIFICAR NUEVA RONDA - SUBMISSIONS
+### ============================================
+
+GET http://{{host}}/rounds/{{newRoundId}}/submissions
+
+### ============================================
+### 18. OBTENER CASTING COMPLETO (Con rondas y participantes)
+### ============================================
+
+GET http://{{host}}/castings/{{castingId}}
+
+### ============================================
+### 19. ELIMINAR UN USUARIO (Opcional - Limpieza)
+### ============================================
+
+# DELETE http://{{host}}/users/{{actor2Id}}
+
+### ============================================
+### EJEMPLO DE USO CON VARIABLES GLOBALES
+### ============================================
+
+GET http://{{host}}/users/{{directorId}}

@@ -33,8 +33,8 @@ describe('ManageRoundParticipantsUseCase', () => {
     useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo);
   });
 
-  function makeRound(number: number, participants: RoundParticipantEntry[]): Round {
-    return Round.create(number, 'casting-1', participants, `round-${number}`);
+  function makeRound(number: number, participants: RoundParticipantEntry[], id?: string): Round {
+    return Round.create(number, 'casting-1', participants, id || `round-${number}`);
   }
 
   function makeUser(id: string, email: string, name: string): User {
@@ -127,6 +127,68 @@ describe('ManageRoundParticipantsUseCase', () => {
       expect(result.participants).toHaveLength(3);
       expect(userRepo.save).toHaveBeenCalledTimes(2);
     });
+
+    it('should not duplicate actors already in the round', async () => {
+      const existingUser = makeUser('user-1', 'actor@test.com', 'Actor One');
+      const currentRound = makeRound(1, [
+        { id: 'user-1', role: 'actor' },
+      ]);
+      roundRepo.findById.mockResolvedValue(currentRound);
+      userRepo.findByEmail.mockResolvedValue(existingUser);
+      roundRepo.save.mockResolvedValue();
+
+      const result = await useCase.execute({
+        roundId: 'round-1',
+        actors: [{ email: 'actor@test.com', name: 'Actor One' }],
+        preselectors: [],
+      });
+
+      expect(result.participants).toHaveLength(1);
+      expect(result.participants[0].id).toBe('user-1');
+      expect(roundRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not duplicate preselectors already in the round', async () => {
+      const existingUser = makeUser('user-1', 'pre@test.com', 'Pre Selector');
+      const currentRound = makeRound(1, [
+        { id: 'user-1', role: 'preselector' },
+      ]);
+      roundRepo.findById.mockResolvedValue(currentRound);
+      userRepo.findByEmail.mockResolvedValue(existingUser);
+      roundRepo.save.mockResolvedValue();
+
+      const result = await useCase.execute({
+        roundId: 'round-1',
+        actors: [],
+        preselectors: [{ email: 'pre@test.com', name: 'Pre Selector' }],
+      });
+
+      expect(result.participants).toHaveLength(1);
+      expect(result.participants[0].id).toBe('user-1');
+      expect(roundRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should allow same user as actor in one role and preselector in another', async () => {
+      const existingUser = makeUser('user-1', 'multi@test.com', 'Multi User');
+      const currentRound = makeRound(1, [
+        { id: 'user-1', role: 'actor' },
+      ]);
+      roundRepo.findById.mockResolvedValue(currentRound);
+      userRepo.findByEmail.mockResolvedValue(existingUser);
+      roundRepo.save.mockResolvedValue();
+
+      const result = await useCase.execute({
+        roundId: 'round-1',
+        actors: [],
+        preselectors: [{ email: 'multi@test.com', name: 'Multi User' }],
+      });
+
+      expect(result.participants).toHaveLength(2);
+      expect(result.participants[0].role).toBe('actor');
+      expect(result.participants[1].role).toBe('preselector');
+      expect(result.participants[0].id).toBe('user-1');
+      expect(result.participants[1].id).toBe('user-1');
+    });
   });
 
   describe('createNewRound', () => {
@@ -147,9 +209,50 @@ describe('ManageRoundParticipantsUseCase', () => {
       });
 
       expect(result.number).toBe(2);
-      expect(result.participants).toHaveLength(2);
-      expect(result.participants.every(p => p.role === 'actor')).toBe(true);
+      expect(result.participants).toHaveLength(1);
+      expect(result.participants[0].role).toBe('actor');
       expect(roundRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not inherit participants from the previous round', async () => {
+      const currentRound = makeRound(1, [
+        { id: 'user-1', role: 'actor' },
+        { id: 'user-2', role: 'preselector' },
+      ]);
+      roundRepo.findById.mockResolvedValue(currentRound);
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
+      roundRepo.save.mockResolvedValue();
+
+      const result = await useCase.execute({
+        roundId: 'round-1',
+        actors: [{ email: 'new@test.com', name: 'New Actor' }],
+        preselectors: [],
+        createNewRound: true,
+      });
+
+      expect(result.number).toBe(2);
+      expect(result.participants).toHaveLength(1);
+      expect(result.participants[0].role).toBe('actor');
+      expect(result.participants[0].id).not.toBe('user-1');
+      expect(result.participants[0].id).not.toBe('user-2');
+    });
+
+    it('should create new users when they do not exist', async () => {
+      const currentRound = makeRound(1, []);
+      roundRepo.findById.mockResolvedValue(currentRound);
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
+      roundRepo.save.mockResolvedValue();
+
+      await useCase.execute({
+        roundId: 'round-1',
+        actors: [{ email: 'brand@test.com', name: 'Brand New' }],
+        preselectors: [],
+        createNewRound: true,
+      });
+
+      expect(userRepo.save).toHaveBeenCalledTimes(1);
     });
 
     it('should throw when createNewRound is true but preselectors are provided', async () => {
@@ -162,6 +265,22 @@ describe('ManageRoundParticipantsUseCase', () => {
         useCase.execute({
           roundId: 'round-1',
           actors: [{ email: 'new@test.com', name: 'New Actor' }],
+          preselectors: [{ email: 'pre@test.com', name: 'Pre Selector' }],
+          createNewRound: true,
+        })
+      ).rejects.toThrow('Preselectors are not allowed when creating a new round');
+
+      expect(roundRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw when createNewRound is true but only preselectors are provided', async () => {
+      const currentRound = makeRound(1, []);
+      roundRepo.findById.mockResolvedValue(currentRound);
+
+      await expect(
+        useCase.execute({
+          roundId: 'round-1',
+          actors: [],
           preselectors: [{ email: 'pre@test.com', name: 'Pre Selector' }],
           createNewRound: true,
         })
@@ -198,6 +317,21 @@ describe('ManageRoundParticipantsUseCase', () => {
           roundId: 'round-999',
           actors: [{ email: 'test@test.com', name: 'Test' }],
           preselectors: [],
+        })
+      ).rejects.toThrow('Round round-999 not found');
+
+      expect(roundRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw when round is not found with createNewRound', async () => {
+      roundRepo.findById.mockResolvedValue(null);
+
+      await expect(
+        useCase.execute({
+          roundId: 'round-999',
+          actors: [{ email: 'test@test.com', name: 'Test' }],
+          preselectors: [],
+          createNewRound: true,
         })
       ).rejects.toThrow('Round round-999 not found');
 

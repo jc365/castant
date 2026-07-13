@@ -44,30 +44,29 @@ export class ManageRoundParticipantsUseCase {
     const actorIds = await this.detectAndAddUsers(actorInputs);
     const preselectorIds = await this.detectAndAddUsers(preselectorInputs);
 
-    const actorEntries = this.buildParticipantEntries(currentRound.participants, actorIds, 'actor');
-    const preselectorEntries = this.buildParticipantEntries(currentRound.participants, preselectorIds, 'preselector');
-
-    const updatedParticipants = [
-      ...actorEntries,
-      ...preselectorEntries
-    ];
-
     if (createNewRound) {
+      const newParticipants = this.buildParticipantEntries([], actorIds, 'actor');
       const newNumber = currentRound.number + 1;
       const newRound = Round.create(
         newNumber,
         currentRound.castingId,
-        updatedParticipants
+        newParticipants
       );
       await this.roundRepository.save(newRound);
       logger.info({ newRoundId: newRound.id }, 'ManageRoundParticipantsUseCase: created new round');
       return newRound;
     }
 
+    const actorEntries = this.buildParticipantEntries(currentRound.participants, actorIds, 'actor');
+    const preselectorEntries = this.buildParticipantEntries(currentRound.participants, preselectorIds, 'preselector');
+
     const updatedRound = Round.create(
       currentRound.number,
       currentRound.castingId,
-      updatedParticipants,
+      [
+        ...actorEntries,
+        ...preselectorEntries
+      ],
       currentRound.id
     );
     await this.roundRepository.save(updatedRound);

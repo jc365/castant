@@ -44,7 +44,7 @@ export default class PrismaCastingRepository implements ICastingRepository {
         title: casting.title,
         description: casting.description,
         participants: {
-          deleteMany: {},
+          deleteMany: { roundId: null },
           create: casting.participants.map((p) => ({
             userId: p.userId,
             role: p.role,
@@ -56,7 +56,7 @@ export default class PrismaCastingRepository implements ICastingRepository {
 
   async delete(id: string): Promise<void> {
     await prisma.participant.deleteMany({
-      where: { castingId: id },
+      where: { castingId: id, roundId: null },
     });
     await prisma.casting.delete({
       where: { id },

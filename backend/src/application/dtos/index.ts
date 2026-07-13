@@ -46,11 +46,6 @@ export interface SubmitVideoInput {
 // ============================================
 // DTOs para la entidad Round
 // ============================================
-export interface SelectActorsInput {
-  roundId: string;
-  selectedActorIds: string[];
-}
-
 export interface ManageRoundParticipantsInput {
   roundId: string;
   actors: { email: string; name?: string }[];

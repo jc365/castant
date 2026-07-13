@@ -11,9 +11,10 @@ model User {
   id           String        @id
   name         String
   email        String        @unique
-  rounds       RoundActor[]
   submissions  Submission[]
   participants Participant[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Casting {
@@ -22,6 +23,8 @@ model Casting {
   description  String
   participants Participant[]
   rounds       Round[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Participant {
@@ -31,8 +34,10 @@ model Participant {
   castingId String?
   casting   Casting? @relation(fields: [castingId], references: [id])
   roundId   String?
+  round     Round?   @relation(fields: [roundId], references: [id])
   role      String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Round {
@@ -40,28 +45,22 @@ model Round {
   number      Int
   castingId   String
   casting     Casting      @relation(fields: [castingId], references: [id])
-  actors      RoundActor[]
+  participants Participant[]
   submissions Submission[]
-}
-
-model RoundActor {
-  roundId String
-  round   Round  @relation(fields: [roundId], references: [id])
-  actorId String
-  actor   User   @relation(fields: [actorId], references: [id])
-  role    String @default("actor")
-
-  @@id([roundId, actorId])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Submission {
-  id       String @id
-  actorId  String
-  roundId  String
-  videoUrl String
-  status   String @default("pending")
-  score    Int    @default(0)
-  feedback String @default("")
+  id        String   @id
+  actorId   String
+  roundId   String
+  videoUrl  String
+  status    String   @default("pending")
+  score     Int      @default(0)
+  feedback  String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   actor User   @relation(fields: [actorId], references: [id])
   round Round @relation(fields: [roundId], references: [id])

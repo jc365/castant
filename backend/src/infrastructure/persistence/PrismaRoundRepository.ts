@@ -11,7 +11,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
   async findById(id: string): Promise<Round | null> {
     const record = await prisma.round.findUnique({
       where: { id },
-      include: { actors: true },
+      include: { participants: true },
     });
     if (!record) return null;
     return this.toDomain(record);
@@ -20,7 +20,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
   async findByCastingId(castingId: string): Promise<Round[]> {
     const records = await prisma.round.findMany({
       where: { castingId },
-      include: { actors: true },
+      include: { participants: true },
     });
     return records.map((r) => this.toDomain(r));
   }
@@ -32,19 +32,19 @@ export default class PrismaRoundRepository implements IRoundRepository {
         id: round.id,
         number: round.number,
         castingId: round.castingId,
-        actors: {
+        participants: {
           create: round.participants.map((entry) => ({
-            actorId: entry.id,
+            userId: entry.id,
             role: entry.role,
           })),
         },
       },
       update: {
         number: round.number,
-        actors: {
-          deleteMany: {},
+        participants: {
+          deleteMany: { roundId: round.id },
           create: round.participants.map((entry) => ({
-            actorId: entry.id,
+            userId: entry.id,
             role: entry.role,
           })),
         },
@@ -53,7 +53,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.roundActor.deleteMany({
+    await prisma.participant.deleteMany({
       where: { roundId: id },
     });
     await prisma.round.delete({
@@ -61,10 +61,15 @@ export default class PrismaRoundRepository implements IRoundRepository {
     });
   }
 
-  private toDomain(record: { id: string; number: number; castingId: string; actors: { actorId: string; role: string }[] }): Round {
-    const participants: RoundParticipantEntry[] = record.actors.map((a) => ({
-      id: a.actorId,
-      role: a.role as RoundParticipantRole,
+  private toDomain(record: {
+    id: string;
+    number: number;
+    castingId: string;
+    participants: { userId: string; role: string }[];
+  }): Round {
+    const participants: RoundParticipantEntry[] = record.participants.map((p) => ({
+      id: p.userId,
+      role: p.role as RoundParticipantRole,
     }));
     return Round.create(record.number, record.castingId, participants, record.id);
   }

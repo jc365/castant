@@ -11,12 +11,14 @@ import IRoundRepository from '../../interfaces/IRoundRepository';
 import ICastingRepository from '../../interfaces/ICastingRepository';
 import { ReviewSubmissionInput } from '../../dtos';
 import logger from '../../../infrastructure/logging/requestContext';
+import BitacoraService from '../../../infrastructure/logging/BitacoraService';
 
 export class ReviewSubmissionUseCase {
   constructor(
     private readonly submissionRepository: ISubmissionRepository,
     private readonly roundRepository: IRoundRepository,
-    private readonly castingRepository: ICastingRepository
+    private readonly castingRepository: ICastingRepository,
+    private readonly bitacoraService: BitacoraService
   ) {}
 
   async execute(input: ReviewSubmissionInput): Promise<Submission> {
@@ -61,6 +63,15 @@ export class ReviewSubmissionUseCase {
     const updatedSubmission = submission.review(scoreVO, feedbackVO);
 
     await this.submissionRepository.save(updatedSubmission);
+
+    await this.bitacoraService.log({
+      userId: directorId || submission.actorId,
+      action: 'review_submission',
+      details: { score, feedback },
+      submissionId,
+      roundId: submission.roundId,
+      castingId: casting.id,
+    });
 
     logger.info({ submissionId }, 'ReviewSubmissionUseCase: completed');
     return updatedSubmission;

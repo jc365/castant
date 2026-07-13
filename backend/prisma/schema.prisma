@@ -13,6 +13,7 @@ model User {
   email        String        @unique
   submissions  Submission[]
   participants Participant[]
+  bitacora     Bitacora[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -64,4 +65,21 @@ model Submission {
 
   actor User   @relation(fields: [actorId], references: [id])
   round Round @relation(fields: [roundId], references: [id])
+}
+
+model Bitacora {
+  id           String   @id @default(cuid())
+  timestamp    DateTime @default(now())
+  userId       String
+  action       String
+  details      Json?
+  castingId    String?
+  roundId      String?
+  submissionId String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
 }

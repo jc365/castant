@@ -10,9 +10,13 @@ import FullName from '../../domain/value-objects/FullName';
 import IUserRepository from '../interfaces/IUserRepository';
 import { CreateUserInput } from '../dtos';
 import logger from '../../infrastructure/logging/requestContext';
+import BitacoraService from '../../infrastructure/logging/BitacoraService';
 
 export class CreateUserUseCase {
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    private readonly userRepository: IUserRepository,
+    private readonly bitacoraService: BitacoraService
+  ) {}
 
   async execute(input: CreateUserInput): Promise<User> {
     const { id, name, email } = input;
@@ -30,6 +34,12 @@ export class CreateUserUseCase {
     const user = User.create(userName, userEmail, id);
 
     await this.userRepository.save(user);
+
+    await this.bitacoraService.log({
+      userId: user.id,
+      action: 'create_user',
+      details: { email, name },
+    });
 
     logger.info({ userId: user.id }, 'CreateUserUseCase: completed');
     return user;

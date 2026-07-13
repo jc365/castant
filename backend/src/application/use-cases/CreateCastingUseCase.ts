@@ -15,12 +15,14 @@ import IRoundRepository from '../interfaces/IRoundRepository';
 import IUserRepository from '../interfaces/IUserRepository';
 import { CreateCastingInput } from '../dtos';
 import logger from '../../infrastructure/logging/requestContext';
+import BitacoraService from '../../infrastructure/logging/BitacoraService';
 
 export class CreateCastingUseCase {
   constructor(
     private readonly castingRepository: ICastingRepository,
     private readonly userRepository: IUserRepository,
-    private readonly roundRepository: IRoundRepository
+    private readonly roundRepository: IRoundRepository,
+    private readonly bitacoraService: BitacoraService
   ) {}
 
   async execute(input: CreateCastingInput): Promise<Casting> {
@@ -50,6 +52,13 @@ export class CreateCastingUseCase {
     await this.roundRepository.save(initialRound);
 
     const castingWithRound = casting.addRound(initialRound);
+
+    await this.bitacoraService.log({
+      userId: directorUser.id,
+      action: 'create_casting',
+      details: { title, description },
+      castingId: casting.id,
+    });
 
     logger.info({ castingId: casting.id }, 'CreateCastingUseCase: completed');
     return castingWithRound;

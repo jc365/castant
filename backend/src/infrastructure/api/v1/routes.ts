@@ -14,23 +14,28 @@ import PrismaUserRepository from '../../persistence/PrismaUserRepository';
 import PrismaCastingRepository from '../../persistence/PrismaCastingRepository';
 import PrismaRoundRepository from '../../persistence/PrismaRoundRepository';
 import PrismaSubmissionRepository from '../../persistence/PrismaSubmissionRepository';
+import PrismaBitacoraRepository from '../../persistence/PrismaBitacoraRepository';
+import BitacoraService from '../../logging/BitacoraService';
 import requestLogger from '../../logging/requestContext';
 
 const router = Router();
 
 const userRepository = new PrismaUserRepository();
-const createUserUseCase = new CreateUserUseCase(userRepository);
+const bitacoraRepository = new PrismaBitacoraRepository();
+const bitacoraService = new BitacoraService(bitacoraRepository);
+
+const createUserUseCase = new CreateUserUseCase(userRepository, bitacoraService);
 const getAllUsersUseCase = new GetAllUsersUseCase(userRepository);
 
 const castingRepository = new PrismaCastingRepository();
 const roundRepository = new PrismaRoundRepository();
-const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRepository, roundRepository);
+const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRepository, roundRepository, bitacoraService);
 
 const submissionRepository = new PrismaSubmissionRepository();
-const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepository, submissionRepository);
+const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepository, submissionRepository, bitacoraService);
 
-const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository);
-const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository);
+const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository, bitacoraService);
+const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository, bitacoraService);
 
 router.get('/users', async (_req, res) => {
   requestLogger.info({}, 'GET /users');

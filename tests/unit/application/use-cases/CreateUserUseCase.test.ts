@@ -4,19 +4,25 @@ import IUserRepository from '../../../../backend/src/application/interfaces/IUse
 import User from '../../../../backend/src/domain/entities/User';
 import Email from '../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../backend/src/domain/value-objects/FullName';
+import BitacoraService from '../../../../backend/src/infrastructure/logging/BitacoraService';
 
 describe('CreateUserUseCase', () => {
   let useCase: CreateUserUseCase;
   let userRepo: jest.Mocked<IUserRepository>;
+  let bitacoraService: jest.Mocked<BitacoraService>;
 
   beforeEach(() => {
     userRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
     };
-    useCase = new CreateUserUseCase(userRepo);
+    bitacoraService = {
+      log: vi.fn(),
+    } as unknown as jest.Mocked<BitacoraService>;
+    useCase = new CreateUserUseCase(userRepo, bitacoraService);
   });
 
   it('should create a user with provided id', async () => {
@@ -66,5 +72,24 @@ describe('CreateUserUseCase', () => {
     ).rejects.toThrow('Email jane@test.com is already registered');
 
     expect(userRepo.save).not.toHaveBeenCalled();
+    expect(bitacoraService.log).not.toHaveBeenCalled();
+  });
+
+  it('should log to bitacora when user is created', async () => {
+    userRepo.findByEmail.mockResolvedValue(null);
+    userRepo.save.mockResolvedValue();
+
+    await useCase.execute({
+      id: 'user-1',
+      name: 'Jane Doe',
+      email: 'jane@test.com',
+    });
+
+    expect(bitacoraService.log).toHaveBeenCalledTimes(1);
+    expect(bitacoraService.log).toHaveBeenCalledWith({
+      userId: 'user-1',
+      action: 'create_user',
+      details: { email: 'jane@test.com', name: 'Jane Doe' },
+    });
   });
 });

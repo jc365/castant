@@ -12,10 +12,11 @@
 | **Capa de Aplicación** | ✅ 6 casos de uso implementados |
 | **API (Escritura)** | ✅ 5 endpoints de escritura |
 | **API (Lectura)** | ✅ 4 endpoints de consulta |
-| **Tests** | ✅ 177 tests pasando |
+| **Tests** | ✅ 198 tests pasando |
 | **Cobertura** | ✅ ≈99% |
 | **Base de Datos** | ✅ Prisma con SQLite (`dev.db` / `test.db`) |
 | **Logging** | ✅ `pino` + `pino-http` + `requestId` |
+| **Bitácora** | ✅ Sistema de auditoría con `BitacoraService` |
 | **Documentación** | ✅ `AGENTS.md` actualizado |
 
 ---
@@ -31,6 +32,7 @@
 | `Round` | Rondas de un casting. |
 | `Submission` | Envíos de videos de actores. |
 | `Participant` | Relación de usuarios con castings o rondas, con un `role`. |
+| `Bitacora` | Registro de eventos de auditoría (acciones de negocio). |
 
 ### 2.2. Roles en `Participant`
 
@@ -50,10 +52,13 @@ Todas las tablas tienen `createdAt` y `updatedAt`.
 | Caso de Uso | Propósito |
 |-------------|-----------|
 | `CreateUserUseCase` | Crear un usuario (ID opcional, auto-generado). |
+| `GetAllUsersUseCase` | Listar todos los usuarios. |
 | `CreateCastingUseCase` | Crear un casting y su ronda inicial (Ronda 1). |
 | `ManageRoundParticipantsUseCase` | Gestionar participantes en una ronda (añadir actores/preselectores, crear nueva ronda). |
 | `SubmitVideoUseCase` | Enviar un video a una ronda (actor invitado). |
 | `ReviewSubmissionUseCase` | Revisar un video (score + feedback). |
+
+Todos los casos de uso registran eventos en la Bitácora via `BitacoraService`.
 
 ---
 

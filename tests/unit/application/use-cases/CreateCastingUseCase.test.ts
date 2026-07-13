@@ -6,12 +6,14 @@ import IRoundRepository from '../../../../backend/src/application/interfaces/IRo
 import User from '../../../../backend/src/domain/entities/User';
 import Email from '../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../backend/src/domain/value-objects/FullName';
+import BitacoraService from '../../../../backend/src/infrastructure/logging/BitacoraService';
 
 describe('CreateCastingUseCase', () => {
   let useCase: CreateCastingUseCase;
   let castingRepo: jest.Mocked<ICastingRepository>;
   let userRepo: jest.Mocked<IUserRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
+  let bitacoraService: jest.Mocked<BitacoraService>;
 
   beforeEach(() => {
     castingRepo = {
@@ -23,6 +25,7 @@ describe('CreateCastingUseCase', () => {
     userRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
     };
@@ -32,7 +35,10 @@ describe('CreateCastingUseCase', () => {
       save: vi.fn(),
       delete: vi.fn(),
     };
-    useCase = new CreateCastingUseCase(castingRepo, userRepo, roundRepo);
+    bitacoraService = {
+      log: vi.fn(),
+    } as unknown as jest.Mocked<BitacoraService>;
+    useCase = new CreateCastingUseCase(castingRepo, userRepo, roundRepo, bitacoraService);
   });
 
   it('should create a casting when director user exists', async () => {
@@ -123,5 +129,27 @@ describe('CreateCastingUseCase', () => {
         directorName: 'Jane Doe',
       })
     ).rejects.toThrow('Description must be at most 2000 characters');
+  });
+
+  it('should log to bitacora when casting is created', async () => {
+    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
+    userRepo.findByEmail.mockResolvedValue(user);
+    castingRepo.save.mockResolvedValue();
+    roundRepo.save.mockResolvedValue();
+
+    await useCase.execute({
+      title: 'Casting Principal',
+      description: 'Buscamos protagonista',
+      directorEmail: 'jane@test.com',
+      directorName: 'Jane Doe',
+    });
+
+    expect(bitacoraService.log).toHaveBeenCalledTimes(1);
+    expect(bitacoraService.log).toHaveBeenCalledWith({
+      userId: 'user-1',
+      action: 'create_casting',
+      details: { title: 'Casting Principal', description: 'Buscamos protagonista' },
+      castingId: expect.any(String),
+    });
   });
 });

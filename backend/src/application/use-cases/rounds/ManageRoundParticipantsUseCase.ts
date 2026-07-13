@@ -11,11 +11,13 @@ import IUserRepository from '../../interfaces/IUserRepository';
 import IRoundRepository from '../../interfaces/IRoundRepository';
 import { ManageRoundParticipantsInput } from '../../dtos';
 import logger from '../../../infrastructure/logging/requestContext';
+import BitacoraService from '../../../infrastructure/logging/BitacoraService';
 
 export class ManageRoundParticipantsUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
-    private readonly roundRepository: IRoundRepository
+    private readonly roundRepository: IRoundRepository,
+    private readonly bitacoraService: BitacoraService
   ) { }
 
   async execute(input: ManageRoundParticipantsInput): Promise<Round> {
@@ -53,6 +55,15 @@ export class ManageRoundParticipantsUseCase {
         newParticipants
       );
       await this.roundRepository.save(newRound);
+
+      await this.bitacoraService.log({
+        userId: Array.from(actorIds)[0] || '',
+        action: 'create_round',
+        details: { actors: Array.from(actorIds), roundNumber: newNumber },
+        roundId: newRound.id,
+        castingId: currentRound.castingId,
+      });
+
       logger.info({ newRoundId: newRound.id }, 'ManageRoundParticipantsUseCase: created new round');
       return newRound;
     }
@@ -70,6 +81,15 @@ export class ManageRoundParticipantsUseCase {
       currentRound.id
     );
     await this.roundRepository.save(updatedRound);
+
+    await this.bitacoraService.log({
+      userId: Array.from(actorIds)[0] || Array.from(preselectorIds)[0] || '',
+      action: 'add_participants',
+      details: { actors: Array.from(actorIds), preselectors: Array.from(preselectorIds) },
+      roundId,
+      castingId: currentRound.castingId,
+    });
+
     logger.info({ roundId }, 'ManageRoundParticipantsUseCase: completed');
     return updatedRound;
   }

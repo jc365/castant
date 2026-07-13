@@ -11,16 +11,19 @@ import User from '../../../../../backend/src/domain/entities/User';
 import Round, { type RoundParticipantEntry } from '../../../../../backend/src/domain/entities/Round';
 import Email from '../../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../../backend/src/domain/value-objects/FullName';
+import BitacoraService from '../../../../../backend/src/infrastructure/logging/BitacoraService';
 
 describe('ManageRoundParticipantsUseCase', () => {
   let useCase: ManageRoundParticipantsUseCase;
   let userRepo: jest.Mocked<IUserRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
+  let bitacoraService: jest.Mocked<BitacoraService>;
 
   beforeEach(() => {
     userRepo = {
       findById: vi.fn(),
       findByEmail: vi.fn(),
+      findAll: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
     };
@@ -30,7 +33,10 @@ describe('ManageRoundParticipantsUseCase', () => {
       save: vi.fn(),
       delete: vi.fn(),
     };
-    useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo);
+    bitacoraService = {
+      log: vi.fn(),
+    } as unknown as jest.Mocked<BitacoraService>;
+    useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo, bitacoraService);
   });
 
   function makeRound(number: number, participants: RoundParticipantEntry[], id?: string): Round {
@@ -336,6 +342,60 @@ describe('ManageRoundParticipantsUseCase', () => {
       ).rejects.toThrow('Round round-999 not found');
 
       expect(roundRepo.save).not.toHaveBeenCalled();
+      expect(bitacoraService.log).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('bitacora logging', () => {
+    it('should log add_participants when adding to existing round', async () => {
+      const currentRound = makeRound(1, [
+        { id: 'user-1', role: 'actor' },
+      ]);
+      roundRepo.findById.mockResolvedValue(currentRound);
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
+      roundRepo.save.mockResolvedValue();
+
+      await useCase.execute({
+        roundId: 'round-1',
+        actors: [{ email: 'new@test.com', name: 'New Actor' }],
+        preselectors: [],
+      });
+
+      expect(bitacoraService.log).toHaveBeenCalledTimes(1);
+      expect(bitacoraService.log).toHaveBeenCalledWith({
+        userId: expect.any(String),
+        action: 'add_participants',
+        details: { actors: expect.any(Array), preselectors: [] },
+        roundId: 'round-1',
+        castingId: 'casting-1',
+      });
+    });
+
+    it('should log create_round when creating new round', async () => {
+      const currentRound = makeRound(1, [
+        { id: 'user-1', role: 'actor' },
+      ]);
+      roundRepo.findById.mockResolvedValue(currentRound);
+      userRepo.findByEmail.mockResolvedValue(null);
+      userRepo.save.mockResolvedValue();
+      roundRepo.save.mockResolvedValue();
+
+      await useCase.execute({
+        roundId: 'round-1',
+        actors: [{ email: 'new@test.com', name: 'New Actor' }],
+        preselectors: [],
+        createNewRound: true,
+      });
+
+      expect(bitacoraService.log).toHaveBeenCalledTimes(1);
+      expect(bitacoraService.log).toHaveBeenCalledWith({
+        userId: expect.any(String),
+        action: 'create_round',
+        details: { actors: expect.any(Array), roundNumber: 2 },
+        roundId: expect.any(String),
+        castingId: 'casting-1',
+      });
     });
   });
 });

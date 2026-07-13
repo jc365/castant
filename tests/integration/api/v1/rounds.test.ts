@@ -8,6 +8,7 @@ import app from '../../../../backend/src/index';
 import prisma from '../../../../backend/src/infrastructure/persistence/prismaClient';
 
 beforeEach(async () => {
+  await prisma.bitacora.deleteMany();
   await prisma.submission.deleteMany();
   await prisma.participant.deleteMany();
   await prisma.round.deleteMany();

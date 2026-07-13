@@ -11,12 +11,14 @@ import CastingTitle from '../../../../backend/src/domain/value-objects/CastingTi
 import Description from '../../../../backend/src/domain/value-objects/Description';
 import Score from '../../../../backend/src/domain/value-objects/Score';
 import Feedback from '../../../../backend/src/domain/value-objects/Feedback';
+import BitacoraService from '../../../../backend/src/infrastructure/logging/BitacoraService';
 
 describe('ReviewSubmissionUseCase', () => {
   let useCase: ReviewSubmissionUseCase;
   let submissionRepo: jest.Mocked<ISubmissionRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
   let castingRepo: jest.Mocked<ICastingRepository>;
+  let bitacoraService: jest.Mocked<BitacoraService>;
 
   const participants: RoundParticipantEntry[] = [{ id: 'user-1', role: 'actor' }];
   const round = Round.create(1, 'casting-1', participants, 'round-1');
@@ -45,7 +47,10 @@ describe('ReviewSubmissionUseCase', () => {
       save: vi.fn(),
       delete: vi.fn(),
     };
-    useCase = new ReviewSubmissionUseCase(submissionRepo, roundRepo, castingRepo);
+    bitacoraService = {
+      log: vi.fn(),
+    } as unknown as jest.Mocked<BitacoraService>;
+    useCase = new ReviewSubmissionUseCase(submissionRepo, roundRepo, castingRepo, bitacoraService);
   });
 
   it('should review a pending submission successfully', async () => {
@@ -146,5 +151,30 @@ describe('ReviewSubmissionUseCase', () => {
     ).rejects.toThrow('Feedback cannot be empty');
 
     expect(submissionRepo.save).not.toHaveBeenCalled();
+    expect(bitacoraService.log).not.toHaveBeenCalled();
+  });
+
+  it('should log to bitacora when submission is reviewed', async () => {
+    submissionRepo.findById.mockResolvedValue(submission);
+    roundRepo.findById.mockResolvedValue(round);
+    castingRepo.findById.mockResolvedValue(casting);
+    submissionRepo.save.mockResolvedValue();
+
+    await useCase.execute({
+      submissionId: 'submission-1',
+      score: 8,
+      feedback: 'Great performance!',
+      directorId: 'director-1',
+    });
+
+    expect(bitacoraService.log).toHaveBeenCalledTimes(1);
+    expect(bitacoraService.log).toHaveBeenCalledWith({
+      userId: 'director-1',
+      action: 'review_submission',
+      details: { score: 8, feedback: 'Great performance!' },
+      submissionId: 'submission-1',
+      roundId: 'round-1',
+      castingId: 'casting-1',
+    });
   });
 });

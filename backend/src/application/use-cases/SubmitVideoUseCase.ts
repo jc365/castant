@@ -10,12 +10,14 @@ import IRoundRepository from '../interfaces/IRoundRepository';
 import ISubmissionRepository from '../interfaces/ISubmissionRepository';
 import { SubmitVideoInput } from '../dtos';
 import logger from '../../infrastructure/logging/requestContext';
+import BitacoraService from '../../infrastructure/logging/BitacoraService';
 
 export class SubmitVideoUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly roundRepository: IRoundRepository,
-    private readonly submissionRepository: ISubmissionRepository
+    private readonly submissionRepository: ISubmissionRepository,
+    private readonly bitacoraService: BitacoraService
   ) {}
 
   async execute(input: SubmitVideoInput): Promise<Submission> {
@@ -46,6 +48,14 @@ export class SubmitVideoUseCase {
     const submission = Submission.create(actorId, roundId, videoUrlVO);
 
     await this.submissionRepository.save(submission);
+
+    await this.bitacoraService.log({
+      userId: actorId,
+      action: 'submit_video',
+      details: { videoUrl, roundId },
+      roundId,
+      submissionId: submission.id,
+    });
 
     logger.info({ submissionId: submission.id }, 'SubmitVideoUseCase: completed');
     return submission;

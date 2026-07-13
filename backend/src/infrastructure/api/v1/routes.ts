@@ -5,6 +5,7 @@
 
 import { Router } from 'express';
 import { CreateUserUseCase } from '../../../application/use-cases/CreateUserUseCase';
+import { GetAllUsersUseCase } from '../../../application/use-cases/GetAllUsersUseCase';
 import { CreateCastingUseCase } from '../../../application/use-cases/CreateCastingUseCase';
 import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUseCase';
 import { ManageRoundParticipantsUseCase } from '../../../application/use-cases/rounds/ManageRoundParticipantsUseCase';
@@ -19,6 +20,7 @@ const router = Router();
 
 const userRepository = new PrismaUserRepository();
 const createUserUseCase = new CreateUserUseCase(userRepository);
+const getAllUsersUseCase = new GetAllUsersUseCase(userRepository);
 
 const castingRepository = new PrismaCastingRepository();
 const roundRepository = new PrismaRoundRepository();
@@ -29,6 +31,23 @@ const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepositor
 
 const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository);
 const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository);
+
+router.get('/users', async (_req, res) => {
+  requestLogger.info({}, 'GET /users');
+
+  try {
+    const users = await getAllUsersUseCase.execute();
+    res.json(users.map((u) => ({
+      id: u.id,
+      name: u.name.getValue(),
+      email: u.email.getValue(),
+    })));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message }, 'GET /users failed');
+    res.status(500).json({ error: message });
+  }
+});
 
 router.get('/users/:id', async (req, res) => {
   const { id } = req.params;

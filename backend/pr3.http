@@ -245,9 +245,6 @@ Content-Type: {{contentType}}
     { "email": "juan.perez@example.com", "name": "Juan Pérez" },
     { "email": "carlos.lopez@example.com", "name": "Carlos López" }
   ],
-  "preselectors": [
-    { "email": "carlos.lopez@example.com", "name": "Carlos López" }
-  ],
   "createNewRound": false
 }
 
@@ -285,4 +282,4 @@ GET http://{{host}}/castings/{{castingId}}
 ### EJEMPLO DE USO CON VARIABLES GLOBALES
 ### ============================================
 
-GET http://{{host}}/users/{{directorId}}
+GET http://{{host}}/users/

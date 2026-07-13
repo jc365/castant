@@ -24,6 +24,12 @@ export default interface IUserRepository {
   findByEmail(email: string): Promise<User | null>;
 
   /**
+   * Finds all users.
+   * @returns A Promise that resolves to an array of all users.
+   */
+  findAll(): Promise<User[]>;
+
+  /**
    * Saves a user entity into the database.
    * @param user - The user entity to be saved.
    * @returns A Promise that resolves when the operation is completed.

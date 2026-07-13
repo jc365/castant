@@ -74,3 +74,32 @@ describe('POST /api/v1/users', () => {
     expect(res.body.error).toBeDefined();
   });
 });
+
+describe('GET /api/v1/users', () => {
+  it('should return empty array when no users exist (200)', async () => {
+    const res = await request(app).get('/api/v1/users');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('should return all users (200)', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'user-1', name: 'User One', email: 'one@test.com' },
+        { id: 'user-2', name: 'User Two', email: 'two@test.com' },
+      ],
+    });
+
+    const res = await request(app).get('/api/v1/users');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'user-1', name: 'User One', email: 'one@test.com' }),
+        expect.objectContaining({ id: 'user-2', name: 'User Two', email: 'two@test.com' }),
+      ]),
+    );
+  });
+});

@@ -32,6 +32,7 @@ export interface CreateCastingInput {
   description: string;
   directorEmail: string;
   directorName: string;
+  directorId?: string;
 }
 
 // ============================================
@@ -71,6 +72,19 @@ export interface ReviewSubmissionOutput {
   status: string;
   score: number | null;
   feedback: string | null;
+}
+
+// ============================================
+// DTOs para Auth
+// ============================================
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface LoginOutput {
+  token: string;
+  userId: string;
 }
 
 // ============================================

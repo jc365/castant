@@ -362,8 +362,8 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const sub1 = await request(app)
         .post('/api/v1/submissions')
+        .set('X-User-Id', actor1!.id)
         .send({
-          actorId: actor1!.id,
           roundId: round1Id,
           videoUrl: 'https://example.com/video1.mp4',
         });
@@ -371,8 +371,8 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const sub2 = await request(app)
         .post('/api/v1/submissions')
+        .set('X-User-Id', actor2!.id)
         .send({
-          actorId: actor2!.id,
           roundId: round1Id,
           videoUrl: 'https://example.com/video2.mp4',
         });
@@ -380,8 +380,8 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const sub3 = await request(app)
         .post('/api/v1/submissions')
+        .set('X-User-Id', actor3!.id)
         .send({
-          actorId: actor3!.id,
           roundId: round1Id,
           videoUrl: 'https://example.com/video3.mp4',
         });

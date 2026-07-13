@@ -9,14 +9,15 @@
 | Aspecto | Estado |
 |---------|--------|
 | **Capa de Dominio** | ✅ Completada |
-| **Capa de Aplicación** | ✅ 6 casos de uso implementados |
-| **API (Escritura)** | ✅ 5 endpoints de escritura |
+| **Capa de Aplicación** | ✅ 7 casos de uso implementados |
+| **API (Escritura)** | ✅ 6 endpoints de escritura |
 | **API (Lectura)** | ✅ 4 endpoints de consulta |
 | **Tests** | ✅ 198 tests pasando |
 | **Cobertura** | ✅ ≈99% |
 | **Base de Datos** | ✅ Prisma con SQLite (`dev.db` / `test.db`) |
 | **Logging** | ✅ `pino` + `pino-http` + `requestId` |
 | **Bitácora** | ✅ Sistema de auditoría con `BitacoraService` |
+| **Autenticación** | ✅ Sistema híbrido (JWT + modo demo) |
 | **Documentación** | ✅ `AGENTS.md` actualizado |
 
 ---
@@ -57,6 +58,7 @@ Todas las tablas tienen `createdAt` y `updatedAt`.
 | `ManageRoundParticipantsUseCase` | Gestionar participantes en una ronda (añadir actores/preselectores, crear nueva ronda). |
 | `SubmitVideoUseCase` | Enviar un video a una ronda (actor invitado). |
 | `ReviewSubmissionUseCase` | Revisar un video (score + feedback). |
+| `LoginUseCase` | Login de usuario (retorna JWT). |
 
 Todos los casos de uso registran eventos en la Bitácora via `BitacoraService`.
 
@@ -64,15 +66,22 @@ Todos los casos de uso registran eventos en la Bitácora via `BitacoraService`.
 
 ## 4. API (Rutas Existentes)
 
-### 4.1. Rutas de Usuarios
+### 4.1. Rutas de Autenticación
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/api/v1/auth/login` | Login (body: `{ email, password }`) → `{ token, userId }`. |
+
+### 4.2. Rutas de Usuarios
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | `POST` | `/api/v1/users` | Crear usuario (`id` opcional). |
+| `GET` | `/api/v1/users` | Listar todos los usuarios. |
 | `GET` | `/api/v1/users/:id` | Obtener usuario. |
 | `DELETE` | `/api/v1/users/:id` | Eliminar usuario. |
 
-### 4.2. Rutas de Castings
+### 4.3. Rutas de Castings
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
@@ -80,7 +89,7 @@ Todos los casos de uso registran eventos en la Bitácora via `BitacoraService`.
 | `GET` | `/api/v1/castings` | Listar castings (con participantes). |
 | `GET` | `/api/v1/castings/:id` | Obtener casting (con rondas y participantes). |
 
-### 4.3. Rutas de Rondas
+### 4.4. Rutas de Rondas
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
@@ -88,12 +97,12 @@ Todos los casos de uso registran eventos en la Bitácora via `BitacoraService`.
 | `GET` | `/api/v1/rounds/:id` | Obtener ronda (con participantes). |
 | `GET` | `/api/v1/rounds/:id/submissions` | Listar submissions de una ronda. |
 
-### 4.4. Rutas de Submissions
+### 4.5. Rutas de Submissions
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| `POST` | `/api/v1/submissions` | Enviar video. |
-| `PATCH` | `/api/v1/submissions/:id/review` | Revisar video (score + feedback). |
+| `POST` | `/api/v1/submissions` | Enviar video (actorId de `req.user.id`). |
+| `PATCH` | `/api/v1/submissions/:id/review` | Revisar video (directorId de `req.user.id`). |
 
 ---
 
@@ -115,7 +124,6 @@ Todos los casos de uso registran eventos en la Bitácora via `BitacoraService`.
 |-------|-----------|
 | **Paginación en `GET /castings`** | Media |
 | **Filtros en `GET /castings`** | Media |
-| **Modo demo** (sin autenticación) | Baja |
 | **Mejora de logs** (más detalles en errores) | Baja |
 
 ---

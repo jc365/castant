@@ -8,6 +8,7 @@ import express from 'express';
 import cors from 'cors';
 import logger from './infrastructure/logging/logger';
 import { requestContextMiddleware, getRequestId } from './infrastructure/logging/requestContext';
+import { authMiddleware } from './infrastructure/middleware/auth';
 import v1Router from './infrastructure/api/v1/routes';
 
 const app = express();
@@ -54,7 +55,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api/v1', v1Router);
+app.use('/api/v1', authMiddleware, v1Router);
 
 export default app;
 

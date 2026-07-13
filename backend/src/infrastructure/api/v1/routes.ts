@@ -10,6 +10,7 @@ import { CreateCastingUseCase } from '../../../application/use-cases/CreateCasti
 import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUseCase';
 import { ManageRoundParticipantsUseCase } from '../../../application/use-cases/rounds/ManageRoundParticipantsUseCase';
 import { ReviewSubmissionUseCase } from '../../../application/use-cases/submissions/ReviewSubmissionUseCase';
+import { LoginUseCase } from '../../../application/use-cases/LoginUseCase';
 import PrismaUserRepository from '../../persistence/PrismaUserRepository';
 import PrismaCastingRepository from '../../persistence/PrismaCastingRepository';
 import PrismaRoundRepository from '../../persistence/PrismaRoundRepository';
@@ -17,6 +18,7 @@ import PrismaSubmissionRepository from '../../persistence/PrismaSubmissionReposi
 import PrismaBitacoraRepository from '../../persistence/PrismaBitacoraRepository';
 import BitacoraService from '../../logging/BitacoraService';
 import requestLogger from '../../logging/requestContext';
+import type { AuthRequest } from '../../middleware/auth';
 
 const router = Router();
 
@@ -26,6 +28,7 @@ const bitacoraService = new BitacoraService(bitacoraRepository);
 
 const createUserUseCase = new CreateUserUseCase(userRepository, bitacoraService);
 const getAllUsersUseCase = new GetAllUsersUseCase(userRepository);
+const loginUseCase = new LoginUseCase(userRepository);
 
 const castingRepository = new PrismaCastingRepository();
 const roundRepository = new PrismaRoundRepository();
@@ -36,6 +39,20 @@ const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepositor
 
 const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository, bitacoraService);
 const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository, bitacoraService);
+
+router.post('/auth/login', async (req, res) => {
+  requestLogger.info({}, 'POST /auth/login');
+
+  try {
+    const { email, password } = req.body;
+    const result = await loginUseCase.execute({ email, password });
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message }, 'POST /auth/login failed');
+    res.status(401).json({ error: message });
+  }
+});
 
 router.get('/users', async (_req, res) => {
   requestLogger.info({}, 'GET /users');
@@ -95,12 +112,13 @@ router.post('/users', async (req, res) => {
   }
 });
 
-router.post('/castings', async (req, res) => {
+router.post('/castings', async (req: AuthRequest, res) => {
   requestLogger.info({}, 'POST /castings');
 
   try {
     const { title, description, directorEmail, directorName } = req.body;
-    const casting = await createCastingUseCase.execute({ title, description, directorEmail, directorName });
+    const directorId = req.user?.id;
+    const casting = await createCastingUseCase.execute({ title, description, directorEmail, directorName, directorId });
     res.status(201).json({
       id: casting.id,
       title: casting.title,
@@ -269,12 +287,13 @@ router.get('/rounds/:id/submissions', async (req, res) => {
   }
 });
 
-router.post('/submissions', async (req, res) => {
+router.post('/submissions', async (req: AuthRequest, res) => {
   requestLogger.info({}, 'POST /submissions');
 
   try {
-    const { actorId, roundId, videoUrl } = req.body;
-    const submission = await submitVideoUseCase.execute({ actorId, roundId, videoUrl });
+    const actorId = req.user?.id;
+    const { roundId, videoUrl } = req.body;
+    const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl });
     res.status(201).json({
       id: submission.id,
       actorId: submission.actorId,
@@ -336,12 +355,13 @@ router.post('/rounds/participants', async (req, res) => {
   }
 });
 
-router.patch('/submissions/:id/review', async (req, res) => {
+router.patch('/submissions/:id/review', async (req: AuthRequest, res) => {
   const { id } = req.params;
   requestLogger.info({ id }, 'PATCH /submissions/:id/review');
 
   try {
-    const { score, feedback, directorId } = req.body;
+    const { score, feedback } = req.body;
+    const directorId = req.user?.id;
     const submission = await reviewSubmissionUseCase.execute({
       submissionId: id,
       score,

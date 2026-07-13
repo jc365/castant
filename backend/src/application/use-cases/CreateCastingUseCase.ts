@@ -26,17 +26,25 @@ export class CreateCastingUseCase {
   ) {}
 
   async execute(input: CreateCastingInput): Promise<Casting> {
-    const { title, description, directorEmail, directorName } = input;
+    const { title, description, directorEmail, directorName, directorId } = input;
 
     logger.info({ title, directorEmail }, 'CreateCastingUseCase: starting');
 
-    const email = Email.create(directorEmail);
-    let directorUser = await this.userRepository.findByEmail(email.getValue());
+    let directorUser = null;
+
+    if (directorId) {
+      directorUser = await this.userRepository.findById(directorId);
+    }
 
     if (!directorUser) {
-      const name = FullName.create(directorName);
-      directorUser = User.create(name, email);
-      await this.userRepository.save(directorUser);
+      const email = Email.create(directorEmail);
+      directorUser = await this.userRepository.findByEmail(email.getValue());
+
+      if (!directorUser) {
+        const name = FullName.create(directorName);
+        directorUser = User.create(name, email);
+        await this.userRepository.save(directorUser);
+      }
     }
 
     const castingTitle = CastingTitle.create(title);

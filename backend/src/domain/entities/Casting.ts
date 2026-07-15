@@ -40,7 +40,7 @@ export default class Casting {
     participants: CastingParticipantEntry[] = [],
     id?: string
   ): Casting {
-    const finalId = id || genUUID('casting');
+    const finalId = id || genUUID('cas');
     return new Casting(finalId, title, description, participants);
   }
 

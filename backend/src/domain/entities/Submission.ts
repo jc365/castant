@@ -25,7 +25,7 @@ export default class Submission {
    * Crea una nueva instancia de Submission (estado inicial: 'pending').
    */
   static create(actorId: string, roundId: string, videoUrl: VideoUrl, id?: string): Submission {
-    const finalId = id || genUUID('submission');
+    const finalId = id || genUUID('sub');
     return new Submission(finalId, actorId, roundId, videoUrl);
   }
 

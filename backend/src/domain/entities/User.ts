@@ -30,7 +30,7 @@ export class User {
    * @returns {User} - A new instance of User.
    */
   static create(name: FullName, email: Email, id?: string): User {
-    const finalId = id || genUUID('user');
+    const finalId = id || genUUID('usr');
     return new User(finalId, name, email, []);
   }
 

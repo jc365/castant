@@ -24,7 +24,7 @@ export default class Round {
     if (number <= 0) {
       throw new Error('Number must be greater than 0');
     }
-    const finalId = id || genUUID('round');
+    const finalId = id || genUUID('rnd');
     return new Round(finalId, number, castingId, participants);
   }
 

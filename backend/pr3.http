@@ -16,6 +16,26 @@ GET http://{{hostname}}:{{port}}/health
 ### 1. CREAR USUARIOS (Con captura de IDs)
 ### ============================================
 
+### 1.0 Atenticacion (por ahora solo email)
+# @name login
+POST http://{{host}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "director@casting.com",
+  "zemail": "carlos.lopez@example.com"
+}
+
+### Enviar video como un actor específico (usando X-User-Id)
+POST http://{{host}}/submissions
+Content-Type: application/json
+X-User-Id: user-630a2adc-03c8-49fa-a57c-a236b348197f
+
+{
+  "roundId": "round-e19141ad-2b66-413a-a625-7c9bc8b72df2",
+  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+}
+
 ### 1.1 Crear Director
 # @name createDirector
 POST http://{{host}}/users

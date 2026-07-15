@@ -17,7 +17,9 @@ import PrismaRoundRepository from '../../persistence/PrismaRoundRepository';
 import PrismaSubmissionRepository from '../../persistence/PrismaSubmissionRepository';
 import PrismaBitacoraRepository from '../../persistence/PrismaBitacoraRepository';
 import BitacoraService from '../../logging/BitacoraService';
+import HashService from '../../security/HashService';
 import requestLogger from '../../logging/requestContext';
+import { authMiddleware } from '../../middleware/auth';
 import type { AuthRequest } from '../../middleware/auth';
 
 const router = Router();
@@ -25,20 +27,25 @@ const router = Router();
 const userRepository = new PrismaUserRepository();
 const bitacoraRepository = new PrismaBitacoraRepository();
 const bitacoraService = new BitacoraService(bitacoraRepository);
+const hashService = new HashService();
 
-const createUserUseCase = new CreateUserUseCase(userRepository, bitacoraService);
+const createUserUseCase = new CreateUserUseCase(userRepository, bitacoraService, hashService);
 const getAllUsersUseCase = new GetAllUsersUseCase(userRepository);
-const loginUseCase = new LoginUseCase(userRepository);
+const loginUseCase = new LoginUseCase(userRepository, hashService);
 
 const castingRepository = new PrismaCastingRepository();
 const roundRepository = new PrismaRoundRepository();
-const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRepository, roundRepository, bitacoraService);
+const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRepository, roundRepository, bitacoraService, hashService);
 
 const submissionRepository = new PrismaSubmissionRepository();
 const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepository, submissionRepository, bitacoraService);
 
-const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository, bitacoraService);
+const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository, bitacoraService, hashService);
 const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository, bitacoraService);
+
+// ============================================
+// Rutas públicas (sin autenticación)
+// ============================================
 
 router.post('/auth/login', async (req, res) => {
   requestLogger.info({}, 'POST /auth/login');
@@ -53,6 +60,12 @@ router.post('/auth/login', async (req, res) => {
     res.status(401).json({ error: message });
   }
 });
+
+// ============================================
+// Rutas protegidas (requieren autenticación)
+// ============================================
+
+router.use(authMiddleware);
 
 router.get('/users', async (_req, res) => {
   requestLogger.info({}, 'GET /users');
@@ -98,8 +111,8 @@ router.get('/users/:id', async (req, res) => {
 
 router.post('/users', async (req, res) => {
   try {
-    const { id, name, email } = req.body;
-    const user = await createUserUseCase.execute({ id, name, email });
+    const { id, name, email, password } = req.body;
+    const user = await createUserUseCase.execute({ id, name, email, password });
     res.status(201).json({
       id: user.id,
       name: user.name.getValue(),

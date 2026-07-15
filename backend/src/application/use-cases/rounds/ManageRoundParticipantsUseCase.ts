@@ -12,12 +12,14 @@ import IRoundRepository from '../../interfaces/IRoundRepository';
 import { ManageRoundParticipantsInput } from '../../dtos';
 import logger from '../../../infrastructure/logging/requestContext';
 import BitacoraService from '../../../infrastructure/logging/BitacoraService';
+import HashService from '../../../infrastructure/security/HashService';
 
 export class ManageRoundParticipantsUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly roundRepository: IRoundRepository,
-    private readonly bitacoraService: BitacoraService
+    private readonly bitacoraService: BitacoraService,
+    private readonly hashService: HashService
   ) { }
 
   async execute(input: ManageRoundParticipantsInput): Promise<Round> {
@@ -103,7 +105,8 @@ export class ManageRoundParticipantsUseCase {
 
       if (!user) {
         const name = FullName.create(input.name || input.email.split('@')[0]);
-        user = User.create(name, email);
+        const defaultPassword = await this.hashService.hash('changeme');
+        user = User.create(name, email, defaultPassword);
         await this.userRepository.save(user);
         logger.info({ userId: user.id, email: input.email }, 'ManageRoundParticipantsUseCase: created new participant');
       }

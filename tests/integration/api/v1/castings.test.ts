@@ -19,7 +19,7 @@ beforeEach(async () => {
 describe('POST /api/v1/castings', () => {
   it('should create a casting with director as participant and initial round (201)', async () => {
     await prisma.user.create({
-      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
     });
 
     const res = await request(app)
@@ -67,7 +67,7 @@ describe('POST /api/v1/castings', () => {
 
   it('should return 400 when title is empty', async () => {
     await prisma.user.create({
-      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
     });
 
     const res = await request(app)
@@ -87,7 +87,7 @@ describe('POST /api/v1/castings', () => {
 describe('GET /api/v1/castings', () => {
   it('should list all castings (200)', async () => {
     await prisma.user.create({
-      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
     });
     await prisma.casting.create({
       data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -109,7 +109,7 @@ describe('GET /api/v1/castings', () => {
 describe('GET /api/v1/castings/:id', () => {
   it('should return a casting with participants and rounds (200)', async () => {
     await prisma.user.create({
-      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+      data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
     });
     await prisma.casting.create({
       data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },

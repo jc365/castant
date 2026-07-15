@@ -11,15 +11,17 @@ import IUserRepository from '../interfaces/IUserRepository';
 import { CreateUserInput } from '../dtos';
 import logger from '../../infrastructure/logging/requestContext';
 import BitacoraService from '../../infrastructure/logging/BitacoraService';
+import HashService from '../../infrastructure/security/HashService';
 
 export class CreateUserUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
-    private readonly bitacoraService: BitacoraService
+    private readonly bitacoraService: BitacoraService,
+    private readonly hashService: HashService
   ) {}
 
   async execute(input: CreateUserInput): Promise<User> {
-    const { id, name, email } = input;
+    const { id, name, email, password } = input;
 
     logger.info({ name, email }, 'CreateUserUseCase: starting');
 
@@ -31,7 +33,8 @@ export class CreateUserUseCase {
 
     const userEmail = Email.create(email);
     const userName = FullName.create(name);
-    const user = User.create(userName, userEmail, id);
+    const hashedPassword = await this.hashService.hash(password);
+    const user = User.create(userName, userEmail, hashedPassword, id);
 
     await this.userRepository.save(user);
 

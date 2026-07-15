@@ -7,6 +7,9 @@ import User from '../../../../backend/src/domain/entities/User';
 import Email from '../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../backend/src/domain/value-objects/FullName';
 import BitacoraService from '../../../../backend/src/infrastructure/logging/BitacoraService';
+import HashService from '../../../../backend/src/infrastructure/security/HashService';
+
+const hash = '$2b$10$abcdefghijklmnopqrstuu';
 
 describe('CreateCastingUseCase', () => {
   let useCase: CreateCastingUseCase;
@@ -14,6 +17,7 @@ describe('CreateCastingUseCase', () => {
   let userRepo: jest.Mocked<IUserRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
   let bitacoraService: jest.Mocked<BitacoraService>;
+  let hashService: jest.Mocked<HashService>;
 
   beforeEach(() => {
     castingRepo = {
@@ -38,11 +42,15 @@ describe('CreateCastingUseCase', () => {
     bitacoraService = {
       log: vi.fn(),
     } as unknown as jest.Mocked<BitacoraService>;
-    useCase = new CreateCastingUseCase(castingRepo, userRepo, roundRepo, bitacoraService);
+    hashService = {
+      hash: vi.fn().mockResolvedValue('$2b$10$hashedpassword'),
+      compare: vi.fn(),
+    } as unknown as jest.Mocked<HashService>;
+    useCase = new CreateCastingUseCase(castingRepo, userRepo, roundRepo, bitacoraService, hashService);
   });
 
   it('should create a casting when director user exists', async () => {
-    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
+    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), hash, 'user-1');
     userRepo.findByEmail.mockResolvedValue(user);
     castingRepo.save.mockResolvedValue();
     roundRepo.save.mockResolvedValue();
@@ -82,7 +90,7 @@ describe('CreateCastingUseCase', () => {
   });
 
   it('should create an initial round (Round 1) with empty participants', async () => {
-    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
+    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), hash, 'user-1');
     userRepo.findByEmail.mockResolvedValue(user);
     castingRepo.save.mockResolvedValue();
     roundRepo.save.mockResolvedValue();
@@ -104,7 +112,7 @@ describe('CreateCastingUseCase', () => {
   });
 
   it('should throw when title is invalid', async () => {
-    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
+    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), hash, 'user-1');
     userRepo.findByEmail.mockResolvedValue(user);
 
     await expect(
@@ -118,7 +126,7 @@ describe('CreateCastingUseCase', () => {
   });
 
   it('should throw when description exceeds max length', async () => {
-    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
+    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), hash, 'user-1');
     userRepo.findByEmail.mockResolvedValue(user);
 
     await expect(
@@ -132,7 +140,7 @@ describe('CreateCastingUseCase', () => {
   });
 
   it('should log to bitacora when casting is created', async () => {
-    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), 'user-1');
+    const user = User.create(FullName.create('Jane Doe'), Email.create('jane@test.com'), hash, 'user-1');
     userRepo.findByEmail.mockResolvedValue(user);
     castingRepo.save.mockResolvedValue();
     roundRepo.save.mockResolvedValue();

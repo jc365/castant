@@ -21,13 +21,14 @@ describe('POST /api/v1/users', () => {
     const res = await request(app)
       .post('/api/v1/users')
       .send({
-        id: 'user-1',
+        id: 'usr-1',
         name: 'Test User',
         email: 'test@test.com',
+        password: 'secret123',
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.id).toBe('user-1');
+    expect(res.body.id).toBe('usr-1');
     expect(res.body.name).toBe('Test User');
     expect(res.body.email).toBe('test@test.com');
   });
@@ -38,18 +39,19 @@ describe('POST /api/v1/users', () => {
       .send({
         name: 'Test User',
         email: 'test@test.com',
+        password: 'secret123',
       });
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBeDefined();
-    expect(res.body.id.startsWith('user-')).toBe(true);
+    expect(res.body.id.startsWith('usr-')).toBe(true);
     expect(res.body.name).toBe('Test User');
     expect(res.body.email).toBe('test@test.com');
   });
 
   it('should return 400 when email is already registered', async () => {
     await prisma.user.create({
-      data: { id: 'user-existing', name: 'Existing', email: 'test@test.com' },
+      data: { id: 'usr-existing', name: 'Existing', email: 'test@test.com', password: 'hash' },
     });
 
     const res = await request(app)
@@ -57,6 +59,7 @@ describe('POST /api/v1/users', () => {
       .send({
         name: 'Test User',
         email: 'test@test.com',
+        password: 'secret123',
       });
 
     expect(res.status).toBe(400);
@@ -69,6 +72,7 @@ describe('POST /api/v1/users', () => {
       .send({
         name: '',
         email: 'test@test.com',
+        password: 'secret123',
       });
 
     expect(res.status).toBe(400);
@@ -87,8 +91,8 @@ describe('GET /api/v1/users', () => {
   it('should return all users (200)', async () => {
     await prisma.user.createMany({
       data: [
-        { id: 'user-1', name: 'User One', email: 'one@test.com' },
-        { id: 'user-2', name: 'User Two', email: 'two@test.com' },
+        { id: 'usr-1', name: 'User One', email: 'one@test.com', password: 'hash' },
+        { id: 'usr-2', name: 'User Two', email: 'two@test.com', password: 'hash' },
       ],
     });
 
@@ -98,8 +102,8 @@ describe('GET /api/v1/users', () => {
     expect(res.body).toHaveLength(2);
     expect(res.body).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'user-1', name: 'User One', email: 'one@test.com' }),
-        expect.objectContaining({ id: 'user-2', name: 'User Two', email: 'two@test.com' }),
+        expect.objectContaining({ id: 'usr-1', name: 'User One', email: 'one@test.com' }),
+        expect.objectContaining({ id: 'usr-2', name: 'User Two', email: 'two@test.com' }),
       ]),
     );
   });

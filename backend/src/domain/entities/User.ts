@@ -13,12 +13,14 @@ export class User {
   private readonly _id: string;
   private readonly _name: FullName;
   private readonly _email: Email;
+  private readonly _password: string;
   private readonly _submissions: any[];
 
-  private constructor(id: string, name: FullName, email: Email, submissions: any[]) {
+  private constructor(id: string, name: FullName, email: Email, password: string, submissions: any[]) {
     this._id = id;
     this._name = name;
     this._email = email;
+    this._password = password;
     this._submissions = submissions;
   }
 
@@ -26,12 +28,13 @@ export class User {
    * @static
    * @param {FullName} name - Name of the User.
    * @param {Email} email - Email address of the User.
+   * @param {string} password - Hashed password of the User.
    * @param {string} [id] - Optional unique identifier for the User.
    * @returns {User} - A new instance of User.
    */
-  static create(name: FullName, email: Email, id?: string): User {
+  static create(name: FullName, email: Email, password: string, id?: string): User {
     const finalId = id || genUUID('usr');
-    return new User(finalId, name, email, []);
+    return new User(finalId, name, email, password, []);
   }
 
   /**
@@ -56,12 +59,10 @@ export class User {
   }
 
   /**
-   * @param {any} submission - Submission to be added.
-   * @returns {User} - A new instance of User with the additional submission.
+   * @returns {string} - User's hashed password.
    */
-  addSubmission(submission: any): User {
-    const newSubmissions = [...this._submissions, submission];
-    return new User(this._id, this._name, this._email, newSubmissions);
+  get password(): string {
+    return this._password;
   }
 
   /**

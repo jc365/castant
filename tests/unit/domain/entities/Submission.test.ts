@@ -16,7 +16,7 @@ describe('Submission Entity', () => {
   it('should generate an id when not provided', () => {
     const sub = Submission.create('actor-1', 'round-1', videoUrl);
     expect(sub.id).toBeDefined();
-    expect(sub.id.startsWith('submission-')).toBe(true);
+    expect(sub.id.startsWith('sub-')).toBe(true);
   });
 
   describe('review()', () => {

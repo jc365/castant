@@ -9,6 +9,8 @@ import Email from '../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../backend/src/domain/value-objects/FullName';
 import BitacoraService from '../../../../backend/src/infrastructure/logging/BitacoraService';
 
+const hash = '$2b$10$abcdefghijklmnopqrstuu';
+
 describe('SubmitVideoUseCase', () => {
   let useCase: SubmitVideoUseCase;
   let userRepo: jest.Mocked<IUserRepository>;
@@ -44,7 +46,7 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should create a submission when user is invited to round', async () => {
-    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), hash, 'user-1');
     const participants: RoundParticipantEntry[] = [{ id: 'user-1', role: 'actor' }];
     const round = Round.create(1, 'casting-1', participants, 'round-1');
 
@@ -80,7 +82,7 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should throw when round is not found', async () => {
-    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), hash, 'user-1');
     userRepo.findById.mockResolvedValue(user);
     roundRepo.findById.mockResolvedValue(null);
 
@@ -96,7 +98,7 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should throw when user is not invited to round', async () => {
-    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), hash, 'user-1');
     const participants: RoundParticipantEntry[] = [{ id: 'user-other', role: 'actor' }];
     const round = Round.create(1, 'casting-1', participants, 'round-1');
 
@@ -115,7 +117,7 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should throw when video URL is invalid', async () => {
-    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), hash, 'user-1');
     const participants: RoundParticipantEntry[] = [{ id: 'user-1', role: 'actor' }];
     const round = Round.create(1, 'casting-1', participants, 'round-1');
 
@@ -135,7 +137,7 @@ describe('SubmitVideoUseCase', () => {
   });
 
   it('should log to bitacora when submission is created', async () => {
-    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), 'user-1');
+    const user = User.create(FullName.create('John Doe'), Email.create('john@test.com'), hash, 'user-1');
     const participants: RoundParticipantEntry[] = [{ id: 'user-1', role: 'actor' }];
     const round = Round.create(1, 'casting-1', participants, 'round-1');
 

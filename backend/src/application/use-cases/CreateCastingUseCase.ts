@@ -16,13 +16,15 @@ import IUserRepository from '../interfaces/IUserRepository';
 import { CreateCastingInput } from '../dtos';
 import logger from '../../infrastructure/logging/requestContext';
 import BitacoraService from '../../infrastructure/logging/BitacoraService';
+import HashService from '../../infrastructure/security/HashService';
 
 export class CreateCastingUseCase {
   constructor(
     private readonly castingRepository: ICastingRepository,
     private readonly userRepository: IUserRepository,
     private readonly roundRepository: IRoundRepository,
-    private readonly bitacoraService: BitacoraService
+    private readonly bitacoraService: BitacoraService,
+    private readonly hashService: HashService
   ) {}
 
   async execute(input: CreateCastingInput): Promise<Casting> {
@@ -42,7 +44,8 @@ export class CreateCastingUseCase {
 
       if (!directorUser) {
         const name = FullName.create(directorName);
-        directorUser = User.create(name, email);
+        const defaultPassword = await this.hashService.hash('changeme');
+        directorUser = User.create(name, email, defaultPassword);
         await this.userRepository.save(directorUser);
       }
     }

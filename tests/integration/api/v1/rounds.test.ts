@@ -20,7 +20,7 @@ describe('POST /api/v1/rounds/participants', () => {
   describe('add participants to existing round', () => {
     it('should add actors to an existing round (201)', async () => {
       await prisma.user.create({
-        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
       });
       const casting = await prisma.casting.create({
         data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -51,7 +51,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
     it('should add preselectors to an existing round (201)', async () => {
       await prisma.user.create({
-        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
       });
       const casting = await prisma.casting.create({
         data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -78,7 +78,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
     it('should not duplicate actors already in the round (201)', async () => {
       await prisma.user.create({
-        data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
+        data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com', password: 'hash' },
       });
       const casting = await prisma.casting.create({
         data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -105,7 +105,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
     it('should allow same user as actor and preselector (201)', async () => {
       await prisma.user.create({
-        data: { id: 'user-1', name: 'Multi User', email: 'multi@test.com' },
+        data: { id: 'user-1', name: 'Multi User', email: 'multi@test.com', password: 'hash' },
       });
       const casting = await prisma.casting.create({
         data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -135,7 +135,7 @@ describe('POST /api/v1/rounds/participants', () => {
   describe('createNewRound', () => {
     it('should create a new round with selected actors (201)', async () => {
       await prisma.user.create({
-        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
       });
       const casting = await prisma.casting.create({
         data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -144,10 +144,10 @@ describe('POST /api/v1/rounds/participants', () => {
         data: { userId: 'user-1', castingId: casting.id, role: 'director' },
       });
       await prisma.user.create({
-        data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
+        data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com', password: 'hash' },
       });
       await prisma.user.create({
-        data: { id: 'actor-2', name: 'Actor Two', email: 'a2@test.com' },
+        data: { id: 'actor-2', name: 'Actor Two', email: 'a2@test.com', password: 'hash' },
       });
       const round = await prisma.round.create({
         data: { id: 'round-1', number: 1, castingId: casting.id },
@@ -181,7 +181,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
     it('should not inherit previous round participants (201)', async () => {
       await prisma.user.create({
-        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
       });
       const casting = await prisma.casting.create({
         data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -190,13 +190,13 @@ describe('POST /api/v1/rounds/participants', () => {
         data: { userId: 'user-1', castingId: casting.id, role: 'director' },
       });
       await prisma.user.create({
-        data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com' },
+        data: { id: 'actor-1', name: 'Actor One', email: 'a1@test.com', password: 'hash' },
       });
       await prisma.user.create({
-        data: { id: 'actor-2', name: 'Actor Two', email: 'a2@test.com' },
+        data: { id: 'actor-2', name: 'Actor Two', email: 'a2@test.com', password: 'hash' },
       });
       await prisma.user.create({
-        data: { id: 'pre-1', name: 'Pre Selector', email: 'pre@test.com' },
+        data: { id: 'pre-1', name: 'Pre Selector', email: 'pre@test.com', password: 'hash' },
       });
       const round = await prisma.round.create({
         data: { id: 'round-1', number: 1, castingId: casting.id },
@@ -233,7 +233,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
     it('should create new users when they do not exist (201)', async () => {
       await prisma.user.create({
-        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com' },
+        data: { id: 'user-1', name: 'Test Director', email: 'dir@test.com', password: 'hash' },
       });
       const casting = await prisma.casting.create({
         data: { id: 'casting-1', title: 'Casting Test', description: 'Desc' },
@@ -324,7 +324,7 @@ describe('POST /api/v1/rounds/participants', () => {
     it('should create casting, add actors, submit videos, create new round with selected actors', async () => {
       const directorRes = await request(app)
         .post('/api/v1/users')
-        .send({ id: 'dir-1', name: 'Director', email: 'dir@test.com' });
+        .send({ id: 'dir-1', name: 'Director', email: 'dir@test.com', password: 'secret123' });
       expect(directorRes.status).toBe(201);
 
       const castingRes = await request(app)

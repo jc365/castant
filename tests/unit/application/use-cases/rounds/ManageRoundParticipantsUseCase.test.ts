@@ -12,12 +12,16 @@ import Round, { type RoundParticipantEntry } from '../../../../../backend/src/do
 import Email from '../../../../../backend/src/domain/value-objects/Email';
 import FullName from '../../../../../backend/src/domain/value-objects/FullName';
 import BitacoraService from '../../../../../backend/src/infrastructure/logging/BitacoraService';
+import HashService from '../../../../../backend/src/infrastructure/security/HashService';
+
+const hash = '$2b$10$abcdefghijklmnopqrstuu';
 
 describe('ManageRoundParticipantsUseCase', () => {
   let useCase: ManageRoundParticipantsUseCase;
   let userRepo: jest.Mocked<IUserRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
   let bitacoraService: jest.Mocked<BitacoraService>;
+  let hashService: jest.Mocked<HashService>;
 
   beforeEach(() => {
     userRepo = {
@@ -36,7 +40,11 @@ describe('ManageRoundParticipantsUseCase', () => {
     bitacoraService = {
       log: vi.fn(),
     } as unknown as jest.Mocked<BitacoraService>;
-    useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo, bitacoraService);
+    hashService = {
+      hash: vi.fn().mockResolvedValue('$2b$10$hashedpassword'),
+      compare: vi.fn(),
+    } as unknown as jest.Mocked<HashService>;
+    useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo, bitacoraService, hashService);
   });
 
   function makeRound(number: number, participants: RoundParticipantEntry[], id?: string): Round {
@@ -46,7 +54,7 @@ describe('ManageRoundParticipantsUseCase', () => {
   function makeUser(id: string, email: string, name: string): User {
     const userEmail = Email.create(email);
     const userName = FullName.create(name);
-    return User.create(userName, userEmail, id);
+    return User.create(userName, userEmail, hash, id);
   }
 
   describe('add participants to existing round', () => {

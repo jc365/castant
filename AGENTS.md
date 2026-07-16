@@ -305,6 +305,10 @@ infrastructure/api/
 - `DEMO_MODE=false`: requiere JWT válido en header `Authorization: Bearer <token>`
 - `req.user.id` se usa en endpoints que requieren usuario autenticado
 
+## Frontend - Diseño
+
+- El sistema de diseño del frontend está definido en la Skill `frontend-design`. Carga esta Skill antes de generar cualquier código frontend.
+
 ## Versionado de AGENTS.md
 
 **Regla obligatoria:** Cada vez que se vaya a actualizar este archivo, se debe crear una copia de seguridad de la versión anterior en el mismo directorio con el formato `AGENTS_<timestamp>.md`, donde `<timestamp>` sigue el patrón `YYYYMMDD_HHMMSS` (ej. `AGENTS_20260709_123456.md`).

@@ -31,6 +31,25 @@ apaptado por DS:
     IMPORTANTE: NO modifiques las importaciones de ningún archivo. No añadas extensiones .js."
 
 
+
+"Crea el caso de uso CreateCastingUseCase en backend/src/application/use-cases/castings/CreateCastingUseCase.ts.
+
+Debe:
+    Importar Casting, CastingTitle, Description, ICastingRepository, IDirectorRepository (aunque no exista, usa IActorRepository como referencia) y los DTOs necesarios.
+    Tener un constructor que reciba un repositorio de casting (y, opcionalmente, un repositorio de directores para validar que existe).
+    El método execute debe recibir un DTO CreateCastingInput que contenga title, description y directorId.
+    Validar que el director existe (si tienes repositorio de directores, si no, simplifica y solo valida que el ID no esté vacío por ahora).
+    Crear los Value Objects CastingTitle y Description.
+    Crear la entidad Casting con un ID generado (puedes usar EntityId.create<'Casting'>(crypto.randomUUID())).
+    Guardar el casting usando el repositorio.
+    Devolver el casting creado.
+
+Genera también los tests unitarios para el caso de uso en tests/unit/application/use-cases/CreateCastingUseCase.test.ts. Los tests deben cubrir el caso feliz y el caso de error (ej. director no encontrado).
+
+Sigue los patrones de CreateActorUseCase y las directrices de AGENTS.md." 
+
+
+
 generado por DS:
 "Añade el endpoint POST /api/v1/castings en backend/src/infrastructure/api/v1/routes.ts para crear un nuevo casting.
 
@@ -175,3 +194,140 @@ export class User {
 }
 
 IMPORTANTE: No modifiques las importaciones de ningún archivo. No añadas extensiones .js."
+
+
+
+
+"Vamos a implementar la gestión de contraseñas en el sistema.
+
+1. Añadir campo password a la entidad User (domain/entities/User.ts):
+
+    Añadir propiedad privada _password: string.
+
+    Modificar el constructor para que reciba password.
+
+    Modificar create() para que reciba password (obligatorio).
+
+    Añadir getter get password(): string.
+
+2. Añadir campo password al modelo Prisma:
+
+    En schema.prisma, añadir password String al modelo User.
+
+    Ejecutar npx prisma db push para actualizar la BD de desarrollo.
+
+    Actualizar tests/globalSetup.ts para que la BD de tests también se actualice.
+
+3. Crear el servicio HashService (infrastructure/security/HashService.ts):
+
+    Usar bcrypt para hashear contraseñas (npm install bcrypt).
+
+    Método hash(password: string): Promise<string>.
+
+    Método compare(password: string, hash: string): Promise<boolean>.
+
+4. Modificar CreateUserUseCase:
+
+    Inyectar HashService como dependencia.
+
+    Hashear la contraseña antes de crear el usuario.
+
+    Guardar el hash en la base de datos.
+
+5. Modificar LoginUseCase:
+
+    Inyectar HashService como dependencia.
+
+    Buscar el usuario por email.
+
+    Comparar la contraseña proporcionada con el hash almacenado.
+
+    Si no coincide, lanzar error 401.
+
+6. Actualizar routes.ts:
+
+    POST /users debe recibir password en el body.
+
+    POST /auth/login debe comparar la contraseña.
+
+7. Actualizar tests:
+
+    Añadir password en la creación de usuarios en todos los tests.
+
+    Mockear HashService en los tests de casos de uso.
+
+8. Actualizar AGENTS.md:
+
+    Documentar el nuevo campo password y el servicio HashService.
+
+IMPORTANTE: No modifiques las importaciones de ningún archivo. No añadas extensiones .js. Crea el backup de AGENTS.md antes de modificarlo."
+
+
+
+
+"Refactoriza backend/src/infrastructure/api/v1/routes.ts para agrupar las rutas por middleware de autenticación, siguiendo el patrón de Laravel.
+
+Cambios necesarios:
+
+    Mover router.post('/auth/login', ...) al principio (antes de cualquier middleware).
+
+    Añadir router.use(authMiddleware) inmediatamente después de las rutas públicas.
+
+    Todas las rutas protegidas (POST, PATCH, DELETE, etc.) deben ir después de router.use(authMiddleware).
+
+    Las rutas GET pueden ir después de router.use(authMiddleware) si requieren autenticación (o antes si son públicas).
+
+    Eliminar authMiddleware de index.ts (ya no se pasa como argumento a app.use).
+
+    Asegurar que authMiddleware se importa en routes.ts.
+
+    Actualizar AGENTS.md para reflejar el nuevo patrón.
+
+IMPORTANTE: No modifiques las importaciones de ningún archivo. No añadas extensiones .js. Crea el backup de AGENTS.md antes de modificarlo."
+
+
+
+prompt para stitch
+"Genera un prototipo de alta fidelidad para una aplicación web de gestión de casting para directores. El estilo debe ser minimalista, elegante y profesional, con soporte para modo claro y oscuro. La aplicación consta de tres pantallas principales:
+
+1. Dashboard / Home:
+
+    Esta es la pantalla principal. Muestra una vista general de todos los castings que tiene el director.
+
+    Cada casting se presenta como una tarjeta con su título, la fecha de creación, un contador de rondas y el número total de submissions (videos) recibidos.
+
+    Cada tarjeta de casting debe tener dos áreas clicables:
+
+        Al hacer clic en el área principal de la tarjeta, se navega a la pantalla de detalle de ese casting.
+
+        Dentro de la tarjeta, debe haber un acceso directo a la pantalla de la ronda activa de ese casting.
+
+    Debe incluir un botón destacado para "Crear Nuevo Casting", que navega a la pantalla de detalle de casting en modo de creación.
+
+2. Pantalla de Detalle del Casting:
+
+    Esta pantalla se usa tanto para ver/editar un casting existente como para crear uno nuevo.
+
+    Debe mostrar un formulario con los campos: Título y Descripción.
+
+    Debe tener una sección para gestionar los participantes a nivel de casting (ej. para añadir otros directores o roles que solo tienen sentido a este nivel).
+
+3. Pantalla de Detalle de una Ronda:
+
+    Esta es la pantalla más compleja. Muestra el contenido de una ronda específica.
+
+    El área principal debe ser un grid de tarjetas, donde cada tarjeta representa un video enviado por un actor. Cada tarjeta debe mostrar:
+
+        Un icono o "thumbnail" representando el video.
+
+        El nombre del actor.
+
+        La puntuación (score) y un breve resumen del comentario.
+
+    La pantalla debe tener dos secciones para gestionar participantes a nivel de ronda: una para actores (lista de invitados) y otra para preselectores (invitados con capacidad de invitar a otros).
+
+Navegación y Acciones Generales:
+
+    Incluye una barra lateral que esté presente en todas las pantallas. Debe contener el logo de la aplicación y enlaces para navegar al Dashboard y, en el futuro, a otras secciones (ej. Mi Perfil).
+
+    Las acciones de crear, editar o seleccionar deben ser siempre claras con botones primarios de un color distintivo."

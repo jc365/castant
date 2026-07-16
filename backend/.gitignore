@@ -1,5 +1,37 @@
-node_modules
-# Keep environment variables out of version control
 .env
 
+# ============================================
+# MÓDULOS DE NODE.JS
+# ============================================
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================
+# ARCHIVOS COMPILADOS / DE SALIDA
+# ============================================
+dist/
+build/
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
+*.tsbuildinfo
 /src/generated/prisma
+
+# ============================================
+# BASE DE DATOS Y BACKUPS
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+prisma/backups/
+prisma/migrations/*.sql
+!prisma/migrations/migration_lock.toml
+
+# ============================================
+# LOGS
+# ============================================
+*.log
+logs/

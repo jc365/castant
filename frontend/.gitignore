@@ -1,34 +1,30 @@
 # ============================================
-# ARCHIVOS DEL SISTEMA OPERATIVO
+# MÓDULOS DE NODE.JS
 # ============================================
-.DS_Store
-Thumbs.db
-desktop.ini
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================
+# ARCHIVOS COMPILADOS / DE SALIDA
+# ============================================
+dist/
+build/
+*.tsbuildinfo
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# ============================================
+# ENTORNO Y CONFIGURACIÓN LOCAL
+# ============================================
+.env
+.env.local
+.env.*.local
 
 # ============================================
 # EDITORES
 # ============================================
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# ============================================
-# DEPENDENCIAS GLOBALES (si las hay)
-# ============================================
-node_modules/
-
-# ============================================
-# COBERTURA DE TESTS
-# ============================================
-coverage/
-.nyc_output/
-
-# ============================================
-# ARCHIVOS DE RESPALDO Y TEMPORALES
-# ============================================
-*.bak
-*.tmp
-temp/
-*.old
-

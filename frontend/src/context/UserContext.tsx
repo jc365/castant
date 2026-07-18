@@ -1,0 +1,193 @@
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import client from '../api/client';
+
+interface CastingParticipation {
+  type: 'casting';
+  castingId: string;
+  castingTitle: string;
+  castingDescription: string;
+  role: string;
+}
+
+interface RoundParticipation {
+  type: 'round';
+  roundId: string;
+  roundNumber: number;
+  castingId: string;
+  castingTitle: string;
+  role: string;
+}
+
+type Participation = CastingParticipation | RoundParticipation;
+
+interface UserContextValue {
+  user: { id: string; name: string; email: string } | null;
+  participations: Participation[];
+  isLoading: boolean;
+  refreshParticipations: () => void;
+  refreshUser: () => void;
+  isDirectorOf: (castingId: string) => boolean;
+  isActorOf: (roundId: string) => boolean;
+  isPreselectorOf: (roundId: string) => boolean;
+  getRoleInCasting: (castingId: string) => string | null;
+  getRoleInRound: (roundId: string) => string | null;
+}
+
+const UserContext = createContext<UserContextValue | null>(null);
+
+const POLL_INTERVAL = 30_000;
+
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [participations, setParticipations] = useState<Participation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() =>
+    !!localStorage.getItem('token') || localStorage.getItem('demo-mode') === 'true'
+  );
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const checkAuth = useCallback(() => {
+    const next = !!localStorage.getItem('token') || localStorage.getItem('demo-mode') === 'true';
+    setIsAuthenticated(next);
+    return next;
+  }, []);
+
+  const fetchUser = useCallback(() => {
+    const userId = localStorage.getItem('userId');
+    console.log('[UserContext] fetchUser, userId:', userId);
+    if (!userId) { setUser(null); return; }
+    client.get(`/users/${userId}`)
+      .then((res) => {
+        console.log('[UserContext] fetchUser success:', res.data);
+        setUser({ id: res.data.id, name: res.data.name, email: res.data.email });
+      })
+      .catch(() => setUser(null));
+  }, []);
+
+  const fetchParticipations = useCallback(() => {
+    const token = localStorage.getItem('token');
+    const demoMode = localStorage.getItem('demo-mode') === 'true';
+    console.log('[UserContext] fetchParticipations, token:', !!token, 'demoMode:', demoMode);
+    if (!token && !demoMode) {
+      setParticipations([]);
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    client.get(`/users/me/participations?t=${Date.now()}`)
+      .then((res) => {
+        console.log('[UserContext] fetchParticipations success:', res.data);
+        setParticipations(res.data);
+      })
+      .catch(() => setParticipations([]))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const refreshParticipations = useCallback(() => {
+    fetchParticipations();
+  }, [fetchParticipations]);
+
+  const refreshUser = useCallback(() => {
+    console.log('[UserContext] refreshUser called');
+    checkAuth();
+    const userId = localStorage.getItem('userId');
+    if (userId) {
+      fetchUser();
+    } else {
+      setUser(null);
+    }
+    fetchParticipations();
+  }, [checkAuth, fetchUser, fetchParticipations]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUser(null);
+      setParticipations([]);
+      setIsLoading(false);
+      return;
+    }
+    fetchUser();
+    fetchParticipations();
+  }, [isAuthenticated, fetchUser, fetchParticipations]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const startPolling = () => {
+      if (pollingRef.current) return;
+      pollingRef.current = setInterval(() => {
+        if (!document.hidden) {
+          fetchParticipations();
+        }
+      }, POLL_INTERVAL);
+    };
+
+    const stopPolling = () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) stopPolling();
+      else startPolling();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    startPolling();
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [isAuthenticated, fetchParticipations]);
+
+  const isDirectorOf = useCallback((castingId: string) =>
+    participations.some((p) => p.type === 'casting' && p.castingId === castingId && p.role === 'director'),
+    [participations]
+  );
+
+  const isActorOf = useCallback((roundId: string) =>
+    participations.some((p) => p.type === 'round' && p.roundId === roundId && p.role === 'actor'),
+    [participations]
+  );
+
+  const isPreselectorOf = useCallback((roundId: string) =>
+    participations.some((p) => p.type === 'round' && p.roundId === roundId && p.role === 'preselector'),
+    [participations]
+  );
+
+  const getRoleInCasting = useCallback((castingId: string) => {
+    const p = participations.find((p) => p.type === 'casting' && p.castingId === castingId);
+    return p ? p.role : null;
+  }, [participations]);
+
+  const getRoleInRound = useCallback((roundId: string) => {
+    const p = participations.find((p) => p.type === 'round' && p.roundId === roundId);
+    return p ? p.role : null;
+  }, [participations]);
+
+  return (
+    <UserContext.Provider value={{
+      user,
+      participations,
+      isLoading,
+      refreshParticipations,
+      refreshUser,
+      isDirectorOf,
+      isActorOf,
+      isPreselectorOf,
+      getRoleInCasting,
+      getRoleInRound,
+    }}>
+      {children}
+    </UserContext.Provider>
+  );
+}
+
+export function useUser() {
+  const ctx = useContext(UserContext);
+  if (!ctx) throw new Error('useUser must be used within UserProvider');
+  return ctx;
+}

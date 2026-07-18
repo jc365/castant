@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import client from '../api/client';
 
-export default function Login() {
-  const navigate = useNavigate();
+interface LoginFormProps {
+  onLoginSuccess: () => void;
+}
+
+export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +20,7 @@ export default function Login() {
       const res = await client.post('/auth/login', { email, password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('userId', res.data.userId);
-      navigate('/dashboard');
+      onLoginSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Credenciales inválidas');
     } finally {
@@ -27,7 +29,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-dim">
+    <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
       <div className="w-full max-w-md bg-surface border border-outline-variant/30 rounded-xl p-8">
         <div className="flex items-center gap-3 mb-8 justify-center">
           <div className="w-10 h-10 rounded bg-surface-container-high border border-outline-variant/30 flex items-center justify-center">

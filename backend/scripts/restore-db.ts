@@ -3,10 +3,12 @@
  * @module scripts/restore-db
  *
  * Restaura el último backup de prisma/backups/ a dev.db
+ * y ejecuta el seed automáticamente.
  */
 
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,4 +42,16 @@ try {
 } catch (error) {
   console.error(`❌ Error al restaurar backup: ${error instanceof Error ? error.message : error}`);
   process.exit(1);
+}
+
+// Ejecutar seed automáticamente
+try {
+  console.log('\n🌱 Ejecutando seed...');
+  execSync('npx tsx prisma/seed.ts', {
+    cwd: projectRoot,
+    stdio: 'inherit',
+  });
+} catch (error) {
+  console.error('⚠️  Error al ejecutar seed:', error instanceof Error ? error.message : error);
+  // No salimos con error porque el restore fue exitoso
 }

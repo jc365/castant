@@ -26,15 +26,20 @@ export default function CreateCasting() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Crear Casting</h1>
+      <h1 className="font-display-lg-mobile text-display-lg-mobile text-on-background mb-6">
+        Create Casting
+      </h1>
       {error && (
-        <div className="bg-red-50 text-red-700 p-3 rounded mb-4 text-sm">
+        <div className="bg-error-container text-on-error-container p-3 rounded mb-4 text-sm">
           {error}
         </div>
       )}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-surface border border-outline-variant/30 rounded-xl p-6 space-y-4"
+      >
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
             Título
           </label>
           <input
@@ -42,11 +47,11 @@ export default function CreateCasting() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-surface-container border-b-2 border-outline-variant/30 text-on-surface px-3 py-2 rounded focus:outline-none focus:border-primary transition-colors"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
             Descripción
           </label>
           <textarea
@@ -54,13 +59,13 @@ export default function CreateCasting() {
             onChange={(e) => setDescription(e.target.value)}
             required
             rows={4}
-            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-surface-container border-b-2 border-outline-variant/30 text-on-surface px-3 py-2 rounded focus:outline-none focus:border-primary transition-colors"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 disabled:opacity-50"
+          className="w-full bg-primary-container text-on-primary-container font-title-sm text-title-sm py-3 px-4 rounded hover:bg-primary transition-colors disabled:opacity-50"
         >
           {loading ? 'Creando...' : 'Crear Casting'}
         </button>

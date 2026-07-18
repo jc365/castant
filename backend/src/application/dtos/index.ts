@@ -79,8 +79,9 @@ export interface ReviewSubmissionOutput {
 // DTOs para Auth
 // ============================================
 export interface LoginInput {
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
+  xUserId?: string;
 }
 
 export interface LoginOutput {

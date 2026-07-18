@@ -21,6 +21,7 @@ import HashService from '../../security/HashService';
 import requestLogger from '../../logging/requestContext';
 import { authMiddleware } from '../../middleware/auth';
 import type { AuthRequest } from '../../middleware/auth';
+import prisma from '../../persistence/prismaClient';
 
 const router = Router();
 
@@ -51,8 +52,8 @@ router.post('/auth/login', async (req, res) => {
   requestLogger.info({}, 'POST /auth/login');
 
   try {
-    const { email, password } = req.body;
-    const result = await loginUseCase.execute({ email, password });
+    const { email, password, xUserId } = req.body;
+    const result = await loginUseCase.execute({ email, password, xUserId });
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -80,6 +81,57 @@ router.get('/users', async (_req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     requestLogger.error({ error: message }, 'GET /users failed');
+    res.status(500).json({ error: message });
+  }
+});
+
+router.get('/users/me/participations', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  requestLogger.info({ userId }, 'GET /users/me/participations');
+
+  try {
+    const participations = await prisma.participant.findMany({
+      where: { userId },
+      include: {
+        casting: { select: { id: true, title: true, description: true } },
+        round: {
+          select: {
+            id: true,
+            number: true,
+            castingId: true,
+            casting: { select: { id: true, title: true } },
+          },
+        },
+      },
+    });
+
+    const result = participations.map((p) => {
+      if (p.castingId && p.casting) {
+        return {
+          type: 'casting' as const,
+          castingId: p.casting.id,
+          castingTitle: p.casting.title,
+          castingDescription: p.casting.description,
+          role: p.role,
+        };
+      }
+      if (p.roundId && p.round) {
+        return {
+          type: 'round' as const,
+          roundId: p.round.id,
+          roundNumber: p.round.number,
+          castingId: p.round.castingId,
+          castingTitle: p.round.casting?.title ?? '',
+          role: p.role,
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message }, 'GET /users/me/participations failed');
     res.status(500).json({ error: message });
   }
 });

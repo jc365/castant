@@ -10,11 +10,6 @@ client.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  const xUserId = localStorage.getItem('x-user-id');
-  if (xUserId) {
-    config.headers['X-User-Id'] = xUserId;
-  }
-
   if (import.meta.env.DEV) {
     console.log(`🚀 ${config.method?.toUpperCase()} ${config.url}`, config.data ?? '');
   }

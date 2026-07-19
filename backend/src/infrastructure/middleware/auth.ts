@@ -6,7 +6,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const DEMO_MODE = process.env.DEMO_MODE === 'true';
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
 export interface AuthRequest extends Request {
@@ -16,14 +15,8 @@ export interface AuthRequest extends Request {
 }
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
-  if (DEMO_MODE) {
-    const userId = req.headers['x-user-id'] as string || 'user-demo';
-    req.user = { id: userId };
-    next();
-    return;
-  }
-
   const authHeader = req.headers.authorization;
+  console.log(authHeader);
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Unauthorized' });
     return;

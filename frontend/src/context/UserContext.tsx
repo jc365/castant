@@ -42,23 +42,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [participations, setParticipations] = useState<Participation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(() =>
-    !!localStorage.getItem('token') || localStorage.getItem('demo-mode') === 'true'
+    !!localStorage.getItem('token')
   );
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const checkAuth = useCallback(() => {
-    const next = !!localStorage.getItem('token') || localStorage.getItem('demo-mode') === 'true';
+    const next = !!localStorage.getItem('token');
     setIsAuthenticated(next);
     return next;
   }, []);
 
   const fetchUser = useCallback(() => {
     const userId = localStorage.getItem('userId');
-    console.log('[UserContext] fetchUser, userId:', userId);
     if (!userId) { setUser(null); return; }
     client.get(`/users/${userId}`)
       .then((res) => {
-        console.log('[UserContext] fetchUser success:', res.data);
         setUser({ id: res.data.id, name: res.data.name, email: res.data.email });
       })
       .catch(() => setUser(null));
@@ -66,9 +64,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const fetchParticipations = useCallback(() => {
     const token = localStorage.getItem('token');
-    const demoMode = localStorage.getItem('demo-mode') === 'true';
-    console.log('[UserContext] fetchParticipations, token:', !!token, 'demoMode:', demoMode);
-    if (!token && !demoMode) {
+    if (!token) {
       setParticipations([]);
       setIsLoading(false);
       return;
@@ -76,7 +72,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     client.get(`/users/me/participations?t=${Date.now()}`)
       .then((res) => {
-        console.log('[UserContext] fetchParticipations success:', res.data);
         setParticipations(res.data);
       })
       .catch(() => setParticipations([]))
@@ -88,7 +83,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [fetchParticipations]);
 
   const refreshUser = useCallback(() => {
-    console.log('[UserContext] refreshUser called');
     checkAuth();
     const userId = localStorage.getItem('userId');
     if (userId) {

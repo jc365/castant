@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import LoginForm from './LoginForm';
 import { useUser } from '../context/UserContext';
+import client from '../api/client';
 
 const navItems = [
   { to: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
@@ -9,24 +10,18 @@ const navItems = [
   { to: '/castings/create', icon: 'add_circle', label: 'Create Casting' },
 ];
 
-const roleUsers: Record<string, string> = {
-  director: 'user-director-1',
-  actor: 'user-actor-1',
-  preselector: 'user-preselector-1',
-};
-
 export default function Layout() {
   const location = useLocation();
   const { user, refreshUser } = useUser();
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
-  const [demoEnabled, setDemoEnabled] = useState(() => localStorage.getItem('demo-mode') === 'true');
-  const [selectedRole, setSelectedRole] = useState(() => localStorage.getItem('demo-role') || 'director');
-  console.log('selectedRole:', selectedRole);
+  const [demoEnabled, setDemoEnabled] = useState(() => !!localStorage.getItem('token'));
+  const [selectedRole, setSelectedRole] = useState('director');
+  const [demoError, setDemoError] = useState('');
 
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
   const token = localStorage.getItem('token');
-  const isAuthenticated = !!token || demoEnabled;
+  const isAuthenticated = !!token;
 
   const sidebarWidth = collapsed ? 'w-16' : 'w-[280px]';
   const mainMargin = collapsed ? 'ml-16' : 'ml-[280px]';
@@ -37,30 +32,46 @@ export default function Layout() {
     localStorage.setItem('sidebar-collapsed', String(next));
   };
 
-  const toggleDemo = () => {
-    const next = !demoEnabled;
-    setDemoEnabled(next);
-    localStorage.setItem('demo-mode', String(next));
-    if (next) {
-      localStorage.setItem('demo-role', selectedRole);
-      localStorage.setItem('x-user-id', roleUsers[selectedRole]);
-    } else {
-      localStorage.removeItem('x-user-id');
+  const toggleDemo = async () => {
+    if (demoEnabled) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      setDemoEnabled(false);
+      refreshUser();
+      return;
+    }
+
+    setDemoError('');
+    try {
+      const res = await client.post('/auth/login', { xUserId: selectedRole });
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('userId', res.data.userId);
+      setDemoEnabled(true);
+      refreshUser();
+    } catch (err) {
+      setDemoError(err instanceof Error ? err.message : 'Demo login failed');
     }
   };
 
-  const handleRoleChange = (role: string) => {
+  const handleRoleChange = async (role: string) => {
+    if (role === selectedRole) return;
     setSelectedRole(role);
-    localStorage.setItem('demo-role', role);
     if (demoEnabled) {
-      localStorage.setItem('x-user-id', roleUsers[role]);
+      setDemoError('');
+      try {
+        const res = await client.post('/auth/login', { xUserId: role });
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('userId', res.data.userId);
+        refreshUser();
+      } catch (err) {
+        setDemoError(err instanceof Error ? err.message : 'Demo login failed');
+      }
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
-    localStorage.removeItem('x-user-id');
     refreshUser();
   };
 
@@ -159,6 +170,10 @@ export default function Layout() {
                   />
                 </div>
               </label>
+
+              {demoError && (
+                <p className="text-xs text-error mt-2">{demoError}</p>
+              )}
 
               {demoEnabled && !collapsed && (
                 <select

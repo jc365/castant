@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 const testDbPath = path.resolve(__dirname, 'backend', 'test.db');
 
 process.env.DATABASE_URL = `file:${testDbPath}`;
-process.env.DEMO_MODE = 'true';
 process.env.JWT_SECRET = 'test-secret';
 
 export default defineConfig({

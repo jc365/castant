@@ -6,6 +6,7 @@
 import request from 'supertest';
 import app from '../../../../backend/src/index';
 import prisma from '../../../../backend/src/infrastructure/persistence/prismaClient';
+import { generateToken } from '../../../../backend/src/infrastructure/middleware/auth';
 
 beforeEach(async () => {
   await prisma.bitacora.deleteMany();
@@ -24,6 +25,7 @@ describe('POST /api/v1/castings', () => {
 
     const res = await request(app)
       .post('/api/v1/castings')
+      .set('Authorization', `Bearer ${generateToken('user-1')}`)
       .send({
         title: 'Casting Principal',
         description: 'Buscamos protagonista',
@@ -45,6 +47,7 @@ describe('POST /api/v1/castings', () => {
   it('should create a new user as director when user does not exist (201)', async () => {
     const res = await request(app)
       .post('/api/v1/castings')
+      .set('Authorization', `Bearer ${generateToken('user-newdir')}`)
       .send({
         title: 'Casting Principal',
         description: 'Buscamos protagonista',
@@ -72,6 +75,7 @@ describe('POST /api/v1/castings', () => {
 
     const res = await request(app)
       .post('/api/v1/castings')
+      .set('Authorization', `Bearer ${generateToken('user-1')}`)
       .send({
         title: '',
         description: 'Buscamos protagonista',
@@ -96,7 +100,9 @@ describe('GET /api/v1/castings', () => {
       data: { userId: 'user-1', castingId: 'casting-1', role: 'director' },
     });
 
-    const res = await request(app).get('/api/v1/castings');
+    const res = await request(app)
+      .get('/api/v1/castings')
+      .set('Authorization', `Bearer ${generateToken('user-1')}`);
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
@@ -121,7 +127,9 @@ describe('GET /api/v1/castings/:id', () => {
       data: { id: 'round-1', number: 1, castingId: 'casting-1' },
     });
 
-    const res = await request(app).get('/api/v1/castings/casting-1');
+    const res = await request(app)
+      .get('/api/v1/castings/casting-1')
+      .set('Authorization', `Bearer ${generateToken('user-1')}`);
 
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('Casting Test');
@@ -132,7 +140,9 @@ describe('GET /api/v1/castings/:id', () => {
   });
 
   it('should return 404 when casting does not exist', async () => {
-    const res = await request(app).get('/api/v1/castings/casting-nonexistent');
+    const res = await request(app)
+      .get('/api/v1/castings/casting-nonexistent')
+      .set('Authorization', `Bearer ${generateToken('user-1')}`);
 
     expect(res.status).toBe(404);
     expect(res.body.error).toContain('not found');

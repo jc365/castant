@@ -6,6 +6,7 @@
 import request from 'supertest';
 import app from '../../../../backend/src/index';
 import prisma from '../../../../backend/src/infrastructure/persistence/prismaClient';
+import { generateToken } from '../../../../backend/src/infrastructure/middleware/auth';
 
 beforeEach(async () => {
   await prisma.bitacora.deleteMany();
@@ -20,6 +21,7 @@ describe('POST /api/v1/users', () => {
   it('should create a user with provided id (201)', async () => {
     const res = await request(app)
       .post('/api/v1/users')
+      .set('Authorization', `Bearer ${generateToken('user-admin')}`)
       .send({
         id: 'usr-1',
         name: 'Test User',
@@ -36,6 +38,7 @@ describe('POST /api/v1/users', () => {
   it('should create a user without id (auto-generate) (201)', async () => {
     const res = await request(app)
       .post('/api/v1/users')
+      .set('Authorization', `Bearer ${generateToken('user-admin')}`)
       .send({
         name: 'Test User',
         email: 'test@test.com',
@@ -56,6 +59,7 @@ describe('POST /api/v1/users', () => {
 
     const res = await request(app)
       .post('/api/v1/users')
+      .set('Authorization', `Bearer ${generateToken('user-admin')}`)
       .send({
         name: 'Test User',
         email: 'test@test.com',
@@ -69,6 +73,7 @@ describe('POST /api/v1/users', () => {
   it('should return 400 when name is empty', async () => {
     const res = await request(app)
       .post('/api/v1/users')
+      .set('Authorization', `Bearer ${generateToken('user-admin')}`)
       .send({
         name: '',
         email: 'test@test.com',
@@ -82,7 +87,9 @@ describe('POST /api/v1/users', () => {
 
 describe('GET /api/v1/users', () => {
   it('should return empty array when no users exist (200)', async () => {
-    const res = await request(app).get('/api/v1/users');
+    const res = await request(app)
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${generateToken('user-admin')}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
@@ -96,7 +103,9 @@ describe('GET /api/v1/users', () => {
       ],
     });
 
-    const res = await request(app).get('/api/v1/users');
+    const res = await request(app)
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${generateToken('user-admin')}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(2);

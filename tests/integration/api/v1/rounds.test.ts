@@ -6,6 +6,7 @@
 import request from 'supertest';
 import app from '../../../../backend/src/index';
 import prisma from '../../../../backend/src/infrastructure/persistence/prismaClient';
+import { generateToken } from '../../../../backend/src/infrastructure/middleware/auth';
 
 beforeEach(async () => {
   await prisma.bitacora.deleteMany();
@@ -34,6 +35,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [{ email: 'new@test.com', name: 'New Actor' }],
@@ -65,6 +67,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [],
@@ -92,6 +95,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('actor-1')}`)
         .send({
           roundId: 'round-1',
           actors: [{ email: 'a1@test.com', name: 'Actor One' }],
@@ -119,6 +123,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [],
@@ -161,6 +166,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [
@@ -211,6 +217,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [{ email: 'a1@test.com', name: 'Actor One' }],
@@ -247,6 +254,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [{ email: 'brand@test.com', name: 'Brand New' }],
@@ -266,6 +274,7 @@ describe('POST /api/v1/rounds/participants', () => {
     it('should return 404 when round does not exist', async () => {
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-nonexistent',
           actors: [{ email: 'a@test.com', name: 'Actor' }],
@@ -287,6 +296,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [],
@@ -308,6 +318,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const res = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${generateToken('user-1')}`)
         .send({
           roundId: 'round-1',
           actors: [{ email: 'a@test.com', name: 'Actor' }],
@@ -322,13 +333,17 @@ describe('POST /api/v1/rounds/participants', () => {
 
   describe('full flow: casting → participants → submissions → new round', () => {
     it('should create casting, add actors, submit videos, create new round with selected actors', async () => {
+      const directorToken = generateToken('dir-1');
+
       const directorRes = await request(app)
         .post('/api/v1/users')
+        .set('Authorization', `Bearer ${directorToken}`)
         .send({ id: 'dir-1', name: 'Director', email: 'dir@test.com', password: 'secret123' });
       expect(directorRes.status).toBe(201);
 
       const castingRes = await request(app)
         .post('/api/v1/castings')
+        .set('Authorization', `Bearer ${directorToken}`)
         .send({
           title: 'Casting Principal',
           description: 'Buscamos protagonista',
@@ -341,6 +356,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const addActorsRes = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${directorToken}`)
         .send({
           roundId: round1Id,
           actors: [
@@ -362,7 +378,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const sub1 = await request(app)
         .post('/api/v1/submissions')
-        .set('X-User-Id', actor1!.id)
+        .set('Authorization', `Bearer ${generateToken(actor1!.id)}`)
         .send({
           roundId: round1Id,
           videoUrl: 'https://example.com/video1.mp4',
@@ -371,7 +387,7 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const sub2 = await request(app)
         .post('/api/v1/submissions')
-        .set('X-User-Id', actor2!.id)
+        .set('Authorization', `Bearer ${generateToken(actor2!.id)}`)
         .send({
           roundId: round1Id,
           videoUrl: 'https://example.com/video2.mp4',
@@ -380,19 +396,22 @@ describe('POST /api/v1/rounds/participants', () => {
 
       const sub3 = await request(app)
         .post('/api/v1/submissions')
-        .set('X-User-Id', actor3!.id)
+        .set('Authorization', `Bearer ${generateToken(actor3!.id)}`)
         .send({
           roundId: round1Id,
           videoUrl: 'https://example.com/video3.mp4',
         });
       expect(sub3.status).toBe(201);
 
-      const round1Subs = await request(app).get(`/api/v1/rounds/${round1Id}/submissions`);
+      const round1Subs = await request(app)
+        .get(`/api/v1/rounds/${round1Id}/submissions`)
+        .set('Authorization', `Bearer ${directorToken}`);
       expect(round1Subs.status).toBe(200);
       expect(round1Subs.body).toHaveLength(3);
 
       const newRoundRes = await request(app)
         .post('/api/v1/rounds/participants')
+        .set('Authorization', `Bearer ${directorToken}`)
         .send({
           roundId: round1Id,
           actors: [
@@ -414,11 +433,15 @@ describe('POST /api/v1/rounds/participants', () => {
       const round2ActorIds = round2Participants.map((p: { userId: string }) => p.userId).sort();
       expect(round2ActorIds).toEqual([actor1!.id, actor2!.id].sort());
 
-      const castingDetail = await request(app).get(`/api/v1/castings/${castingId}`);
+      const castingDetail = await request(app)
+        .get(`/api/v1/castings/${castingId}`)
+        .set('Authorization', `Bearer ${directorToken}`);
       expect(castingDetail.status).toBe(200);
       expect(castingDetail.body.rounds).toHaveLength(2);
 
-      const round2Detail = await request(app).get(`/api/v1/rounds/${newRoundRes.body.id}`);
+      const round2Detail = await request(app)
+        .get(`/api/v1/rounds/${newRoundRes.body.id}`)
+        .set('Authorization', `Bearer ${directorToken}`);
       expect(round2Detail.status).toBe(200);
       expect(round2Detail.body.participants).toHaveLength(2);
     });

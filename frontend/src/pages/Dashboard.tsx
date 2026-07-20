@@ -40,22 +40,13 @@ export default function Dashboard() {
   return (
     <div>
       {/* Page Header */}
-      <div className="flex justify-between items-end mb-10">
-        <div>
-          <h1 className="font-display-lg text-display-lg text-on-background">
-            Your Castings
-          </h1>
-          <p className="text-on-surface-variant mt-2 font-body-lg text-body-lg">
-            Manage ongoing projects and review talent submissions.
-          </p>
-        </div>
-        <Link
-          to="/castings/create"
-          className="bg-primary text-on-primary font-title-sm text-title-sm py-3 px-6 rounded hover:bg-primary-fixed-dim transition-colors flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined">add_circle</span>
-          Create New Casting
-        </Link>
+      <div className="mb-10">
+        <h1 className="font-display-lg text-display-lg text-on-background">
+          Your Castings
+        </h1>
+        <p className="text-on-surface-variant mt-2 font-body-lg text-body-lg">
+          Manage ongoing projects and review talent submissions.
+        </p>
       </div>
 
       {/* Error */}

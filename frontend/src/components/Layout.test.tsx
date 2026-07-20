@@ -13,6 +13,24 @@ vi.mock('../context/UserContext', () => ({
   UserProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('../context/ThemeContext', () => ({
+  useTheme: () => ({
+    theme: 'dark',
+    setTheme: vi.fn(),
+    toggleTheme: vi.fn(),
+    allThemes: ['light', 'dark', 'ocean', 'forest', 'sunset', 'night'],
+    themeLabels: {
+      light: 'Claro',
+      dark: 'Oscuro',
+      ocean: 'Océano',
+      forest: 'Bosque',
+      sunset: 'Atardecer',
+      night: 'Noche',
+    },
+  }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock('../api/client', () => ({
   default: {
     post: vi.fn(),
@@ -130,8 +148,11 @@ describe('Layout', () => {
       expect(screen.getByText('Demo: director')).toBeInTheDocument();
     });
 
-    const select = screen.getByRole('combobox');
-    fireEvent.change(select, { target: { value: 'actor' } });
+    const selects = screen.getAllByRole('combobox');
+    const roleSelect = selects.find((s) => s.querySelector('option[value="director"]'));
+    if (roleSelect) {
+      fireEvent.change(roleSelect, { target: { value: 'actor' } });
+    }
 
     expect(screen.getByText('Demo: actor')).toBeInTheDocument();
   });

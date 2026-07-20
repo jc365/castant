@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import LoginForm from './LoginForm';
 import { useUser } from '../context/UserContext';
+import { useTheme } from '../context/ThemeContext';      // Importa useTheme
+import type { ThemeId } from '../context/ThemeContext';  // Importa el tipo ThemeId
 import client from '../api/client';
 
 const navItems = [
@@ -13,6 +15,8 @@ const navItems = [
 export default function Layout() {
   const location = useLocation();
   const { user, refreshUser } = useUser();
+  // ✅ Ahora usamos las nuevas propiedades del ThemeContext
+  const { theme, setTheme, toggleTheme, themes } = useTheme();
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
   const [demoEnabled, setDemoEnabled] = useState(() => !!localStorage.getItem('token'));
@@ -117,13 +121,11 @@ export default function Layout() {
                 key={item.to}
                 to={item.to}
                 title={collapsed ? item.label : undefined}
-                className={`flex items-center gap-4 py-3 transition-colors duration-200 active:scale-[0.98] ${
-                  collapsed ? 'justify-center px-3' : 'px-6'
-                } ${
-                  isActive
+                className={`flex items-center gap-4 py-3 transition-colors duration-200 active:scale-[0.98] ${collapsed ? 'justify-center px-3' : 'px-6'
+                  } ${isActive
                     ? 'text-primary border-l-2 border-primary bg-surface-container-high'
                     : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined">{item.icon}</span>
                 {!collapsed && <span>{item.label}</span>}
@@ -134,16 +136,42 @@ export default function Layout() {
 
         {/* Bottom Section */}
         <div className={`mt-auto ${collapsed ? 'px-2' : 'px-6'} space-y-3`}>
+          {/* Theme Selector */}
+          {collapsed ? (
+            <button
+              onClick={toggleTheme}
+              // ✅ Buscamos el label del tema actual
+              title={themes.find(t => t.id === theme)?.label || theme}
+              className="w-full bg-surface-container-high text-on-surface font-title-sm text-title-sm py-3 rounded hover:bg-surface-container-low transition-colors flex items-center justify-center px-0"
+            >
+              <span className="material-symbols-outlined text-[18px]">palette</span>
+            </button>
+          ) : (
+            <div>
+              <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">
+                Theme
+              </label>
+              {/* ✅ Selector de temas actualizado */}
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as ThemeId)}
+                className="w-full bg-surface-container-high text-on-surface border border-outline-variant/30 rounded px-2 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+              >
+                {themes.map((t) => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            title={collapsed ? 'Cerrar sesión' : undefined}
-            className={`w-full bg-primary-container text-on-primary-container font-title-sm text-title-sm py-3 rounded hover:bg-primary transition-colors flex items-center justify-center gap-2 ${
-              collapsed ? 'px-0' : 'px-4'
-            }`}
+            title={collapsed ? 'Logout' : undefined}
+            className={`w-full bg-primary-container text-on-primary-container font-title-sm text-title-sm py-3 rounded hover:bg-primary transition-colors flex items-center justify-center gap-2 ${collapsed ? 'px-0' : 'px-4'
+              }`}
           >
             <span className="material-symbols-outlined text-[18px]">logout</span>
-            {!collapsed && 'Cerrar sesión'}
+            {!collapsed && 'Logout'}
           </button>
         </div>
 
@@ -153,20 +181,18 @@ export default function Layout() {
             <div className="bg-surface-container rounded-lg p-3 border border-outline-variant/20">
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="font-label-caps text-label-caps text-on-surface-variant uppercase">
-                  {collapsed ? 'Demo' : 'Modo Demo'}
+                  {collapsed ? 'Demo' : 'Demo Mode'}
                 </span>
                 <div
-                  className={`relative w-10 h-5 rounded-full transition-colors ${
-                    demoEnabled ? 'bg-primary-container' : 'bg-surface-container-high'
-                  }`}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${demoEnabled ? 'bg-primary-container' : 'bg-surface-container-high'
+                    }`}
                   onClick={toggleDemo}
                 >
                   <div
-                    className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${
-                      demoEnabled
+                    className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${demoEnabled
                         ? 'left-5 bg-on-primary-container'
                         : 'left-0.5 bg-outline'
-                    }`}
+                      }`}
                   />
                 </div>
               </label>

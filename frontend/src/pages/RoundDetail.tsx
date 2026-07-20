@@ -61,87 +61,243 @@ export default function RoundDetail() {
     );
   }
 
+  const actors = round.participants.filter((p) => p.role === 'actor');
+  const preselectors = round.participants.filter((p) => p.role === 'preselector');
+
   return (
-    <div>
-      <div className="mb-8">
-        <Link to={`/castings/${round.castingId}`} className="text-primary hover:text-primary-fixed-dim transition-colors font-body-sm text-body-sm flex items-center gap-1 mb-4">
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Back to Casting
-        </Link>
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="font-display-lg text-display-lg text-on-background">
-              Round {round.number}
-            </h1>
+    <div className="flex gap-6 min-h-[calc(100vh-8rem)]">
+      {/* Center: Video Grid */}
+      <div className="flex-1">
+        <div className="mb-8">
+          <Link to={`/castings/${round.castingId}`} className="text-primary hover:text-primary-fixed-dim transition-colors font-body-sm text-body-sm flex items-center gap-1 mb-4">
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Casting
+          </Link>
+          <div className="flex justify-between items-end">
+            <div>
+              <h1 className="font-display-lg text-display-lg text-on-background">
+                Round {round.number}
+              </h1>
+              <p className="text-on-surface-variant mt-1 font-body-lg text-body-lg">
+                {round.submissions.length} submission{round.submissions.length !== 1 ? 's' : ''} received
+              </p>
+            </div>
+            <div className="flex gap-3">
+              {isActor && (
+                <button className="bg-primary-container text-on-primary-container font-title-sm text-title-sm py-2 px-4 rounded hover:bg-primary transition-colors flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">upload</span>
+                  Submit Video
+                </button>
+              )}
+            </div>
           </div>
-          {role && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30">
+        </div>
+
+        {/* Video Grid */}
+        {round.submissions.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter">
+            {round.submissions.map((s) => (
+              <SubmissionCard
+                key={s.id}
+                submission={s}
+                isDirector={isDirector}
+                isPreselector={isPreselector}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20 bg-surface border border-outline-variant/30 rounded-xl">
+            <span className="material-symbols-outlined text-6xl text-outline mb-4 block">videocam_off</span>
+            <p className="text-on-surface-variant font-body-lg text-body-lg">
+              No submissions yet.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Right Sidebar: Round Management */}
+      <div className="w-80 flex-shrink-0 bg-surface-container-lowest border-l border-outline-variant/30 p-6 flex flex-col gap-8 overflow-y-auto">
+        {/* Round Details */}
+        <section>
+          <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Round Management</h3>
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
+              <span className="font-body-sm text-body-sm text-on-surface-variant">Status</span>
+              <span className="bg-primary-container/20 text-primary-fixed-dim px-2 py-1 rounded font-label-caps text-label-caps border border-primary-container/30">
+                IN PROGRESS
+              </span>
+            </div>
+            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
+              <span className="font-body-sm text-body-sm text-on-surface-variant">Total Submissions</span>
+              <span className="font-body-sm text-body-sm text-on-surface">
+                {round.submissions.length}
+              </span>
+            </div>
+            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
+              <span className="font-body-sm text-body-sm text-on-surface-variant">Round</span>
+              <span className="font-body-sm text-body-sm text-on-surface">
+                {round.number}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Role Badge */}
+        {role && (
+          <section>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 w-full justify-center">
               <span className="font-label-caps text-label-caps text-primary uppercase">
                 Your role: {role}
               </span>
             </span>
-          )}
-        </div>
-      </div>
+          </section>
+        )}
 
-      {/* Participants */}
-      <div className="bg-surface border border-outline-variant/30 rounded-xl p-6 mb-6">
-        <h2 className="font-headline-md text-headline-md text-on-background mb-4">Participants</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {round.participants.map((p) => (
-            <div key={p.id} className="flex items-center gap-3 bg-surface-container-high rounded-lg p-3">
-              <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center">
-                <span className="material-symbols-outlined text-on-primary-container text-sm">person</span>
-              </div>
-              <div>
-                <p className="text-sm text-on-surface">{p.id}</p>
-                <p className="text-xs text-on-surface-variant uppercase">{p.role}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* Pre-Selectors */}
+        <section>
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-title-sm text-title-sm text-on-surface">Pre-Selectors</h4>
+            {isDirector && (
+              <button className="text-primary hover:text-primary-fixed transition-colors">
+                <span className="material-symbols-outlined text-[18px]">add_circle</span>
+              </button>
+            )}
+          </div>
+          {preselectors.length > 0 ? (
+            <ul className="flex flex-col gap-3">
+              {preselectors.map((p) => {
+                const hasReviewed = round.submissions.some((s) => s.score !== null);
+                return (
+                  <li key={p.id} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-surface-container border border-outline-variant flex items-center justify-center">
+                      <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-body-sm text-body-sm text-on-surface leading-tight">{p.id}</p>
+                      <p className="font-label-caps text-label-caps text-on-surface-variant">Preselector</p>
+                    </div>
+                    <span
+                      className={`material-symbols-outlined text-[16px] ${hasReviewed ? 'text-primary' : 'text-outline-variant'}`}
+                      title={hasReviewed ? 'Reviewed' : 'Pending'}
+                    >
+                      {hasReviewed ? 'check_circle' : 'pending'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-on-surface-variant text-sm">No pre-selectors assigned.</p>
+          )}
+        </section>
+
+        {/* Actors List */}
+        <section className="flex-1">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-title-sm text-title-sm text-on-surface">Actors</h4>
+            <span className="font-label-caps text-label-caps text-on-surface-variant">{actors.length} Total</span>
+          </div>
+          {actors.length > 0 ? (
+            <ul className="flex flex-col gap-2 overflow-y-auto max-h-[300px] pr-2">
+              {actors.map((a) => {
+                const submitted = round.submissions.some((s) => s.actorId === a.id);
+                const passed = round.submissions.some((s) => s.actorId === a.id && s.score !== null && s.score < 5);
+                return (
+                  <li key={a.id} className={`flex items-center justify-between p-2 rounded hover:bg-surface-container transition-colors cursor-pointer group ${passed ? 'opacity-50' : ''}`}>
+                    <span className={`font-body-sm text-body-sm ${passed ? 'text-on-surface-variant' : 'text-on-surface group-hover:text-primary'} transition-colors`}>
+                      {a.id}
+                    </span>
+                    {passed ? (
+                      <span className="material-symbols-outlined text-[14px] text-error" title="Passed">close</span>
+                    ) : submitted ? (
+                      <span className="w-2 h-2 rounded-full bg-primary" title="Submitted" />
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-outline-variant" title="Pending" />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-on-surface-variant text-sm">No actors assigned.</p>
+          )}
+        </section>
+
+        {/* Add Participants */}
         {isDirector && (
-          <button className="mt-4 bg-surface-container-high text-on-surface font-title-sm text-title-sm py-2 px-4 rounded hover:bg-surface-container-low transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">person_add</span>
+          <button className="w-full py-2 border border-outline-variant/50 text-on-surface-variant font-label-caps text-label-caps rounded hover:bg-surface-container hover:text-on-surface transition-colors tracking-widest uppercase flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-[16px]">person_add</span>
             Add Participants
           </button>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* Submissions */}
-      <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="font-headline-md text-headline-md text-on-background">Submissions</h2>
-          {isActor && (
-            <button className="bg-primary-container text-on-primary-container font-title-sm text-title-sm py-2 px-4 rounded hover:bg-primary transition-colors flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">upload</span>
-              Submit Video
-            </button>
-          )}
+function SubmissionCard({
+  submission,
+  isDirector,
+  isPreselector,
+}: {
+  submission: Submission;
+  isDirector: boolean;
+  isPreselector: boolean;
+}) {
+  const hasScore = submission.score !== null;
+  const status = hasScore ? (submission.score! >= 5 ? 'PASSED' : 'REVIEWED') : 'NEW';
+
+  return (
+    <div className={`bg-surface-container-low border border-outline-variant/30 rounded-xl overflow-hidden group hover:border-primary/50 transition-colors duration-300 ${!hasScore && status === 'PASSED' ? 'opacity-75 grayscale-[20%]' : ''}`}>
+      {/* Video Thumbnail Placeholder */}
+      <div className="relative w-full aspect-video bg-surface-container-highest overflow-hidden cursor-pointer">
+        <div className="w-full h-full flex items-center justify-center bg-surface-container">
+          <span className="material-symbols-outlined text-on-surface-variant text-4xl">play_circle</span>
         </div>
-        <div className="space-y-3">
-          {round.submissions.map((s) => (
-            <div key={s.id} className="flex items-center justify-between bg-surface-container-high rounded-lg p-4">
-              <div>
-                <p className="text-on-surface font-title-sm text-title-sm">{s.actorId}</p>
-                <p className="text-on-surface-variant text-xs">{s.videoUrl}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                {s.score !== null && (
-                  <span className="text-primary font-title-sm text-title-sm">{s.score}/10</span>
-                )}
-                {(isDirector || isPreselector) && (
-                  <button className="text-on-surface-variant hover:text-primary transition-colors">
-                    <span className="material-symbols-outlined">rate_review</span>
-                  </button>
-                )}
-              </div>
+        {/* Play Overlay */}
+        <div className="absolute inset-0 bg-background/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]">
+          <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center text-on-primary">
+            <span className="material-symbols-outlined text-[24px]">play_arrow</span>
+          </div>
+        </div>
+        {/* Status Chip */}
+        <div className={`absolute top-3 left-3 px-2 py-1 rounded font-label-caps text-label-caps backdrop-blur-sm ${
+          status === 'NEW'
+            ? 'bg-inverse-primary/90 text-on-primary-container'
+            : status === 'PASSED'
+            ? 'bg-surface-variant text-on-surface-variant border border-outline-variant/50'
+            : 'bg-primary-container/20 text-primary-fixed-dim border border-primary-container/30'
+        }`}>
+          {status}
+        </div>
+      </div>
+
+      {/* Card Content */}
+      <div className="p-5 flex flex-col gap-3">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-title-sm text-title-sm text-on-surface truncate">{submission.actorId}</h3>
+          </div>
+          {hasScore && (
+            <div className="bg-surface-bright border border-outline-variant/50 px-2 py-1 rounded flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px] text-primary">star</span>
+              <span className="font-title-sm text-title-sm text-on-surface">{submission.score}</span>
             </div>
-          ))}
-          {round.submissions.length === 0 && (
-            <p className="text-on-surface-variant text-sm">No submissions yet.</p>
           )}
         </div>
+        <div className="w-full h-px bg-outline-variant/20 my-1" />
+        <div>
+          <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-1">Director&apos;s Note</p>
+          <p className={`font-body-sm text-body-sm line-clamp-2 ${submission.feedback ? 'text-on-surface' : 'text-on-surface-variant italic'}`}>
+            {submission.feedback || 'No feedback yet.'}
+          </p>
+        </div>
+        {(isDirector || isPreselector) && (
+          <button className="mt-1 bg-surface-container-high text-on-surface font-title-sm text-title-sm py-2 px-4 rounded hover:bg-surface-container-low transition-colors flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">rate_review</span>
+            Review
+          </button>
+        )}
       </div>
     </div>
   );

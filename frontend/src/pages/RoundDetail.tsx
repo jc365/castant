@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import client from '../api/client';
 import { useUser } from '../context/UserContext';
+import SubmitVideoModal from '../components/SubmitVideoModal';
+import VideoPlayerModal from '../components/VideoPlayerModal';
 
 interface Participant {
   id: string;
@@ -30,6 +32,8 @@ export default function RoundDetail() {
   const [round, setRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
 
   const role = roundId ? getRoleInRound(roundId) : null;
   const isDirector = round ? isDirectorOf(round.castingId) : false;
@@ -84,7 +88,10 @@ export default function RoundDetail() {
             </div>
             <div className="flex gap-3">
               {isActor && (
-                <button className="bg-primary-container text-on-primary-container font-title-sm text-title-sm py-2 px-4 rounded hover:bg-primary transition-colors flex items-center gap-2">
+                <button
+                  onClick={() => setShowSubmitModal(true)}
+                  className="bg-primary-container text-on-primary-container font-title-sm text-title-sm py-2 px-4 rounded hover:bg-primary transition-colors flex items-center gap-2"
+                >
                   <span className="material-symbols-outlined text-[18px]">upload</span>
                   Submit Video
                 </button>
@@ -96,12 +103,13 @@ export default function RoundDetail() {
         {/* Video Grid */}
         {round.submissions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter">
-            {round.submissions.map((s) => (
+            {round.submissions.map((s, idx) => (
               <SubmissionCard
                 key={s.id}
                 submission={s}
                 isDirector={isDirector}
                 isPreselector={isPreselector}
+                onPlay={() => setSelectedVideoIndex(idx)}
               />
             ))}
           </div>
@@ -231,6 +239,28 @@ export default function RoundDetail() {
           </button>
         )}
       </div>
+
+      <SubmitVideoModal
+        roundId={round.id}
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        onSuccess={() => {
+          setShowSubmitModal(false);
+          window.location.reload();
+        }}
+      />
+
+      <VideoPlayerModal
+        isOpen={selectedVideoIndex !== null}
+        submissions={round.submissions}
+        currentIndex={selectedVideoIndex ?? 0}
+        isDirector={isDirector}
+        onClose={() => setSelectedVideoIndex(null)}
+        onNavigate={(idx) => setSelectedVideoIndex(idx)}
+        onReviewUpdated={() => {
+          client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
+        }}
+      />
     </div>
   );
 }
@@ -239,10 +269,12 @@ function SubmissionCard({
   submission,
   isDirector,
   isPreselector,
+  onPlay,
 }: {
   submission: Submission;
   isDirector: boolean;
   isPreselector: boolean;
+  onPlay: () => void;
 }) {
   const hasScore = submission.score !== null;
   const status = hasScore ? (submission.score! >= 5 ? 'PASSED' : 'REVIEWED') : 'NEW';
@@ -250,7 +282,10 @@ function SubmissionCard({
   return (
     <div className={`bg-surface-container-low border border-outline-variant/30 rounded-xl overflow-hidden group hover:border-primary/50 transition-colors duration-300 ${!hasScore && status === 'PASSED' ? 'opacity-75 grayscale-[20%]' : ''}`}>
       {/* Video Thumbnail Placeholder */}
-      <div className="relative w-full aspect-video bg-surface-container-highest overflow-hidden cursor-pointer">
+      <div
+        onClick={onPlay}
+        className="relative w-full aspect-video bg-surface-container-highest overflow-hidden cursor-pointer"
+      >
         <div className="w-full h-full flex items-center justify-center bg-surface-container">
           <span className="material-symbols-outlined text-on-surface-variant text-4xl">play_circle</span>
         </div>

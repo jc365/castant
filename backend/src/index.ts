@@ -6,9 +6,14 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import logger from './infrastructure/logging/logger';
 import { requestContextMiddleware, getRequestId } from './infrastructure/logging/requestContext';
 import v1Router from './infrastructure/api/v1/routes';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -16,6 +21,9 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(requestContextMiddleware);
+
+// Serve uploaded videos
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 import pinoHttp from 'pino-http';
 

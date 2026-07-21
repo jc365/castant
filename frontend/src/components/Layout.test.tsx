@@ -18,15 +18,16 @@ vi.mock('../context/ThemeContext', () => ({
     theme: 'dark',
     setTheme: vi.fn(),
     toggleTheme: vi.fn(),
-    allThemes: ['light', 'dark', 'ocean', 'forest', 'sunset', 'night'],
-    themeLabels: {
-      light: 'Claro',
-      dark: 'Oscuro',
-      ocean: 'Océano',
-      forest: 'Bosque',
-      sunset: 'Atardecer',
-      night: 'Noche',
-    },
+    themes: [
+      { id: 'light', label: 'Light', cssClass: '' },
+      { id: 'dark', label: 'Dark', cssClass: 'dark' },
+      { id: 'ocean', label: 'Ocean', cssClass: 'theme-ocean' },
+      { id: 'forest', label: 'Forest', cssClass: 'theme-forest' },
+      { id: 'sunset', label: 'Sunset', cssClass: 'theme-sunset' },
+      { id: 'night', label: 'Night', cssClass: 'theme-night' },
+    ],
+    getThemeLabel: (id: string) => id,
+    getThemeClass: (id: string) => id === 'dark' ? 'dark' : '',
   }),
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -72,7 +73,7 @@ describe('Layout', () => {
       </MemoryRouter>
     );
 
-    const toggle = screen.getByText('Modo Demo').closest('div')?.querySelector('.relative');
+    const toggle = screen.getByText('Demo Mode').closest('div')?.querySelector('.relative');
     if (toggle) {
       fireEvent.click(toggle);
     }
@@ -94,7 +95,7 @@ describe('Layout', () => {
       </MemoryRouter>
     );
 
-    const toggle = screen.getByText('Modo Demo').closest('div')?.querySelector('.relative');
+    const toggle = screen.getByText('Demo Mode').closest('div')?.querySelector('.relative');
     if (toggle) {
       fireEvent.click(toggle);
     }
@@ -115,7 +116,7 @@ describe('Layout', () => {
       </MemoryRouter>
     );
 
-    const toggle = screen.getByText('Modo Demo').closest('div')?.querySelector('.relative');
+    const toggle = screen.getByText('Demo Mode').closest('div')?.querySelector('.relative');
     if (toggle) {
       fireEvent.click(toggle);
     }
@@ -139,7 +140,7 @@ describe('Layout', () => {
       </MemoryRouter>
     );
 
-    const toggle = screen.getByText('Modo Demo').closest('div')?.querySelector('.relative');
+    const toggle = screen.getByText('Demo Mode').closest('div')?.querySelector('.relative');
     if (toggle) {
       fireEvent.click(toggle);
     }

@@ -15,8 +15,7 @@ const navItems = [
 export default function Layout() {
   const location = useLocation();
   const { user, refreshUser } = useUser();
-  // ✅ Ahora usamos las nuevas propiedades del ThemeContext
-  const { theme, setTheme, toggleTheme, themes } = useTheme();
+  const { theme, setTheme, toggleTheme, themes, getThemeLabel } = useTheme();
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
   const [demoEnabled, setDemoEnabled] = useState(() => !!localStorage.getItem('token'));
@@ -140,8 +139,7 @@ export default function Layout() {
           {collapsed ? (
             <button
               onClick={toggleTheme}
-              // ✅ Buscamos el label del tema actual
-              title={themes.find(t => t.id === theme)?.label || theme}
+              title={getThemeLabel(theme)}
               className="w-full bg-surface-container-high text-on-surface font-title-sm text-title-sm py-3 rounded hover:bg-surface-container-low transition-colors flex items-center justify-center px-0"
             >
               <span className="material-symbols-outlined text-[18px]">palette</span>
@@ -149,9 +147,8 @@ export default function Layout() {
           ) : (
             <div>
               <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">
-                Theme
+                Tema
               </label>
-              {/* ✅ Selector de temas actualizado */}
               <select
                 value={theme}
                 onChange={(e) => setTheme(e.target.value as ThemeId)}

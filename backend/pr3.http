@@ -23,7 +23,8 @@ Content-Type: {{contentType}}
 
 {
   "email": "director@casting.com",
-  "zemail": "carlos.lopez@example.com"
+  "zemail": "carlos.lopez@example.com",
+  "xUserId": "preselector"
 }
 
 ### Enviar video como un actor específico (usando X-User-Id)
@@ -43,6 +44,7 @@ Content-Type: {{contentType}}
 
 {
   "name": "Director Principal",
+  "password": "1234",
   "email": "director@casting.com"
 }
 
@@ -53,6 +55,7 @@ Content-Type: {{contentType}}
 
 {
   "name": "Juan Pérez",
+  "password": "1234",
   "email": "juan.perez@example.com"
 }
 
@@ -63,6 +66,7 @@ Content-Type: {{contentType}}
 
 {
   "name": "María García",
+  "password": "1234",
   "email": "maria.garcia@example.com"
 }
 
@@ -73,6 +77,7 @@ Content-Type: {{contentType}}
 
 {
   "name": "Carlos López",
+  "password": "1234",
   "email": "carlos.lopez@example.com"
 }
 
@@ -83,6 +88,7 @@ Content-Type: {{contentType}}
 
 {
   "name": "Preselector Experto",
+  "password": "1234",
   "email": "preselector@casting.com"
 }
 
@@ -115,7 +121,7 @@ POST http://{{host}}/castings
 Content-Type: {{contentType}}
 
 {
-  "title": "Casting para película de acción",
+  "title": "Casting para película de acción BIS",
   "description": "Buscamos protagonista para película de acción. Edad entre 25-35 años.",
   "directorEmail": "director@casting.com",
   "directorName": "Director Principal"

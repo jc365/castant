@@ -7,7 +7,7 @@
  * Soporta detección de plataforma (YouTube, Vimeo) y extracción de ID.
  */
 
-export type VideoPlatform = 'youtube' | 'vimeo' | 'other';
+export type VideoPlatform = 'youtube' | 'vimeo' | 'local' | 'other';
 
 export default class VideoUrl {
   private readonly _value: string;
@@ -42,6 +42,9 @@ export default class VideoUrl {
    * Detecta la plataforma del video.
    */
   platform(): VideoPlatform {
+    if (this._value.startsWith('/uploads/')) {
+      return 'local';
+    }
     if (this._value.includes('youtube.com') || this._value.includes('youtu.be')) {
       return 'youtube';
     }
@@ -81,9 +84,14 @@ export default class VideoUrl {
 
   /**
    * Valida si un string representa una URL de video válida.
+   * Acepta URLs HTTP(S) y rutas locales (/uploads/...).
    */
   static isValid(value: string): boolean {
+    const trimmed = value.trim();
+    // Local file paths (for uploaded videos)
+    if (trimmed.startsWith('/uploads/')) return true;
+    // HTTP(S) URLs
     const urlRegex = /^https?:\/\/.+\..+/i;
-    return urlRegex.test(value.trim());
+    return urlRegex.test(trimmed);
   }
 }

@@ -22,6 +22,7 @@ import requestLogger from '../../logging/requestContext';
 import { authMiddleware } from '../../middleware/auth';
 import type { AuthRequest } from '../../middleware/auth';
 import prisma from '../../persistence/prismaClient';
+import videoUpload from '../../storage/videoUpload';
 
 const router = Router();
 
@@ -306,6 +307,8 @@ router.get('/rounds/:id', async (req, res) => {
       return;
     }
 
+    const submissions = await submissionRepository.findByRoundId(round.id);
+
     res.json({
       id: round.id,
       number: round.number,
@@ -313,6 +316,13 @@ router.get('/rounds/:id', async (req, res) => {
       participants: round.participants.map((p) => ({
         actorId: p.id,
         role: p.role,
+      })),
+      submissions: submissions.map((s) => ({
+        id: s.id,
+        actorId: s.actorId,
+        videoUrl: s.videoUrl.getValue(),
+        score: s.score.getValue(),
+        feedback: s.feedback.getValue(),
       })),
     });
   } catch (error) {
@@ -352,13 +362,27 @@ router.get('/rounds/:id/submissions', async (req, res) => {
   }
 });
 
-router.post('/submissions', async (req: AuthRequest, res) => {
+router.post('/submissions', videoUpload.single('video'), async (req: AuthRequest, res) => {
   requestLogger.info({}, 'POST /submissions');
 
   try {
     const actorId = req.user?.id;
     const { roundId, videoUrl } = req.body;
-    const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl });
+
+    // Determine video source: file upload or URL
+    let finalVideoUrl: string;
+    if (req.file) {
+      // File uploaded — construct local URL
+      finalVideoUrl = `/uploads/videos/${req.file.filename}`;
+    } else if (videoUrl) {
+      // URL provided
+      finalVideoUrl = videoUrl;
+    } else {
+      res.status(400).json({ error: 'Either video URL or video file is required' });
+      return;
+    }
+
+    const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl: finalVideoUrl });
     res.status(201).json({
       id: submission.id,
       actorId: submission.actorId,
@@ -378,8 +402,8 @@ router.post('/submissions', async (req: AuthRequest, res) => {
       res.status(400).json({ error: message });
       return;
     }
-    if (message.includes('Invalid video URL') || message.includes('Video URL')) {
-      requestLogger.error({ error: message }, 'POST /submissions: invalid video URL');
+    if (message.includes('Invalid video URL') || message.includes('Video URL') || message.includes('Invalid file type')) {
+      requestLogger.error({ error: message }, 'POST /submissions: invalid input');
       res.status(400).json({ error: message });
       return;
     }

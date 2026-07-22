@@ -309,14 +309,23 @@ router.get('/rounds/:id', async (req, res) => {
 
     const submissions = await submissionRepository.findByRoundId(round.id);
 
+    const participantsWithEmail = await Promise.all(
+      round.participants.map(async (p) => {
+        const user = await userRepository.findById(p.id);
+        return {
+          actorId: p.id,
+          role: p.role,
+          email: user?.email?.getValue() ?? null,
+          name: user?.name?.getValue() ?? null,
+        };
+      })
+    );
+
     res.json({
       id: round.id,
       number: round.number,
       castingId: round.castingId,
-      participants: round.participants.map((p) => ({
-        actorId: p.id,
-        role: p.role,
-      })),
+      participants: participantsWithEmail,
       submissions: submissions.map((s) => ({
         id: s.id,
         actorId: s.actorId,

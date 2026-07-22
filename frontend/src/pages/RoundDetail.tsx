@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import client from '../api/client';
 import { useUser } from '../context/UserContext';
 import SubmitVideoModal from '../components/SubmitVideoModal';
 import VideoPlayerModal from '../components/VideoPlayerModal';
+import CreateNextRoundModal from '../components/CreateNextRoundModal';
 
 interface Participant {
   id: string;
   role: string;
+  email: string | null;
+  name: string | null;
 }
 
 interface Submission {
@@ -28,11 +31,13 @@ interface Round {
 
 export default function RoundDetail() {
   const { roundId } = useParams<{ roundId: string }>();
+  const navigate = useNavigate();
   const { getRoleInRound, isDirectorOf, isActorOf, isPreselectorOf } = useUser();
   const [round, setRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showCreateNextRound, setShowCreateNextRound] = useState(false);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
 
   const role = roundId ? getRoleInRound(roundId) : null;
@@ -182,7 +187,7 @@ export default function RoundDetail() {
                     </div>
                     <div className="flex-1">
                       <p className="font-body-sm text-body-sm text-on-surface leading-tight">{p.id}</p>
-                      <p className="font-label-caps text-label-caps text-on-surface-variant">Preselector</p>
+                      <p className="font-label-caps text-label-caps text-on-surface-variant">Preselector {p.email}</p>
                     </div>
                     <span
                       className={`material-symbols-outlined text-[16px] ${hasReviewed ? 'text-primary' : 'text-outline-variant'}`}
@@ -231,11 +236,14 @@ export default function RoundDetail() {
           )}
         </section>
 
-        {/* Add Participants */}
+        {/* Create Next Round */}
         {isDirector && (
-          <button className="w-full py-2 border border-outline-variant/50 text-on-surface-variant font-label-caps text-label-caps rounded hover:bg-surface-container hover:text-on-surface transition-colors tracking-widest uppercase flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-[16px]">person_add</span>
-            Add Participants
+          <button
+            onClick={() => setShowCreateNextRound(true)}
+            className="w-full py-2 bg-primary-container text-on-primary-container font-label-caps text-label-caps rounded hover:bg-primary-container/80 transition-colors tracking-widest uppercase flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[16px]">add_circle</span>
+            Create Next Round
           </button>
         )}
       </div>
@@ -260,6 +268,15 @@ export default function RoundDetail() {
         onReviewUpdated={() => {
           client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
         }}
+      />
+
+      <CreateNextRoundModal
+        isOpen={showCreateNextRound}
+        roundId={round.id}
+        submissions={round.submissions}
+        participants={round.participants}
+        onClose={() => setShowCreateNextRound(false)}
+        onCreated={(newRoundId) => navigate(`/rounds/${newRoundId}`)}
       />
     </div>
   );

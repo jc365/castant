@@ -24,6 +24,7 @@ export function UserCacheProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const ensureUser = useCallback(async (id: string): Promise<CachedUser | null> => {
+    if (!id) return null;
     if (cacheRef.current.has(id)) return cacheRef.current.get(id)!;
 
     if (pendingRef.current.has(id)) return pendingRef.current.get(id)!;

@@ -63,8 +63,15 @@ export default function RoundDetail() {
     if (!roundId) return;
     client.get(`/rounds/${roundId}`)
       .then((res) => {
-        setRound(res.data);
-        return client.get(`/castings/${res.data.castingId}`);
+        const data = res.data;
+        data.participants = data.participants.map((p: { actorId: string; role: string; email: string | null; name: string | null }) => ({
+          id: p.actorId,
+          role: p.role,
+          email: p.email,
+          name: p.name,
+        }));
+        setRound(data);
+        return client.get(`/castings/${data.castingId}`);
       })
       .then((res) => {
         if (res) setCastingTitle(res.data.title);
@@ -96,7 +103,13 @@ export default function RoundDetail() {
       await client.delete(`/submissions/${submissionId}`);
       showSuccess('Submission deleted');
       setShowDeleteSubmission(null);
-      client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
+      client.get(`/rounds/${roundId}`).then((res) => {
+        const data = res.data;
+        data.participants = data.participants.map((p: { actorId: string; role: string; email: string | null; name: string | null }) => ({
+          id: p.actorId, role: p.role, email: p.email, name: p.name,
+        }));
+        setRound(data);
+      });
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to delete submission');
     }
@@ -349,7 +362,13 @@ export default function RoundDetail() {
         onClose={() => setSelectedVideoIndex(null)}
         onNavigate={(idx) => setSelectedVideoIndex(idx)}
         onReviewUpdated={() => {
-          client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
+          client.get(`/rounds/${roundId}`).then((res) => {
+            const data = res.data;
+            data.participants = data.participants.map((p: { actorId: string; role: string; email: string | null; name: string | null }) => ({
+              id: p.actorId, role: p.role, email: p.email, name: p.name,
+            }));
+            setRound(data);
+          });
         }}
       />
 
@@ -368,7 +387,13 @@ export default function RoundDetail() {
         roundId={round.id}
         onClose={() => setShowAddParticipants(false)}
         onAdded={() => {
-          client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
+          client.get(`/rounds/${roundId}`).then((res) => {
+            const data = res.data;
+            data.participants = data.participants.map((p: { actorId: string; role: string; email: string | null; name: string | null }) => ({
+              id: p.actorId, role: p.role, email: p.email, name: p.name,
+            }));
+            setRound(data);
+          });
         }}
       />
 

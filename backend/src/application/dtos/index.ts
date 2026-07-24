@@ -62,7 +62,7 @@ export interface ManageRoundParticipantsInput {
 export interface ReviewSubmissionInput {
   submissionId: string;
   score: number;
-  feedback: string;
+  feedback?: string | null;
   directorId?: string;
 }
 

@@ -70,7 +70,9 @@ export default class PrismaSubmissionRepository implements ISubmissionRepository
     if (record.status === 'pending') return result;
 
     const score = Score.create(record.score);
-    const feedback = Feedback.create(record.feedback || ' ');
+    const feedback = record.feedback && record.feedback.trim().length > 0
+      ? Feedback.create(record.feedback)
+      : Feedback.none();
     result = result.review(score, feedback);
 
     if (record.status === 'selected') {

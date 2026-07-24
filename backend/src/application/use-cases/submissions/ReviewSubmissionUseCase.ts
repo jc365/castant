@@ -53,7 +53,9 @@ export class ReviewSubmissionUseCase {
     }
 
     const scoreVO = Score.create(score);
-    const feedbackVO = Feedback.create(feedback);
+    const feedbackVO = feedback && feedback.trim().length > 0
+      ? Feedback.create(feedback)
+      : Feedback.none();
 
     const updatedSubmission = submission.updateReview(scoreVO, feedbackVO);
 

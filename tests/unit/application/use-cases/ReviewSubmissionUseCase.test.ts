@@ -157,17 +157,16 @@ describe('ReviewSubmissionUseCase', () => {
     expect(submissionRepo.save).not.toHaveBeenCalled();
   });
 
-  it('should throw when feedback is empty', async () => {
+  it('should accept empty feedback as no feedback', async () => {
     submissionRepo.findById.mockResolvedValue(submission);
     roundRepo.findById.mockResolvedValue(round);
     castingRepo.findById.mockResolvedValue(casting);
+    submissionRepo.save.mockResolvedValue();
 
-    await expect(
-      useCase.execute({ submissionId: 'submission-1', score: 8, feedback: '' })
-    ).rejects.toThrow('Feedback cannot be empty');
+    const result = await useCase.execute({ submissionId: 'submission-1', score: 8, feedback: '' });
 
-    expect(submissionRepo.save).not.toHaveBeenCalled();
-    expect(bitacoraService.log).not.toHaveBeenCalled();
+    expect(result.feedback.isPresent()).toBe(false);
+    expect(submissionRepo.save).toHaveBeenCalledTimes(1);
   });
 
   it('should log to bitacora when submission is reviewed', async () => {

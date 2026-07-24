@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { ManageRoundParticipantsUseCase } from '../../../../../backend/src/application/use-cases/rounds/ManageRoundParticipantsUseCase';
 import IUserRepository from '../../../../../backend/src/application/interfaces/IUserRepository';
 import IRoundRepository from '../../../../../backend/src/application/interfaces/IRoundRepository';
+import ISubmissionRepository from '../../../../../backend/src/application/interfaces/ISubmissionRepository';
 import User from '../../../../../backend/src/domain/entities/User';
 import Round, { type RoundParticipantEntry } from '../../../../../backend/src/domain/entities/Round';
 import Email from '../../../../../backend/src/domain/value-objects/Email';
@@ -20,6 +21,7 @@ describe('ManageRoundParticipantsUseCase', () => {
   let useCase: ManageRoundParticipantsUseCase;
   let userRepo: jest.Mocked<IUserRepository>;
   let roundRepo: jest.Mocked<IRoundRepository>;
+  let submissionRepo: jest.Mocked<ISubmissionRepository>;
   let bitacoraService: jest.Mocked<BitacoraService>;
   let hashService: jest.Mocked<HashService>;
 
@@ -37,6 +39,13 @@ describe('ManageRoundParticipantsUseCase', () => {
       save: vi.fn(),
       delete: vi.fn(),
     };
+    submissionRepo = {
+      findById: vi.fn(),
+      findByRoundId: vi.fn().mockResolvedValue([]),
+      findByActorId: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
+    };
     bitacoraService = {
       log: vi.fn(),
     } as unknown as jest.Mocked<BitacoraService>;
@@ -44,7 +53,7 @@ describe('ManageRoundParticipantsUseCase', () => {
       hash: vi.fn().mockResolvedValue('$2b$10$hashedpassword'),
       compare: vi.fn(),
     } as unknown as jest.Mocked<HashService>;
-    useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo, bitacoraService, hashService);
+    useCase = new ManageRoundParticipantsUseCase(userRepo, roundRepo, submissionRepo, bitacoraService, hashService);
   });
 
   function makeRound(number: number, participants: RoundParticipantEntry[], id?: string): Round {

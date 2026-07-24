@@ -17,6 +17,7 @@ export default class Submission {
   private readonly _actorId: string;
   private readonly _roundId: string;
   private readonly _videoUrl: VideoUrl;
+  private readonly _duration: number | null;
   private readonly _status: SubmissionStatus;
   private readonly _score: Score;
   private readonly _feedback: Feedback;
@@ -38,6 +39,7 @@ export default class Submission {
     actorId: string,
     roundId: string,
     videoUrl: VideoUrl,
+    duration: number | null = null,
     status: SubmissionStatus = 'pending',
     score: Score = Score.none(),
     feedback: Feedback = Feedback.none()
@@ -46,9 +48,32 @@ export default class Submission {
     this._actorId = actorId;
     this._roundId = roundId;
     this._videoUrl = videoUrl;
+    this._duration = duration;  // Solo para ficheros, no URLs
     this._status = status;
     this._score = score;
     this._feedback = feedback;
+  }
+
+  /**
+   * Actualiza el review de una submission (permite re-evaluación).
+   * - pending → reviewed
+   * - reviewed → reviewed (se mantiene)
+   * - selected / rejected → error (estados finales)
+   */
+  updateReview(score: Score, feedback: Feedback): Submission {
+    if (this._status === 'selected' || this._status === 'rejected') {
+      throw new Error('Cannot review a submission that has been selected or rejected');
+    }
+    return new Submission(
+      this._id,
+      this._actorId,
+      this._roundId,
+      this._videoUrl,
+      this._duration,
+      'reviewed',
+      score,
+      feedback
+    );
   }
 
   /**
@@ -63,6 +88,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._duration,
       'reviewed',
       score,
       feedback
@@ -81,6 +107,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._duration,
       'selected',
       this._score,
       this._feedback
@@ -99,6 +126,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._duration,
       'rejected',
       this._score,
       this._feedback
@@ -124,6 +152,10 @@ export default class Submission {
     return this._videoUrl;
   }
 
+  get duration(): number | null {
+    return this._duration;
+  }
+
   get status(): SubmissionStatus {
     return this._status;
   }
@@ -134,5 +166,23 @@ export default class Submission {
 
   get feedback(): Feedback {
     return this._feedback;
+  }
+
+  /**
+   * Actualiza la duración del video.
+   * Solo disponible para archivos locales subidos.
+   * Para URLs externas (YouTube, Vimeo, ...) no se registra.
+   */
+  withDuration(duration: number): Submission {
+    return new Submission(
+      this._id,
+      this._actorId,
+      this._roundId,
+      this._videoUrl,
+      duration,
+      this._status,
+      this._score,
+      this._feedback
+    );
   }
 }

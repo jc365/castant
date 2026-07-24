@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../api/client';
+import { useUserCache } from '../context/UserCacheContext';
+import { getStatusStyle, type SubmissionStatus } from '../utils/submissionStatus';
 
 interface Submission {
   id: string;
   videoUrl: string;
   actorId: string;
+  duration: number | null;
+  status: SubmissionStatus;
   score: number | null;
   feedback: string | null;
 }
@@ -46,27 +50,31 @@ function getMimeType(url: string): string {
   return mimeMap[ext] || 'video/mp4';
 }
 
-function scoreToStars(score: number | null): number {
-  if (score === null) return 0;
-  return Math.round(score / 2);
-}
-
 function starsToScore(stars: number): number {
   return stars * 2;
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export default function VideoPlayerModal({
   isOpen, submissions, currentIndex, isDirector, onClose, onNavigate, onReviewUpdated,
 }: VideoPlayerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [score, setScore] = useState(0);
+  const [selectedStars, setSelectedStars] = useState<number | null>(null);
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [localDuration, setLocalDuration] = useState<number | null>(null);
 
+  const { getUser, ensureUser } = useUserCache();
   const submission = submissions[currentIndex];
   const hasReview = submission?.score !== null;
+  const duration = localDuration ?? submission?.duration ?? null;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -79,25 +87,49 @@ export default function VideoPlayerModal({
 
   useEffect(() => {
     if (!submission) return;
-    setScore(scoreToStars(submission.score));
+    setSelectedStars(submission.score !== null ? Math.max(1, Math.min(5, Math.round(submission.score / 2))) : null);
     setFeedback(submission.feedback || '');
     setError('');
     setSuccess('');
+    setLocalDuration(null);
   }, [submission]);
+
+  useEffect(() => {
+    if (!isOpen || !submission) return;
+    ensureUser(submission.actorId);
+  }, [isOpen, submission, ensureUser]);
 
   useEffect(() => {
     if (!isOpen || !videoRef.current) return;
     videoRef.current.play().catch(() => {});
   }, [isOpen, currentIndex]);
 
+  const handleLoadedMetadata = async () => {
+    if (!videoRef.current || !submission) return;
+    const dur = videoRef.current.duration;
+    if (!isFinite(dur) || dur <= 0) return;
+    setLocalDuration(dur);
+    if (submission.duration == null) {
+      try {
+        await client.patch(`/submissions/${submission.id}/metadata`, { duration: Math.round(dur) });
+      } catch {
+        // silently ignore
+      }
+    }
+  };
+
   if (!isOpen || !submission) return null;
 
   const type = getVideoType(submission.videoUrl);
+  const actorUser = getUser(submission.actorId);
+  const actorDisplay = actorUser?.name || submission.actorId;
+  const actorEmail = actorUser?.email;
+  const statusStyle = getStatusStyle(submission.status);
   const prev = () => { if (currentIndex > 0) onNavigate(currentIndex - 1); };
   const next = () => { if (currentIndex < submissions.length - 1) onNavigate(currentIndex + 1); };
 
   const handleSubmitReview = async () => {
-    if (score === 0) {
+    if (selectedStars === null) {
       setError('Please select a score');
       return;
     }
@@ -106,7 +138,7 @@ export default function VideoPlayerModal({
     setSuccess('');
     try {
       await client.patch(`/submissions/${submission.id}/review`, {
-        score: starsToScore(score),
+        score: starsToScore(selectedStars),
         feedback: feedback.trim(),
       });
       setSuccess(hasReview ? 'Review updated!' : 'Review submitted!');
@@ -124,7 +156,7 @@ export default function VideoPlayerModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Video: ${submission.actorId}`}
+        aria-label={`Video: ${actorDisplay}`}
         className="relative w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto"
       >
         {/* Header with navigation */}
@@ -152,13 +184,12 @@ export default function VideoPlayerModal({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-title-sm text-title-sm text-on-surface">{submission.actorId}</span>
-            <span className={`px-2 py-0.5 rounded font-label-caps text-label-caps ${
-              hasReview
-                ? 'bg-primary-container/20 text-primary-fixed-dim border border-primary-container/30'
-                : 'bg-surface-container-high text-on-surface-variant'
-            }`}>
-              {hasReview ? 'Reviewed' : 'Pending'}
+            <span className="font-title-sm text-title-sm text-on-surface">{actorDisplay}</span>
+            {actorEmail && (
+              <span className="font-body-sm text-body-sm text-on-surface-variant">{actorEmail}</span>
+            )}
+            <span className={`px-2 py-0.5 rounded font-label-caps text-label-caps ${statusStyle.badgeClass}`}>
+              {statusStyle.label}
             </span>
           </div>
 
@@ -171,122 +202,157 @@ export default function VideoPlayerModal({
           </button>
         </div>
 
-        <div className="flex gap-4">
-          {/* Video Container */}
-          <div className="flex-1 min-w-0">
-            <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden">
-              {type === 'youtube' && (
-                <iframe
-                  key={submission.id}
-                  src={`https://www.youtube.com/embed/${extractYouTubeId(submission.videoUrl)}?autoplay=1&rel=0`}
-                  className="absolute inset-0 w-full h-full"
-                  allow="autoplay; encrypted-media"
-                  allowFullScreen
-                  title={`Video: ${submission.actorId}`}
-                />
+        {/* Film strip container wrapping everything */}
+        <div className="bg-black rounded-xl overflow-hidden">
+          {/* Top perforations */}
+          <div className="flex h-3">
+            {Array.from({ length: 24 }, (_, i) => (
+              <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-white' : 'bg-black'}`} />
+            ))}
+          </div>
+
+          {/* Content area */}
+          <div className="bg-surface">
+            <div className="flex gap-4 p-4">
+              {/* Video Container */}
+              <div className="flex-1 min-w-0">
+                <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+                  {type === 'youtube' && (
+                    <iframe
+                      key={submission.id}
+                      src={`https://www.youtube.com/embed/${extractYouTubeId(submission.videoUrl)}?autoplay=1&rel=0`}
+                      className="absolute inset-0 w-full h-full"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                      title={`Video: ${actorDisplay}`}
+                    />
+                  )}
+                  {type === 'vimeo' && (
+                    <iframe
+                      key={submission.id}
+                      src={`https://player.vimeo.com/video/${extractVimeoId(submission.videoUrl)}?autoplay=1`}
+                      className="absolute inset-0 w-full h-full"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                      title={`Video: ${actorDisplay}`}
+                    />
+                  )}
+                  {type === 'local' && (
+                    <video
+                      key={submission.id}
+                      ref={videoRef}
+                      controls
+                      autoPlay
+                      className="absolute inset-0 w-full h-full object-contain"
+                      onLoadedMetadata={handleLoadedMetadata}
+                    >
+                      <source src={submission.videoUrl} type={getMimeType(submission.videoUrl)} />
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
+                </div>
+              </div>
+
+              {/* Review Panel (director only) */}
+              {isDirector && (
+                <div className="w-72 flex-shrink-0 bg-surface-container-low border border-outline-variant/30 rounded-xl p-5 flex flex-col gap-4">
+                  <h3 className="font-title-sm text-title-sm text-on-surface">Review</h3>
+
+                  {/* Stars */}
+                  <div>
+                    <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
+                      Score
+                    </label>
+                    <div className="flex gap-1">
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const starNum = i + 1;
+                        const isSelected = selectedStars !== null && starNum <= selectedStars;
+                        return (
+                          <button
+                            key={starNum}
+                            type="button"
+                            onClick={() => setSelectedStars(starNum === selectedStars ? null : starNum)}
+                            aria-label={`${starNum} star${starNum > 1 ? 's' : ''}`}
+                            className="text-2xl transition-colors"
+                          >
+                            {isSelected ? '⭐' : '☆'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Feedback */}
+                  <div className="flex-1">
+                    <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
+                      Feedback
+                    </label>
+                    <textarea
+                      value={feedback}
+                      onChange={(e) => setFeedback(e.target.value)}
+                      placeholder="Optional feedback..."
+                      rows={4}
+                      className="w-full bg-surface-container border-b-2 border-outline-variant/30 text-on-surface px-3 py-2 rounded focus:outline-none focus:border-primary transition-colors resize-none text-sm"
+                    />
+                  </div>
+
+                  {/* Messages */}
+                  {error && (
+                    <div className="bg-error-container text-on-error-container p-2 rounded text-xs">
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="bg-primary-container/20 text-primary-fixed-dim p-2 rounded text-xs border border-primary-container/30">
+                      {success}
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitReview}
+                    disabled={loading || selectedStars === null}
+                    className="w-full py-2.5 bg-primary-container text-on-primary-container font-title-sm text-title-sm rounded hover:bg-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[18px]">
+                          {hasReview ? 'edit' : 'rate_review'}
+                        </span>
+                        {hasReview ? 'Update Review' : 'Submit Review'}
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
-              {type === 'vimeo' && (
-                <iframe
-                  key={submission.id}
-                  src={`https://player.vimeo.com/video/${extractVimeoId(submission.videoUrl)}?autoplay=1`}
-                  className="absolute inset-0 w-full h-full"
-                  allow="autoplay; encrypted-media"
-                  allowFullScreen
-                  title={`Video: ${submission.actorId}`}
-                />
+            </div>
+
+            {/* Metadata bar below video + review */}
+            <div className="px-5 pb-4 flex items-center gap-4 text-on-surface-variant">
+              <span className="font-body-sm text-body-sm">{actorDisplay}</span>
+              {actorEmail && (
+                <span className="font-body-sm text-body-sm text-on-surface-variant/70">{actorEmail}</span>
               )}
-              {type === 'local' && (
-                <video
-                  key={submission.id}
-                  ref={videoRef}
-                  controls
-                  autoPlay
-                  className="absolute inset-0 w-full h-full object-contain"
-                >
-                  <source src={submission.videoUrl} type={getMimeType(submission.videoUrl)} />
-                  Your browser does not support the video tag.
-                </video>
+              {duration != null && (
+                <span className="font-body-sm text-body-sm flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px]">schedule</span>
+                  {formatDuration(duration)}
+                </span>
               )}
             </div>
           </div>
 
-          {/* Review Panel (director only) */}
-          {isDirector && (
-            <div className="w-72 flex-shrink-0 bg-surface-container-low border border-outline-variant/30 rounded-xl p-5 flex flex-col gap-4">
-              <h3 className="font-title-sm text-title-sm text-on-surface">Review</h3>
-
-              {/* Stars */}
-              <div>
-                <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
-                  Score
-                </label>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setScore(star === score ? 0 : star)}
-                      aria-label={`${star} star${star > 1 ? 's' : ''}`}
-                      className="transition-colors hover:scale-110"
-                    >
-                      <span className={`material-symbols-outlined text-[28px] ${
-                        star <= score ? 'text-primary' : 'text-outline-variant'
-                      }`}>
-                        {star <= score ? 'star' : 'star_border'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Feedback */}
-              <div className="flex-1">
-                <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
-                  Feedback
-                </label>
-                <textarea
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Optional feedback..."
-                  rows={4}
-                  className="w-full bg-surface-container border-b-2 border-outline-variant/30 text-on-surface px-3 py-2 rounded focus:outline-none focus:border-primary transition-colors resize-none text-sm"
-                />
-              </div>
-
-              {/* Messages */}
-              {error && (
-                <div className="bg-error-container text-on-error-container p-2 rounded text-xs">
-                  {error}
-                </div>
-              )}
-              {success && (
-                <div className="bg-primary-container/20 text-primary-fixed-dim p-2 rounded text-xs border border-primary-container/30">
-                  {success}
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmitReview}
-                disabled={loading || score === 0}
-                className="w-full py-2.5 bg-primary-container text-on-primary-container font-title-sm text-title-sm rounded hover:bg-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">
-                      {hasReview ? 'edit' : 'rate_review'}
-                    </span>
-                    {hasReview ? 'Update Review' : 'Submit Review'}
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+          {/* Bottom perforations */}
+          <div className="flex h-3">
+            {Array.from({ length: 24 }, (_, i) => (
+              <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-white' : 'bg-black'}`} />
+            ))}
+          </div>
         </div>
       </div>
     </div>

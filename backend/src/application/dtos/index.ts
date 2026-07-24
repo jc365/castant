@@ -43,6 +43,7 @@ export interface SubmitVideoInput {
   actorId: string;
   roundId: string;
   videoUrl: string;
+  duration?: number;
 }
 
 // ============================================

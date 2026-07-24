@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import client from '../api/client';
 import { useUser } from '../context/UserContext';
+import { useUserCache } from '../context/UserCacheContext';
+import { useToast } from '../context/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface Participant {
   userId: string;
@@ -24,21 +27,44 @@ interface Casting {
 
 export default function CastingDetail() {
   const { castingId } = useParams<{ castingId: string }>();
+  const navigate = useNavigate();
   const { getRoleInCasting, isDirectorOf } = useUser();
+  const { getUser, ensureUser } = useUserCache();
+  const { showSuccess, showError } = useToast();
   const [casting, setCasting] = useState<Casting | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const role = castingId ? getRoleInCasting(castingId) : null;
   const isDirector = castingId ? isDirectorOf(castingId) : false;
 
-  useEffect(() => {
+  const fetchCasting = () => {
     if (!castingId) return;
     client.get(`/castings/${castingId}`)
       .then((res) => setCasting(res.data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [castingId]);
+  };
+
+  useEffect(() => { fetchCasting(); }, [castingId]);
+
+  useEffect(() => {
+    if (!casting) return;
+    casting.participants.forEach((p) => ensureUser(p.userId));
+  }, [casting, ensureUser]);
+
+  const handleDelete = async () => {
+    if (!castingId) return;
+    try {
+      await client.delete(`/castings/${castingId}`);
+      showSuccess('Casting deleted');
+      navigate('/dashboard');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to delete casting');
+    }
+  };
 
   if (loading) {
     return (
@@ -73,13 +99,33 @@ export default function CastingDetail() {
               {casting.description}
             </p>
           </div>
-          {role && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30">
-              <span className="font-label-caps text-label-caps text-primary uppercase">
-                Your role: {role}
+          <div className="flex items-center gap-3">
+            {role && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30">
+                <span className="font-label-caps text-label-caps text-primary uppercase">
+                  Your role: {role}
+                </span>
               </span>
-            </span>
-          )}
+            )}
+            {isDirector && (
+              <>
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="p-2 rounded hover:bg-surface-container transition-colors"
+                  title="Edit casting"
+                >
+                  <span className="material-symbols-outlined text-on-surface-variant">edit</span>
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-2 rounded hover:bg-error-container/30 transition-colors"
+                  title="Delete casting"
+                >
+                  <span className="material-symbols-outlined text-error">delete</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -87,17 +133,23 @@ export default function CastingDetail() {
       <div className="bg-surface border border-outline-variant/30 rounded-xl p-6 mb-6">
         <h2 className="font-headline-md text-headline-md text-on-background mb-4">Participants</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {casting.participants.map((p) => (
-            <div key={p.userId} className="flex items-center gap-3 bg-surface-container-high rounded-lg p-3">
-              <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center">
-                <span className="material-symbols-outlined text-on-primary-container text-sm">person</span>
+          {casting.participants.map((p) => {
+            const user = getUser(p.userId);
+            return (
+              <div key={p.userId} className="flex items-center gap-3 bg-surface-container-high rounded-lg p-3">
+                <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center">
+                  <span className="material-symbols-outlined text-on-primary-container text-sm">person</span>
+                </div>
+                <div>
+                  <p className="text-sm text-on-surface">{user?.name || p.userId}</p>
+                  {user?.email && (
+                    <p className="text-xs text-on-surface-variant">{user.email}</p>
+                  )}
+                  <p className="text-xs text-on-surface-variant uppercase">{p.role}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-on-surface">{p.userId}</p>
-                <p className="text-xs text-on-surface-variant uppercase">{p.role}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -105,12 +157,6 @@ export default function CastingDetail() {
       <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="font-headline-md text-headline-md text-on-background">Rounds</h2>
-          {isDirector && (
-            <button className="bg-primary-container text-on-primary-container font-title-sm text-title-sm py-2 px-4 rounded hover:bg-primary transition-colors flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              Add Round
-            </button>
-          )}
         </div>
         <div className="space-y-3">
           {casting.rounds.map((round) => (
@@ -129,6 +175,107 @@ export default function CastingDetail() {
           {casting.rounds.length === 0 && (
             <p className="text-on-surface-variant text-sm">No rounds yet.</p>
           )}
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <EditCastingModal
+          casting={casting}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => {
+            setShowEditModal(false);
+            fetchCasting();
+            showSuccess('Casting updated');
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Casting"
+        message={`Are you sure you want to delete "${casting.title}"? This will permanently delete all rounds and submissions.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    </div>
+  );
+}
+
+function EditCastingModal({
+  casting,
+  onClose,
+  onSaved,
+}: {
+  casting: Casting;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(casting.title);
+  const [description, setDescription] = useState(casting.description);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    if (!title.trim()) {
+      setError('Title is required');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await client.put(`/castings/${casting.id}`, {
+        title: title.trim(),
+        description: description.trim(),
+      });
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update casting');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Edit casting">
+      <div className="bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 w-full max-w-md mx-4 p-6">
+        <h2 className="font-headline-md text-headline-md text-on-surface mb-4">Edit Casting</h2>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="font-label-caps text-label-caps text-on-surface-variant uppercase mb-2 block">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full bg-surface border border-outline-variant/50 rounded-lg p-3 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="font-label-caps text-label-caps text-on-surface-variant uppercase mb-2 block">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full bg-surface border border-outline-variant/50 rounded-lg p-3 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary resize-none"
+            />
+          </div>
+          {error && (
+            <p className="text-error font-body-sm text-body-sm">{error}</p>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="py-2 px-4 rounded font-title-sm text-title-sm text-on-surface-variant hover:bg-surface-container transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="py-2 px-5 rounded font-title-sm text-title-sm bg-primary-container text-on-primary-container hover:bg-primary-container/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving && <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>}
+            Save
+          </button>
         </div>
       </div>
     </div>

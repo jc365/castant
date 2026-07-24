@@ -9,6 +9,7 @@ import Email from '../../../domain/value-objects/Email';
 import FullName from '../../../domain/value-objects/FullName';
 import IUserRepository from '../../interfaces/IUserRepository';
 import IRoundRepository from '../../interfaces/IRoundRepository';
+import ISubmissionRepository from '../../interfaces/ISubmissionRepository';
 import { ManageRoundParticipantsInput } from '../../dtos';
 import logger from '../../../infrastructure/logging/requestContext';
 import BitacoraService from '../../../infrastructure/logging/BitacoraService';
@@ -18,6 +19,7 @@ export class ManageRoundParticipantsUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly roundRepository: IRoundRepository,
+    private readonly submissionRepository: ISubmissionRepository,
     private readonly bitacoraService: BitacoraService,
     private readonly hashService: HashService
   ) { }
@@ -57,6 +59,19 @@ export class ManageRoundParticipantsUseCase {
         newParticipants
       );
       await this.roundRepository.save(newRound);
+
+      const currentSubmissions = await this.submissionRepository.findByRoundId(currentRound.id);
+      for (const sub of currentSubmissions) {
+        if (actorIds.has(sub.actorId)) {
+          if (sub.status === 'reviewed') {
+            await this.submissionRepository.save(sub.select());
+          }
+        } else {
+          if (sub.status === 'reviewed') {
+            await this.submissionRepository.save(sub.reject());
+          }
+        }
+      }
 
       await this.bitacoraService.log({
         userId: Array.from(actorIds)[0] || '',

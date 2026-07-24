@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react';
 import client from '../api/client';
+import type { SubmissionStatus } from '../utils/submissionStatus';
 
 interface Submission {
   id: string;
   videoUrl: string;
   actorId: string;
+  duration: number | null;
+  status: SubmissionStatus;
   score: number | null;
   feedback: string | null;
 }
@@ -48,6 +51,7 @@ export default function CreateNextRoundModal({
   const [actorStates, setActorStates] = useState<Record<string, boolean>>({});
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [createEmpty, setCreateEmpty] = useState(false);
 
   const minScore = STARS_TO_MIN_SCORE(minStars);
   const hasAnyReviewed = submissions.some((s) => s.score !== null);
@@ -120,7 +124,7 @@ export default function CreateNextRoundModal({
 
   const handleCreate = async () => {
     const selected = actorData.filter((a) => a.selected);
-    if (selected.length === 0) {
+    if (selected.length === 0 && !createEmpty) {
       setError('Select at least one actor');
       return;
     }
@@ -200,6 +204,15 @@ export default function CreateNextRoundModal({
               <p className="text-on-surface-variant font-body-lg text-body-lg">
                 No actors with {minStars} stars or more
               </p>
+              <label className="flex items-center gap-2 mt-4 justify-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={createEmpty}
+                  onChange={(e) => setCreateEmpty(e.target.checked)}
+                  className="accent-[var(--color-primary)] w-4 h-4"
+                />
+                <span className="font-body-sm text-body-sm text-on-surface">Create empty round</span>
+              </label>
             </div>
           ) : (
             <>
@@ -265,7 +278,7 @@ export default function CreateNextRoundModal({
         {/* Footer */}
         <div className="flex items-center justify-between p-6 pt-4 border-t border-outline-variant/20">
           <span className="font-body-sm text-body-sm text-on-surface-variant">
-            {selectedCount} actor{selectedCount !== 1 ? 's' : ''} selected
+            {selectedCount > 0 ? `${selectedCount} actor${selectedCount !== 1 ? 's' : ''} selected` : createEmpty ? 'Empty round' : '0 actors selected'}
           </span>
           <div className="flex gap-3">
             <button onClick={onClose} className="py-2 px-4 rounded font-title-sm text-title-sm text-on-surface-variant hover:bg-surface-container transition-colors">
@@ -273,7 +286,7 @@ export default function CreateNextRoundModal({
             </button>
             <button
               onClick={handleCreate}
-              disabled={creating || selectedCount === 0}
+              disabled={creating || (selectedCount === 0 && !createEmpty)}
               className="py-2 px-5 rounded font-title-sm text-title-sm bg-primary-container text-on-primary-container hover:bg-primary-container/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {creating ? (

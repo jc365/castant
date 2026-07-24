@@ -58,6 +58,7 @@ model Submission {
   actorId   String
   roundId   String
   videoUrl  String
+  duration  Int?
   status    String   @default("pending")
   score     Int      @default(0)
   feedback  String   @default("")

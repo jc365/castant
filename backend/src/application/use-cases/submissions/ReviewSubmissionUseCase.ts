@@ -52,15 +52,10 @@ export class ReviewSubmissionUseCase {
       }
     }
 
-    if (submission.status !== 'pending') {
-      logger.error({ submissionId, status: submission.status }, 'ReviewSubmissionUseCase: already reviewed');
-      throw new Error('Submission already reviewed');
-    }
-
     const scoreVO = Score.create(score);
     const feedbackVO = Feedback.create(feedback);
 
-    const updatedSubmission = submission.review(scoreVO, feedbackVO);
+    const updatedSubmission = submission.updateReview(scoreVO, feedbackVO);
 
     await this.submissionRepository.save(updatedSubmission);
 

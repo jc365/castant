@@ -115,16 +115,32 @@ describe('ReviewSubmissionUseCase', () => {
     expect(submissionRepo.save).not.toHaveBeenCalled();
   });
 
-  it('should throw when submission is already reviewed', async () => {
+  it('should re-evaluate an already reviewed submission', async () => {
     const reviewed = submission.review(Score.create(7), Feedback.create('Nice'));
 
     submissionRepo.findById.mockResolvedValue(reviewed);
     roundRepo.findById.mockResolvedValue(round);
     castingRepo.findById.mockResolvedValue(casting);
+    submissionRepo.save.mockResolvedValue();
+
+    const result = await useCase.execute({ submissionId: 'submission-1', score: 9, feedback: 'Updated' });
+
+    expect(result.status).toBe('reviewed');
+    expect(result.score.getValue()).toBe(9);
+    expect(result.feedback.getValue()).toBe('Updated');
+    expect(submissionRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('should throw when submission is selected', async () => {
+    const selected = submission.review(Score.create(7), Feedback.create('Nice')).select();
+
+    submissionRepo.findById.mockResolvedValue(selected);
+    roundRepo.findById.mockResolvedValue(round);
+    castingRepo.findById.mockResolvedValue(casting);
 
     await expect(
       useCase.execute({ submissionId: 'submission-1', score: 9, feedback: 'Updated' })
-    ).rejects.toThrow('Submission already reviewed');
+    ).rejects.toThrow('Cannot review a submission that has been selected or rejected');
 
     expect(submissionRepo.save).not.toHaveBeenCalled();
   });

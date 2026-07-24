@@ -2,9 +2,14 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import client from '../api/client';
 import { useUser } from '../context/UserContext';
+import { useUserCache } from '../context/UserCacheContext';
+import { useToast } from '../context/ToastContext';
 import SubmitVideoModal from '../components/SubmitVideoModal';
 import VideoPlayerModal from '../components/VideoPlayerModal';
 import CreateNextRoundModal from '../components/CreateNextRoundModal';
+import AddParticipantsModal from '../components/AddParticipantsModal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { getStatusStyle, type SubmissionStatus } from '../utils/submissionStatus';
 
 interface Participant {
   id: string;
@@ -17,6 +22,8 @@ interface Submission {
   id: string;
   videoUrl: string;
   actorId: string;
+  duration: number | null;
+  status: SubmissionStatus;
   score: number | null;
   feedback: string | null;
 }
@@ -38,8 +45,15 @@ export default function RoundDetail() {
   const [error, setError] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showCreateNextRound, setShowCreateNextRound] = useState(false);
+  const [showAddParticipants, setShowAddParticipants] = useState(false);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditRound, setShowEditRound] = useState(false);
+  const [showDeleteSubmission, setShowDeleteSubmission] = useState<string | null>(null);
+  const [castingTitle, setCastingTitle] = useState('');
 
+  const { showSuccess, showError } = useToast();
+  const { getUser, ensureUser } = useUserCache();
   const role = roundId ? getRoleInRound(roundId) : null;
   const isDirector = round ? isDirectorOf(round.castingId) : false;
   const isActor = roundId ? isActorOf(roundId) : false;
@@ -48,10 +62,45 @@ export default function RoundDetail() {
   useEffect(() => {
     if (!roundId) return;
     client.get(`/rounds/${roundId}`)
-      .then((res) => setRound(res.data))
+      .then((res) => {
+        setRound(res.data);
+        return client.get(`/castings/${res.data.castingId}`);
+      })
+      .then((res) => {
+        if (res) setCastingTitle(res.data.title);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [roundId]);
+
+  useEffect(() => {
+    if (!round) return;
+    round.participants.forEach((p) => {
+      ensureUser(p.id);
+    });
+  }, [round, ensureUser]);
+
+  const handleDeleteRound = async () => {
+    if (!round) return;
+    try {
+      await client.delete(`/rounds/${round.id}`);
+      showSuccess('Round deleted');
+      navigate(`/castings/${round.castingId}`);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to delete round');
+    }
+  };
+
+  const handleDeleteSubmission = async (submissionId: string) => {
+    try {
+      await client.delete(`/submissions/${submissionId}`);
+      showSuccess('Submission deleted');
+      setShowDeleteSubmission(null);
+      client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to delete submission');
+    }
+  };
 
   if (loading) {
     return (
@@ -85,7 +134,7 @@ export default function RoundDetail() {
           <div className="flex justify-between items-end">
             <div>
               <h1 className="font-display-lg text-display-lg text-on-background">
-                Round {round.number}
+                Round {round.number}{castingTitle && ` — ${castingTitle}`}
               </h1>
               <p className="text-on-surface-variant mt-1 font-body-lg text-body-lg">
                 {round.submissions.length} submission{round.submissions.length !== 1 ? 's' : ''} received
@@ -115,6 +164,7 @@ export default function RoundDetail() {
                 isDirector={isDirector}
                 isPreselector={isPreselector}
                 onPlay={() => setSelectedVideoIndex(idx)}
+                onDelete={() => setShowDeleteSubmission(s.id)}
               />
             ))}
           </div>
@@ -129,123 +179,156 @@ export default function RoundDetail() {
       </div>
 
       {/* Right Sidebar: Round Management */}
-      <div className="w-80 flex-shrink-0 bg-surface-container-lowest border-l border-outline-variant/30 p-6 flex flex-col gap-8 overflow-y-auto">
-        {/* Round Details */}
-        <section>
-          <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Round Management</h3>
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
-              <span className="font-body-sm text-body-sm text-on-surface-variant">Status</span>
-              <span className="bg-primary-container/20 text-primary-fixed-dim px-2 py-1 rounded font-label-caps text-label-caps border border-primary-container/30">
-                IN PROGRESS
-              </span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
-              <span className="font-body-sm text-body-sm text-on-surface-variant">Total Submissions</span>
-              <span className="font-body-sm text-body-sm text-on-surface">
-                {round.submissions.length}
-              </span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
-              <span className="font-body-sm text-body-sm text-on-surface-variant">Round</span>
-              <span className="font-body-sm text-body-sm text-on-surface">
-                {round.number}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Role Badge */}
-        {role && (
-          <section>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 w-full justify-center">
-              <span className="font-label-caps text-label-caps text-primary uppercase">
-                Your role: {role}
-              </span>
-            </span>
-          </section>
-        )}
-
-        {/* Pre-Selectors */}
-        <section>
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="font-title-sm text-title-sm text-on-surface">Pre-Selectors</h4>
-            {isDirector && (
-              <button className="text-primary hover:text-primary-fixed transition-colors">
-                <span className="material-symbols-outlined text-[18px]">add_circle</span>
-              </button>
-            )}
-          </div>
-          {preselectors.length > 0 ? (
-            <ul className="flex flex-col gap-3">
-              {preselectors.map((p) => {
-                const hasReviewed = round.submissions.some((s) => s.score !== null);
-                return (
-                  <li key={p.id} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-surface-container border border-outline-variant flex items-center justify-center">
-                      <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-body-sm text-body-sm text-on-surface leading-tight">{p.id}</p>
-                      <p className="font-label-caps text-label-caps text-on-surface-variant">Preselector {p.email}</p>
-                    </div>
-                    <span
-                      className={`material-symbols-outlined text-[16px] ${hasReviewed ? 'text-primary' : 'text-outline-variant'}`}
-                      title={hasReviewed ? 'Reviewed' : 'Pending'}
-                    >
-                      {hasReviewed ? 'check_circle' : 'pending'}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="text-on-surface-variant text-sm">No pre-selectors assigned.</p>
-          )}
-        </section>
-
-        {/* Actors List */}
-        <section className="flex-1">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="font-title-sm text-title-sm text-on-surface">Actors</h4>
-            <span className="font-label-caps text-label-caps text-on-surface-variant">{actors.length} Total</span>
-          </div>
-          {actors.length > 0 ? (
-            <ul className="flex flex-col gap-2 overflow-y-auto max-h-[300px] pr-2">
-              {actors.map((a) => {
-                const submitted = round.submissions.some((s) => s.actorId === a.id);
-                const passed = round.submissions.some((s) => s.actorId === a.id && s.score !== null && s.score < 5);
-                return (
-                  <li key={a.id} className={`flex items-center justify-between p-2 rounded hover:bg-surface-container transition-colors cursor-pointer group ${passed ? 'opacity-50' : ''}`}>
-                    <span className={`font-body-sm text-body-sm ${passed ? 'text-on-surface-variant' : 'text-on-surface group-hover:text-primary'} transition-colors`}>
-                      {a.id}
-                    </span>
-                    {passed ? (
-                      <span className="material-symbols-outlined text-[14px] text-error" title="Passed">close</span>
-                    ) : submitted ? (
-                      <span className="w-2 h-2 rounded-full bg-primary" title="Submitted" />
-                    ) : (
-                      <span className="w-2 h-2 rounded-full bg-outline-variant" title="Pending" />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="text-on-surface-variant text-sm">No actors assigned.</p>
-          )}
-        </section>
-
-        {/* Create Next Round */}
+      <div className="w-80 flex-shrink-0 bg-surface-container-lowest border-l border-outline-variant/30 flex flex-col h-[calc(100vh-8rem)] sticky top-16">
+        {/* Sticky Actions - always visible */}
         {isDirector && (
-          <button
-            onClick={() => setShowCreateNextRound(true)}
-            className="w-full py-2 bg-primary-container text-on-primary-container font-label-caps text-label-caps rounded hover:bg-primary-container/80 transition-colors tracking-widest uppercase flex items-center justify-center gap-2"
-          >
-            <span className="material-symbols-outlined text-[16px]">add_circle</span>
-            Create Next Round
-          </button>
+          <div className="flex-shrink-0 border-b border-outline-variant/20 p-4 flex flex-col gap-2">
+            <h4 className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Actions</h4>
+            <button
+              onClick={() => setShowAddParticipants(true)}
+              className="w-full py-2 border border-outline-variant/50 text-on-surface-variant font-label-caps text-label-caps rounded hover:bg-surface-container hover:text-on-surface transition-colors tracking-widest uppercase flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[16px]">person_add</span>
+              Add Participants
+            </button>
+            <button
+              onClick={() => setShowCreateNextRound(true)}
+              className="w-full py-2 bg-primary-container text-on-primary-container font-label-caps text-label-caps rounded hover:bg-primary-container/80 transition-colors tracking-widest uppercase flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[16px]">add_circle</span>
+              Create Next Round
+            </button>
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setShowEditRound(true)}
+                className="flex-1 py-1.5 border border-outline-variant/50 text-on-surface-variant font-label-caps text-label-caps rounded hover:bg-surface-container transition-colors flex items-center justify-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[14px]">edit</span>
+                Edit
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex-1 py-1.5 border border-error/30 text-error font-label-caps text-label-caps rounded hover:bg-error-container/20 transition-colors flex items-center justify-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[14px]">delete</span>
+                Delete
+              </button>
+            </div>
+          </div>
         )}
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-6 pt-4 flex flex-col gap-8">
+          {/* Round Details */}
+          <section>
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Round Management</h3>
+            <div className="flex flex-col gap-3">
+              <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
+                <span className="font-body-sm text-body-sm text-on-surface-variant">Status</span>
+                <span className="bg-primary-container/20 text-primary-fixed-dim px-2 py-1 rounded font-label-caps text-label-caps border border-primary-container/30">
+                  IN PROGRESS
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
+                <span className="font-body-sm text-body-sm text-on-surface-variant">Total Submissions</span>
+                <span className="font-body-sm text-body-sm text-on-surface">
+                  {round.submissions.length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20">
+                <span className="font-body-sm text-body-sm text-on-surface-variant">Round</span>
+                <span className="font-body-sm text-body-sm text-on-surface">
+                  {round.number}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* Role Badge */}
+          {role && (
+            <section>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 w-full justify-center">
+                <span className="font-label-caps text-label-caps text-primary uppercase">
+                  Your role: {role}
+                </span>
+              </span>
+            </section>
+          )}
+
+          {/* Pre-Selectors */}
+          <section>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-title-sm text-title-sm text-on-surface">Pre-Selectors</h4>
+              {isDirector && (
+                <button className="text-primary hover:text-primary-fixed transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                </button>
+              )}
+            </div>
+            {preselectors.length > 0 ? (
+              <ul className="flex flex-col gap-3">
+                {preselectors.map((p) => {
+                  const hasReviewed = round.submissions.some((s) => s.score !== null);
+                  return (
+                    <li key={p.id} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded bg-surface-container border border-outline-variant flex items-center justify-center">
+                        <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-body-sm text-body-sm text-on-surface leading-tight truncate">{getUser(p.id)?.name || p.id}</p>
+                        <p className="font-label-caps text-label-caps text-on-surface-variant truncate">{getUser(p.id)?.email || p.email}</p>
+                      </div>
+                      <span
+                        className={`material-symbols-outlined text-[16px] ${hasReviewed ? 'text-primary' : 'text-outline-variant'}`}
+                        title={hasReviewed ? 'Reviewed' : 'Pending'}
+                      >
+                        {hasReviewed ? 'check_circle' : 'pending'}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-on-surface-variant text-sm">No pre-selectors assigned.</p>
+            )}
+          </section>
+
+          {/* Actors List */}
+          <section className="flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-title-sm text-title-sm text-on-surface">Actors</h4>
+              <span className="font-label-caps text-label-caps text-on-surface-variant">{actors.length} Total</span>
+            </div>
+            {actors.length > 0 ? (
+              <ul className="flex flex-col gap-3 overflow-y-auto max-h-[300px] pr-2">
+                {actors.map((a) => {
+                  const submitted = round.submissions.some((s) => s.actorId === a.id);
+                  const passed = round.submissions.some((s) => s.actorId === a.id && s.score !== null && s.score < 5);
+                  return (
+                    <li key={a.id} className={`flex items-center gap-3 ${passed ? 'opacity-50' : ''}`}>
+                      <div className="w-8 h-8 rounded bg-surface-container border border-outline-variant flex items-center justify-center flex-shrink-0">
+                        <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-body-sm text-body-sm text-on-surface leading-tight truncate">{getUser(a.id)?.name || a.name || a.id}</p>
+                        <p className="font-label-caps text-label-caps text-on-surface-variant truncate">{getUser(a.id)?.email || a.email}</p>
+                      </div>
+                      {passed ? (
+                        <span className="material-symbols-outlined text-[16px] text-error flex-shrink-0" title="Passed">close</span>
+                      ) : submitted ? (
+                        <span className="material-symbols-outlined text-[16px] text-primary flex-shrink-0" title="Submitted">check_circle</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-[16px] text-outline-variant flex-shrink-0" title="Pending">pending</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-on-surface-variant text-sm">No actors assigned.</p>
+            )}
+          </section>
+        </div>
       </div>
 
       <SubmitVideoModal
@@ -278,6 +361,46 @@ export default function RoundDetail() {
         onClose={() => setShowCreateNextRound(false)}
         onCreated={(newRoundId) => navigate(`/rounds/${newRoundId}`)}
       />
+
+      <AddParticipantsModal
+        isOpen={showAddParticipants}
+        roundNumber={round.number}
+        roundId={round.id}
+        onClose={() => setShowAddParticipants(false)}
+        onAdded={() => {
+          client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Round"
+        message={`Are you sure you want to delete Round ${round.number}? This will permanently delete all submissions.`}
+        confirmLabel="Delete"
+        onConfirm={handleDeleteRound}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteSubmission !== null}
+        title="Delete Submission"
+        message="Are you sure you want to delete this submission? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => showDeleteSubmission && handleDeleteSubmission(showDeleteSubmission)}
+        onCancel={() => setShowDeleteSubmission(null)}
+      />
+
+      {showEditRound && (
+        <EditRoundModal
+          round={round}
+          onClose={() => setShowEditRound(false)}
+          onSaved={() => {
+            setShowEditRound(false);
+            client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
+            showSuccess('Round updated');
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -287,17 +410,31 @@ function SubmissionCard({
   isDirector,
   isPreselector,
   onPlay,
+  onDelete,
 }: {
   submission: Submission;
   isDirector: boolean;
   isPreselector: boolean;
   onPlay: () => void;
+  onDelete: () => void;
 }) {
+  const { getUser, ensureUser } = useUserCache();
+  const actor = getUser(submission.actorId);
   const hasScore = submission.score !== null;
-  const status = hasScore ? (submission.score! >= 5 ? 'PASSED' : 'REVIEWED') : 'NEW';
+  const statusStyle = getStatusStyle(submission.status);
+
+  useEffect(() => {
+    ensureUser(submission.actorId);
+  }, [submission.actorId, ensureUser]);
+
+  const formatDuration = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <div className={`bg-surface-container-low border border-outline-variant/30 rounded-xl overflow-hidden group hover:border-primary/50 transition-colors duration-300 ${!hasScore && status === 'PASSED' ? 'opacity-75 grayscale-[20%]' : ''}`}>
+    <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl overflow-hidden group hover:border-primary/50 transition-colors duration-300">
       {/* Video Thumbnail Placeholder */}
       <div
         onClick={onPlay}
@@ -313,14 +450,8 @@ function SubmissionCard({
           </div>
         </div>
         {/* Status Chip */}
-        <div className={`absolute top-3 left-3 px-2 py-1 rounded font-label-caps text-label-caps backdrop-blur-sm ${
-          status === 'NEW'
-            ? 'bg-inverse-primary/90 text-on-primary-container'
-            : status === 'PASSED'
-            ? 'bg-surface-variant text-on-surface-variant border border-outline-variant/50'
-            : 'bg-primary-container/20 text-primary-fixed-dim border border-primary-container/30'
-        }`}>
-          {status}
+        <div className={`absolute top-3 left-3 px-2 py-1 rounded font-label-caps text-label-caps backdrop-blur-sm ${statusStyle.chipClass}`}>
+          {statusStyle.label}
         </div>
       </div>
 
@@ -328,14 +459,25 @@ function SubmissionCard({
       <div className="p-5 flex flex-col gap-3">
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="font-title-sm text-title-sm text-on-surface truncate">{submission.actorId}</h3>
+            <h3 className="font-title-sm text-title-sm text-on-surface truncate">{actor?.name || submission.actorId}</h3>
+            {actor?.email && (
+              <p className="font-label-caps text-label-caps text-on-surface-variant truncate">{actor.email}</p>
+            )}
           </div>
-          {hasScore && (
-            <div className="bg-surface-bright border border-outline-variant/50 px-2 py-1 rounded flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px] text-primary">star</span>
-              <span className="font-title-sm text-title-sm text-on-surface">{submission.score}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {submission.duration != null && (
+              <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">schedule</span>
+                {formatDuration(submission.duration)}
+              </span>
+            )}
+            {hasScore && (
+              <div className="bg-surface-bright border border-outline-variant/50 px-2 py-1 rounded flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-primary">star</span>
+                <span className="font-title-sm text-title-sm text-on-surface">{submission.score}</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="w-full h-px bg-outline-variant/20 my-1" />
         <div>
@@ -350,6 +492,79 @@ function SubmissionCard({
             Review
           </button>
         )}
+        {isDirector && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="mt-1 border border-error/30 text-error font-title-sm text-title-sm py-2 px-4 rounded hover:bg-error-container/20 transition-colors flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">delete</span>
+            Delete
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EditRoundModal({
+  round,
+  onClose,
+  onSaved,
+}: {
+  round: { id: string; number: number; castingId: string };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [number, setNumber] = useState(round.number.toString());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    const num = parseInt(number, 10);
+    if (isNaN(num) || num < 1) {
+      setError('Round number must be a positive integer');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await client.patch(`/rounds/${round.id}`, { number: num });
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update round');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Edit round">
+      <div className="bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 w-full max-w-sm mx-4 p-6">
+        <h2 className="font-headline-md text-headline-md text-on-surface mb-4">Edit Round</h2>
+        <div>
+          <label className="font-label-caps text-label-caps text-on-surface-variant uppercase mb-2 block">Round Number</label>
+          <input
+            type="number"
+            min="1"
+            value={number}
+            onChange={(e) => setNumber(e.target.value)}
+            className="w-full bg-surface border border-outline-variant/50 rounded-lg p-3 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary"
+          />
+        </div>
+        {error && <p className="text-error font-body-sm text-body-sm mt-2">{error}</p>}
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="py-2 px-4 rounded font-title-sm text-title-sm text-on-surface-variant hover:bg-surface-container transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="py-2 px-5 rounded font-title-sm text-title-sm bg-primary-container text-on-primary-container hover:bg-primary-container/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving && <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>}
+            Save
+          </button>
+        </div>
       </div>
     </div>
   );

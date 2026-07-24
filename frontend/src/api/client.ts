@@ -1,35 +1,43 @@
+// frontend/src/api/client.ts
 import axios from 'axios';
 
+// Guardar estado anterior para comparar
+let previousParticipationsData = '';
+
 const client = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
 });
 
+// Interceptor de request
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-
-  if (import.meta.env.DEV) {
-    console.log(`🚀 ${config.method?.toUpperCase()} ${config.url}`, config.data ?? '');
-  }
-
   return config;
 });
 
-client.interceptors.response.use(
-  (response) => {
-    if (import.meta.env.DEV) {
-      console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data);
+// Interceptor de response - MODIFICAR AQUÍ
+client.interceptors.response.use((response) => {
+  const url = response.config.url || '';
+  const isParticipations = url.includes('/me/participations');
+  
+  if (isParticipations) {
+    // ✅ Solo log si los datos cambiaron
+    const dataStr = JSON.stringify(response.data);
+    if (dataStr !== previousParticipationsData) {
+      console.log('✅ </users/me/participations> updated:', response.data);
+      previousParticipationsData = dataStr;
     }
-    return response;
-  },
-  (error) => {
-    if (import.meta.env.DEV) {
-      console.log(`❌ ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.message);
-    }
-    return Promise.reject(error);
+  } else {
+    // ✅ Log normal para otras peticiones
+    console.log('✅', response.config.method?.toUpperCase(), url, response.data);
   }
-);
+  
+  return response;
+}, (error) => {
+  console.error('❌ API Error:', error.response?.status, error.response?.data);
+  return Promise.reject(error);
+});
 
 export default client;

@@ -42,7 +42,7 @@ const createCastingUseCase = new CreateCastingUseCase(castingRepository, userRep
 const submissionRepository = new PrismaSubmissionRepository();
 const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepository, submissionRepository, bitacoraService);
 
-const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository, bitacoraService, hashService);
+const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository, submissionRepository, bitacoraService, hashService);
 const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository, bitacoraService);
 
 // ============================================
@@ -330,6 +330,8 @@ router.get('/rounds/:id', async (req, res) => {
         id: s.id,
         actorId: s.actorId,
         videoUrl: s.videoUrl.getValue(),
+        duration: s.duration,
+        status: s.status,
         score: s.score.getValue(),
         feedback: s.feedback.getValue(),
       })),
@@ -360,6 +362,7 @@ router.get('/rounds/:id/submissions', async (req, res) => {
       actorId: s.actorId,
       roundId: s.roundId,
       videoUrl: s.videoUrl.getValue(),
+      duration: s.duration,
       status: s.status,
       score: s.score.getValue(),
       feedback: s.feedback.getValue(),
@@ -376,7 +379,7 @@ router.post('/submissions', videoUpload.single('video'), async (req: AuthRequest
 
   try {
     const actorId = req.user?.id;
-    const { roundId, videoUrl } = req.body;
+    const { roundId, videoUrl, duration } = req.body;
 
     // Determine video source: file upload or URL
     let finalVideoUrl: string;
@@ -391,12 +394,13 @@ router.post('/submissions', videoUpload.single('video'), async (req: AuthRequest
       return;
     }
 
-    const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl: finalVideoUrl });
+    const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl: finalVideoUrl, duration: duration ? Number(duration) : undefined });
     res.status(201).json({
       id: submission.id,
       actorId: submission.actorId,
       roundId: submission.roundId,
       videoUrl: submission.videoUrl.getValue(),
+      duration: submission.duration,
       status: submission.status,
     });
   } catch (error) {
@@ -471,6 +475,7 @@ router.patch('/submissions/:id/review', async (req: AuthRequest, res) => {
       actorId: submission.actorId,
       roundId: submission.roundId,
       videoUrl: submission.videoUrl.getValue(),
+      duration: submission.duration,
       status: submission.status,
       score: submission.score.getValue(),
       feedback: submission.feedback.getValue(),
@@ -482,8 +487,8 @@ router.patch('/submissions/:id/review', async (req: AuthRequest, res) => {
       res.status(404).json({ error: message });
       return;
     }
-    if (message.includes('already reviewed')) {
-      requestLogger.error({ error: message }, 'PATCH /submissions/:id/review: already reviewed');
+    if (message.includes('Cannot review a submission that has been selected or rejected')) {
+      requestLogger.error({ error: message }, 'PATCH /submissions/:id/review: final status');
       res.status(400).json({ error: message });
       return;
     }
@@ -498,6 +503,238 @@ router.patch('/submissions/:id/review', async (req: AuthRequest, res) => {
       return;
     }
     requestLogger.error({ error: message }, 'PATCH /submissions/:id/review failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.put('/castings/:id', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'PUT /castings/:id');
+
+  try {
+    const existing = await castingRepository.findById(id);
+
+    if (!existing) {
+      requestLogger.warn({ id }, 'PUT /castings/:id: not found');
+      res.status(404).json({ error: 'Casting not found' });
+      return;
+    }
+
+    const { title, description } = req.body;
+
+    await prisma.casting.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+      },
+    });
+
+    const updated = await castingRepository.findById(id);
+    requestLogger.info({ id }, 'PUT /castings/:id: completed');
+    res.json({
+      id: updated!.id,
+      title: updated!.title,
+      description: updated!.description,
+      participants: updated!.participants.map((p) => ({
+        userId: p.userId,
+        role: p.role,
+      })),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'PUT /castings/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.delete('/castings/:id', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'DELETE /castings/:id');
+
+  try {
+    const existing = await castingRepository.findById(id);
+
+    if (!existing) {
+      requestLogger.warn({ id }, 'DELETE /castings/:id: not found');
+      res.status(404).json({ error: 'Casting not found' });
+      return;
+    }
+
+    const rounds = await roundRepository.findByCastingId(id);
+    for (const round of rounds) {
+      await prisma.submission.deleteMany({ where: { roundId: round.id } });
+      await prisma.participant.deleteMany({ where: { roundId: round.id } });
+      await roundRepository.delete(round.id);
+    }
+
+    await prisma.participant.deleteMany({ where: { castingId: id } });
+    await castingRepository.delete(id);
+
+    requestLogger.info({ id }, 'DELETE /castings/:id: completed');
+    res.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'DELETE /castings/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.delete('/rounds/:id', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'DELETE /rounds/:id');
+
+  try {
+    const existing = await roundRepository.findById(id);
+
+    if (!existing) {
+      requestLogger.warn({ id }, 'DELETE /rounds/:id: not found');
+      res.status(404).json({ error: 'Round not found' });
+      return;
+    }
+
+    await prisma.submission.deleteMany({ where: { roundId: id } });
+    await prisma.participant.deleteMany({ where: { roundId: id } });
+    await roundRepository.delete(id);
+
+    requestLogger.info({ id }, 'DELETE /rounds/:id: completed');
+    res.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'DELETE /rounds/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.patch('/rounds/:id', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'PATCH /rounds/:id');
+
+  try {
+    const existing = await roundRepository.findById(id);
+
+    if (!existing) {
+      requestLogger.warn({ id }, 'PATCH /rounds/:id: not found');
+      res.status(404).json({ error: 'Round not found' });
+      return;
+    }
+
+    const { number } = req.body;
+
+    if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) {
+      requestLogger.warn({ id, number }, 'PATCH /rounds/:id: invalid number');
+      res.status(400).json({ error: 'Number must be a positive integer' });
+      return;
+    }
+
+    await prisma.round.update({
+      where: { id },
+      data: { number },
+    });
+
+    const updated = await roundRepository.findById(id);
+    requestLogger.info({ id }, 'PATCH /rounds/:id: completed');
+    res.json({
+      id: updated!.id,
+      number: updated!.number,
+      castingId: updated!.castingId,
+      participants: updated!.participants.map((p) => ({
+        actorId: p.id,
+        role: p.role,
+      })),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'PATCH /rounds/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.delete('/submissions/:id', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'DELETE /submissions/:id');
+
+  try {
+    const existing = await submissionRepository.findById(id);
+
+    if (!existing) {
+      requestLogger.warn({ id }, 'DELETE /submissions/:id: not found');
+      res.status(404).json({ error: 'Submission not found' });
+      return;
+    }
+
+    await submissionRepository.delete(id);
+
+    requestLogger.info({ id }, 'DELETE /submissions/:id: completed');
+    res.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'DELETE /submissions/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.get('/submissions/:id', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'GET /submissions/:id');
+
+  try {
+    const submission = await submissionRepository.findById(id);
+
+    if (!submission) {
+      requestLogger.warn({ id }, 'GET /submissions/:id: not found');
+      res.status(404).json({ error: 'Submission not found' });
+      return;
+    }
+
+    res.json({
+      id: submission.id,
+      actorId: submission.actorId,
+      roundId: submission.roundId,
+      videoUrl: submission.videoUrl.getValue(),
+      duration: submission.duration,
+      status: submission.status,
+      score: submission.score.getValue(),
+      feedback: submission.feedback.getValue(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'GET /submissions/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.patch('/submissions/:id/metadata', async (req, res) => {
+  const { id } = req.params;
+  requestLogger.info({ id }, 'PATCH /submissions/:id/metadata');
+
+  try {
+    const existing = await submissionRepository.findById(id);
+
+    if (!existing) {
+      requestLogger.warn({ id }, 'PATCH /submissions/:id/metadata: not found');
+      res.status(404).json({ error: 'Submission not found' });
+      return;
+    }
+
+    const { duration } = req.body;
+    const updated = existing.withDuration(Number(duration));
+    await submissionRepository.save(updated);
+
+    requestLogger.info({ id }, 'PATCH /submissions/:id/metadata: completed');
+    res.json({
+      id: updated.id,
+      actorId: updated.actorId,
+      roundId: updated.roundId,
+      videoUrl: updated.videoUrl.getValue(),
+      duration: updated.duration,
+      status: updated.status,
+      score: updated.score.getValue(),
+      feedback: updated.feedback.getValue(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'PATCH /submissions/:id/metadata failed');
     res.status(400).json({ error: message });
   }
 });

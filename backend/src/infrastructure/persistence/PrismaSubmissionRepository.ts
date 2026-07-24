@@ -41,11 +41,13 @@ export default class PrismaSubmissionRepository implements ISubmissionRepository
         actorId: submission.actorId,
         roundId: submission.roundId,
         videoUrl: submission.videoUrl.getValue(),
+        duration: submission.duration,
         status: submission.status,
         score: submission.score.getValue() ?? 0,
         feedback: submission.feedback.getValue() ?? '',
       },
       update: {
+        duration: submission.duration,
         status: submission.status,
         score: submission.score.getValue() ?? 0,
         feedback: submission.feedback.getValue() ?? '',
@@ -59,16 +61,24 @@ export default class PrismaSubmissionRepository implements ISubmissionRepository
     });
   }
 
-  private toDomain(record: { id: string; actorId: string; roundId: string; videoUrl: string; status: string; score: number; feedback: string }): Submission {
+  private toDomain(record: { id: string; actorId: string; roundId: string; videoUrl: string; duration: number | null; status: string; score: number; feedback: string }): Submission {
     const videoUrl = VideoUrl.create(record.videoUrl);
     const submission = Submission.create(record.actorId, record.roundId, videoUrl, record.id);
 
-    if (record.status !== 'pending') {
-      const score = Score.create(record.score);
-      const feedback = Feedback.create(record.feedback || ' ');
-      return submission.review(score, feedback);
+    let result = record.duration != null ? submission.withDuration(record.duration) : submission;
+
+    if (record.status === 'pending') return result;
+
+    const score = Score.create(record.score);
+    const feedback = Feedback.create(record.feedback || ' ');
+    result = result.review(score, feedback);
+
+    if (record.status === 'selected') {
+      result = result.select();
+    } else if (record.status === 'rejected') {
+      result = result.reject();
     }
 
-    return submission;
+    return result;
   }
 }

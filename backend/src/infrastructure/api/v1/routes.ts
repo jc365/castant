@@ -580,6 +580,52 @@ router.delete('/castings/:id', async (req, res) => {
   }
 });
 
+router.delete('/rounds/:roundId/participants/:userId', async (req: AuthRequest, res) => {
+  const { roundId, userId } = req.params;
+  const directorId = req.user?.id;
+  requestLogger.info({ roundId, userId }, 'DELETE /rounds/:roundId/participants/:userId');
+
+  try {
+    const round = await roundRepository.findById(roundId);
+    if (!round) {
+      res.status(404).json({ error: 'Round not found' });
+      return;
+    }
+
+    const casting = await castingRepository.findById(round.castingId);
+    if (!casting) {
+      res.status(404).json({ error: 'Casting not found' });
+      return;
+    }
+
+    const isDirector = casting.directorIds.some(id => id === directorId);
+    if (!isDirector) {
+      res.status(403).json({ error: 'Not authorized' });
+      return;
+    }
+
+    const participant = round.participants.find(p => p.id === userId);
+    if (!participant) {
+      res.status(404).json({ error: 'Participant not found in this round' });
+      return;
+    }
+
+    const submissions = await submissionRepository.findByRoundId(roundId);
+    const hadSubmissions = submissions.some(s => s.actorId === userId);
+
+    await prisma.participant.deleteMany({
+      where: { roundId, userId },
+    });
+
+    requestLogger.info({ roundId, userId }, 'DELETE /rounds/:roundId/participants/:userId: completed');
+    res.json({ success: true, hadSubmissions });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, roundId, userId }, 'DELETE /rounds/:roundId/participants/:userId failed');
+    res.status(400).json({ error: message });
+  }
+});
+
 router.delete('/rounds/:id', async (req, res) => {
   const { id } = req.params;
   requestLogger.info({ id }, 'DELETE /rounds/:id');

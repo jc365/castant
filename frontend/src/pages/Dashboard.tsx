@@ -4,6 +4,7 @@ import client from '../api/client';
 import { useUser } from '../context/UserContext';
 import { useUserCache } from '../context/UserCacheContext';
 import type { SubmissionStatus } from '../utils/submissionStatus';
+import { scoreToStars } from '../utils/scoring';
 
 interface Participant {
   userId: string;
@@ -61,7 +62,10 @@ interface ActivityItem {
   castingTitle: string;
   roundNumber: number;
   score: number | null;
-  timestamp: string;
+  timestamp: Date;
+  submissionId: string;
+  status: SubmissionStatus;
+  roundId: string;
 }
 
 function relativeTime(date: Date): string {
@@ -183,7 +187,7 @@ export default function Dashboard() {
     for (const r of rounds) {
       for (const s of r.submissions) {
         if (s.score !== null) {
-          const stars = Math.min(5, Math.max(1, Math.round(s.score / 2)));
+          const stars = Math.min(5, Math.max(1, scoreToStars(s.score)));
           buckets[stars - 1]++;
         }
       }
@@ -192,13 +196,16 @@ export default function Dashboard() {
   }, [rounds]);
 
   const recentActivity = useMemo<ActivityItem[]>(() => {
-    const items: ActivityItem[] = [];
     const castingMap = new Map(castings.map((c) => [c.id, c.title]));
+    const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
+
+    const pending: ActivityItem[] = [];
+    const reviewed: ActivityItem[] = [];
 
     for (const r of rounds) {
       const title = castingMap.get(r.castingId) || 'Unknown';
       for (const s of r.submissions) {
-        items.push({
+        const item: ActivityItem = {
           id: s.id,
           type: s.status !== 'pending' ? 'review' : 'submission',
           actorId: s.actorId,
@@ -206,11 +213,21 @@ export default function Dashboard() {
           roundNumber: r.number,
           score: s.score,
           timestamp: new Date(),
-        });
+          submissionId: s.id,
+          status: s.status,
+          roundId: r.id,
+        };
+        if (s.status === 'pending') {
+          pending.push(item);
+        } else if (item.timestamp.getTime() >= twoDaysAgo) {
+          reviewed.push(item);
+        }
       }
     }
 
-    return items.slice(0, 10);
+    reviewed.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return [...pending, ...reviewed].slice(0, 10);
   }, [castings, rounds]);
 
   useEffect(() => {
@@ -275,21 +292,23 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Submissions per Round */}
         <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-          <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Submissions per Round</h3>
+          <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Submissions per Round</h3>
           {roundStats.length > 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {roundStats.map((r) => (
-                <div key={r.id} className="flex items-center gap-3">
-                  <span className="font-body-sm text-body-sm text-on-surface-variant w-40 text-right truncate" title={r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}>
-                    {r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}
-                  </span>
-                  <div className="flex-1 h-6 bg-surface-container rounded overflow-hidden">
+                <div key={r.id} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-body-sm text-body-sm text-on-surface-variant whitespace-normal break-words" title={r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}>
+                      {r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}
+                    </span>
+                    <span className="font-body-sm text-body-sm text-on-surface font-medium ml-2">{r.count}</span>
+                  </div>
+                  <div className="w-full h-3 bg-surface-container rounded overflow-hidden">
                     <div
                       className="h-full bg-primary rounded transition-all duration-500"
                       style={{ width: `${(r.count / r.max) * 100}%` }}
                     />
                   </div>
-                  <span className="font-body-sm text-body-sm text-on-surface w-8">{r.count}</span>
                 </div>
               ))}
             </div>
@@ -300,7 +319,7 @@ export default function Dashboard() {
 
         {/* Score Distribution */}
         <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-          <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Score Distribution</h3>
+          <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Score Distribution</h3>
           {scoreDistribution.some((b) => b.count > 0) ? (
             <div className="flex flex-col gap-3">
               {scoreDistribution.map((b) => (
@@ -326,7 +345,7 @@ export default function Dashboard() {
 
       {/* Recent Activity */}
       <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-        <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Recent Activity</h3>
+        <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Recent Activity</h3>
         {recentActivity.length > 0 ? (
           <ul className="flex flex-col divide-y divide-outline-variant/20">
             {recentActivity.map((item) => (
@@ -335,15 +354,35 @@ export default function Dashboard() {
                   {item.type === 'review' ? 'rate_review' : 'upload'}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-body-sm text-body-sm text-on-surface truncate">
-                    <span className="font-medium">{getUser(item.actorId)?.name || item.actorId}</span>
-                    {' '}
-                    {item.type === 'review' ? 'reviewed in' : 'submitted to'}
-                    {' '}
-                    <span className="text-on-surface-variant">{item.castingTitle}</span>
-                    {' '}
-                    <span className="text-on-surface-variant">· Round {item.roundNumber}</span>
-                  </p>
+                  {item.status === 'pending' ? (
+                    <Link to={`/rounds/${item.roundId}`} className="block">
+                      <p className="font-body-sm text-body-sm text-on-surface truncate">
+                        <span className="font-medium">{getUser(item.actorId)?.name || item.actorId}</span>
+                        {' '}
+                        {item.type === 'review' ? 'reviewed in' : 'submitted to'}
+                        {' '}
+                        <span className="text-on-surface-variant">{item.castingTitle}</span>
+                        {' '}
+                        <span className="text-on-surface-variant">· Round {item.roundNumber}</span>
+                        {' '}
+                        <span className="text-on-surface-variant">· </span>
+                        <span className="text-on-surface-variant font-mono text-[11px]">{item.submissionId}</span>
+                      </p>
+                    </Link>
+                  ) : (
+                    <p className="font-body-sm text-body-sm text-on-surface truncate">
+                      <span className="font-medium">{getUser(item.actorId)?.name || item.actorId}</span>
+                      {' '}
+                      {item.type === 'review' ? 'reviewed in' : 'submitted to'}
+                      {' '}
+                      <span className="text-on-surface-variant">{item.castingTitle}</span>
+                      {' '}
+                      <span className="text-on-surface-variant">· Round {item.roundNumber}</span>
+                      {' '}
+                      <span className="text-on-surface-variant">· </span>
+                      <span className="text-on-surface-variant font-mono text-[11px]">{item.submissionId}</span>
+                    </p>
+                  )}
                 </div>
                 {item.score !== null && (
                   <span className="flex items-center gap-1 flex-shrink-0">

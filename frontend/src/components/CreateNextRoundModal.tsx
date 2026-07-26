@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import client from '../api/client';
+import { useUserCache } from '../context/UserCacheContext';
 import type { SubmissionStatus } from '../utils/submissionStatus';
 
 interface Submission {
@@ -47,6 +48,7 @@ export default function CreateNextRoundModal({
   onClose: () => void;
   onCreated: (newRoundId: string) => void;
 }) {
+  const { getUser } = useUserCache();
   const [minStars, setMinStars] = useState(3);
   const [actorStates, setActorStates] = useState<Record<string, boolean>>({});
   const [creating, setCreating] = useState(false);
@@ -57,33 +59,20 @@ export default function CreateNextRoundModal({
   const hasAnyReviewed = submissions.some((s) => s.score !== null);
 
 
-  const participantMap = useMemo(() => {
-    const emailMap = new Map<string, string>();
-    const nameMap = new Map<string, string>();
-
-    participants.forEach((p) => {
-      emailMap.set(p.actorId, p.email ?? 'no-email@unknown.com');
-      nameMap.set(p.actorId, p.name ?? p.actorId);
-    });
-
-    return { emailMap, nameMap };
-  }, [participants]);
-
-
   const actorData = useMemo<ActorData[]>(() => {
     const filteredSubs = submissions.filter((s) => s.score !== null && s.score >= minScore);
 
     const map = new Map<string, ActorData>();
     for (const s of filteredSubs) {
+      const user = getUser(s.actorId);
+      if (!user?.email) continue;
+
       let entry = map.get(s.actorId);
       if (!entry) {
-        const email = participantMap.emailMap.get(s.actorId) || s.actorId;
-        const name = participantMap.nameMap.get(s.actorId) || s.actorId;
-
         entry = {
           id: s.actorId,
-          name,
-          email,
+          name: user.name ?? s.actorId,
+          email: user.email,
           bestScore: s.score!,
           bestStars: SCORE_TO_STARS(s.score!),
           feedbacks: [],
@@ -101,7 +90,7 @@ export default function CreateNextRoundModal({
     }
     
     return Array.from(map.values());
-  }, [submissions, minScore, actorStates, participantMap]);
+  }, [submissions, minScore, actorStates, getUser]);
 
   const selectedCount = actorData.filter((a) => a.selected).length;
   const noActorsMatch = hasAnyReviewed && actorData.length === 0;
@@ -133,9 +122,12 @@ export default function CreateNextRoundModal({
     setError('');
 
     try {
+      const actorEmails = selected
+        .map((a) => a.email)
+        .filter((email): email is string => !!email);
       const res = await client.post('/rounds/participants', {
         roundId,
-        actors: selected.map((a) => ({ email: a.email })),
+        actors: actorEmails.map((email) => ({ email })),
         preselectors: [],
         createNewRound: true,
       });
@@ -184,7 +176,7 @@ export default function CreateNextRoundModal({
               ))}
             </div>
             <span className="font-body-sm text-body-sm text-on-surface-variant">
-              {minStars}+ stars (score ≥ {minScore}/10)
+              {minStars}+ stars
             </span>
           </div>
         </div>
@@ -245,7 +237,7 @@ export default function CreateNextRoundModal({
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">{a.name}{a.email}</span>
+                          <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">{a.name}</span>
                           <span className="flex items-center gap-0.5">
                             {Array.from({ length: 5 }, (_, i) => (
                               <span key={i} className={`material-symbols-outlined text-[14px] ${i < a.bestStars ? 'text-primary' : 'text-outline-variant'}`}>
@@ -254,6 +246,9 @@ export default function CreateNextRoundModal({
                             ))}
                           </span>
                         </div>
+                        {a.email && (
+                          <p className="font-label-caps text-label-caps text-on-surface-variant truncate">{a.email}</p>
+                        )}
                         {a.feedbacks.length > 0 && (
                           <div className="mt-1 flex flex-col gap-1">
                             {a.feedbacks.map((f, i) => (
@@ -264,7 +259,7 @@ export default function CreateNextRoundModal({
                           </div>
                         )}
                         <span className="font-label-caps text-label-caps text-on-surface-variant mt-1 inline-block">
-                          Best score: {a.bestScore}/10
+                          Best: {a.bestStars} star{a.bestStars !== 1 ? 's' : ''}
                         </span>
                       </div>
                     </label>

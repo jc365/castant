@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import client from '../api/client';
 import { useUserCache } from '../context/UserCacheContext';
 import { getStatusStyle, type SubmissionStatus } from '../utils/submissionStatus';
+import { scoreToStars } from '../utils/scoring';
 
 interface Submission {
   id: string;
@@ -87,7 +88,7 @@ export default function VideoPlayerModal({
 
   useEffect(() => {
     if (!submission) return;
-    setSelectedStars(submission.score !== null ? Math.max(1, Math.min(5, Math.round(submission.score / 2))) : null);
+    setSelectedStars(submission.score !== null ? Math.max(1, Math.min(5, scoreToStars(submission.score))) : null);
     setFeedback(submission.feedback || '');
     setError('');
     setSuccess('');
@@ -127,6 +128,8 @@ export default function VideoPlayerModal({
   const statusStyle = getStatusStyle(submission.status);
   const prev = () => { if (currentIndex > 0) onNavigate(currentIndex - 1); };
   const next = () => { if (currentIndex < submissions.length - 1) onNavigate(currentIndex + 1); };
+  const first = () => { if (currentIndex > 0) onNavigate(0); };
+  const last = () => { if (currentIndex < submissions.length - 1) onNavigate(submissions.length - 1); };
 
   const handleSubmitReview = async () => {
     if (selectedStars === null) {
@@ -161,25 +164,44 @@ export default function VideoPlayerModal({
       >
         {/* Header with navigation */}
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
             <button
               onClick={prev}
               disabled={currentIndex === 0}
               aria-label="Previous submission"
-              className="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-1 rounded hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <span className="material-symbols-outlined text-on-surface-variant">chevron_left</span>
             </button>
-            <span className="font-body-sm text-body-sm text-on-surface-variant">
-              {currentIndex + 1} of {submissions.length}
+            <span className="font-body-sm text-body-sm text-on-surface-variant px-2">
+              {currentIndex + 1} / {submissions.length}
             </span>
             <button
               onClick={next}
               disabled={currentIndex === submissions.length - 1}
               aria-label="Next submission"
-              className="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-1 rounded hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+            </button>
+
+            <div className="w-px h-6 bg-outline-variant/30 mx-2" />
+
+            <button
+              onClick={first}
+              disabled={currentIndex === 0}
+              aria-label="First submission"
+              className="p-1 rounded hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <span className="material-symbols-outlined text-on-surface-variant">first_page</span>
+            </button>
+            <button
+              onClick={last}
+              disabled={currentIndex === submissions.length - 1}
+              aria-label="Last submission"
+              className="p-1 rounded hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <span className="material-symbols-outlined text-on-surface-variant">last_page</span>
             </button>
           </div>
 

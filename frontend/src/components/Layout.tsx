@@ -75,6 +75,7 @@ export default function Layout() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
+    setDemoEnabled(false);
     refreshUser();
   };
 
@@ -223,19 +224,7 @@ export default function Layout() {
               Demo: {selectedRole}
             </span>
           )}
-          <button
-            aria-label="Notifications"
-            className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-2 rounded-full hover:bg-surface-container-low"
-          >
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
-          <button
-            aria-label="Settings"
-            className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-2 rounded-full hover:bg-surface-container-low"
-          >
-            <span className="material-symbols-outlined">settings</span>
-          </button>
-          {user && (
+          {user && !demoEnabled && (
             <div className="flex items-center gap-2 ml-2">
               <div className="text-right">
                 <p className="text-sm font-medium text-on-surface leading-tight">{user.name}</p>

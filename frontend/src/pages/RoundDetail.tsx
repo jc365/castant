@@ -10,6 +10,7 @@ import CreateNextRoundModal from '../components/CreateNextRoundModal';
 import AddParticipantsModal from '../components/AddParticipantsModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { getStatusStyle, type SubmissionStatus } from '../utils/submissionStatus';
+import { scoreToStars } from '../utils/scoring';
 
 interface Participant {
   id: string;
@@ -39,7 +40,7 @@ interface Round {
 export default function RoundDetail() {
   const { roundId } = useParams<{ roundId: string }>();
   const navigate = useNavigate();
-  const { getRoleInRound, isDirectorOf, isActorOf, isPreselectorOf } = useUser();
+  const { getRoleInRound, isDirectorOf, isActorOf } = useUser();
   const [round, setRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,13 +52,29 @@ export default function RoundDetail() {
   const [showEditRound, setShowEditRound] = useState(false);
   const [showDeleteSubmission, setShowDeleteSubmission] = useState<string | null>(null);
   const [castingTitle, setCastingTitle] = useState('');
+  const [statusFilter, setStatusFilter] = useState<Set<SubmissionStatus>>(new Set(['pending', 'reviewed', 'selected', 'rejected']));
 
   const { showSuccess, showError } = useToast();
   const { getUser, ensureUser } = useUserCache();
   const role = roundId ? getRoleInRound(roundId) : null;
   const isDirector = round ? isDirectorOf(round.castingId) : false;
   const isActor = roundId ? isActorOf(roundId) : false;
-  const isPreselector = roundId ? isPreselectorOf(roundId) : false;
+
+  const allStatuses: SubmissionStatus[] = ['pending', 'reviewed', 'selected', 'rejected'];
+
+  const toggleStatusFilter = (status: SubmissionStatus) => {
+    setStatusFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) {
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+      return next;
+    });
+  };
+
+  const filteredSubmissions = round ? round.submissions.filter(s => statusFilter.has(s.status)) : [];
 
   useEffect(() => {
     if (!roundId) return;
@@ -95,6 +112,26 @@ export default function RoundDetail() {
       navigate(`/castings/${round.castingId}`);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to delete round');
+    }
+  };
+
+  const [showRemoveParticipant, setShowRemoveParticipant] = useState<{ userId: string; name: string } | null>(null);
+
+  const handleRemoveParticipant = async (userId: string) => {
+    if (!round) return;
+    try {
+      await client.delete(`/rounds/${round.id}/participants/${userId}`);
+      showSuccess('Participant removed');
+      setShowRemoveParticipant(null);
+      client.get(`/rounds/${roundId}`).then((res) => {
+        const data = res.data;
+        data.participants = data.participants.map((p: { actorId: string; role: string; email: string | null; name: string | null }) => ({
+          id: p.actorId, role: p.role, email: p.email, name: p.name,
+        }));
+        setRound(data);
+      });
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to remove participant');
     }
   };
 
@@ -150,7 +187,10 @@ export default function RoundDetail() {
                 Round {round.number}{castingTitle && ` — ${castingTitle}`}
               </h1>
               <p className="text-on-surface-variant mt-1 font-body-lg text-body-lg">
-                {round.submissions.length} submission{round.submissions.length !== 1 ? 's' : ''} received
+                {filteredSubmissions.length === round.submissions.length
+                  ? `${round.submissions.length} submission${round.submissions.length !== 1 ? 's' : ''} received`
+                  : `${filteredSubmissions.length} of ${round.submissions.length} submissions shown`
+                }
               </p>
             </div>
             <div className="flex gap-3">
@@ -167,25 +207,50 @@ export default function RoundDetail() {
           </div>
         </div>
 
+        {/* Status Filter Tags */}
+        {round.submissions.length > 0 && (
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {allStatuses.map(status => {
+              const style = getStatusStyle(status);
+              const active = statusFilter.has(status);
+              return (
+                <button
+                  key={status}
+                  onClick={() => toggleStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-full font-label-caps text-label-caps transition-colors ${
+                    active
+                      ? style.chipClass
+                      : 'bg-surface-container text-on-surface-variant border border-outline-variant/30'
+                  }`}
+                >
+                  {style.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Video Grid */}
-        {round.submissions.length > 0 ? (
+        {filteredSubmissions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter">
-            {round.submissions.map((s, idx) => (
-              <SubmissionCard
-                key={s.id}
-                submission={s}
-                isDirector={isDirector}
-                isPreselector={isPreselector}
-                onPlay={() => setSelectedVideoIndex(idx)}
-                onDelete={() => setShowDeleteSubmission(s.id)}
-              />
-            ))}
+            {filteredSubmissions.map((s) => {
+              const originalIdx = round.submissions.findIndex(sub => sub.id === s.id);
+              return (
+                <SubmissionCard
+                  key={s.id}
+                  submission={s}
+                  isDirector={isDirector}
+                  onPlay={() => setSelectedVideoIndex(originalIdx)}
+                  onDelete={() => setShowDeleteSubmission(s.id)}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-20 bg-surface border border-outline-variant/30 rounded-xl">
             <span className="material-symbols-outlined text-6xl text-outline mb-4 block">videocam_off</span>
             <p className="text-on-surface-variant font-body-lg text-body-lg">
-              No submissions yet.
+              {round.submissions.length === 0 ? 'No submissions yet.' : 'No submissions match the selected filters.'}
             </p>
           </div>
         )}
@@ -224,7 +289,7 @@ export default function RoundDetail() {
                 className="flex-1 py-1.5 border border-error/30 text-error font-label-caps text-label-caps rounded hover:bg-error-container/20 transition-colors flex items-center justify-center gap-1"
               >
                 <span className="material-symbols-outlined text-[14px]">delete</span>
-                Delete
+                Delete Round
               </button>
             </div>
           </div>
@@ -297,6 +362,15 @@ export default function RoundDetail() {
                       >
                         {hasReviewed ? 'check_circle' : 'pending'}
                       </span>
+                      {isDirector && (
+                        <button
+                          onClick={() => setShowRemoveParticipant({ userId: p.id, name: getUser(p.id)?.name || p.email || p.id })}
+                          className="text-error/60 hover:text-error transition-colors flex-shrink-0"
+                          title="Remove participant"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">close</span>
+                        </button>
+                      )}
                     </li>
                   );
                 })}
@@ -332,6 +406,15 @@ export default function RoundDetail() {
                         <span className="material-symbols-outlined text-[16px] text-primary flex-shrink-0" title="Submitted">check_circle</span>
                       ) : (
                         <span className="material-symbols-outlined text-[16px] text-outline-variant flex-shrink-0" title="Pending">pending</span>
+                      )}
+                      {isDirector && (
+                        <button
+                          onClick={() => setShowRemoveParticipant({ userId: a.id, name: getUser(a.id)?.name || a.name || a.id })}
+                          className="text-error/60 hover:text-error transition-colors flex-shrink-0"
+                          title="Remove participant"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">close</span>
+                        </button>
                       )}
                     </li>
                   );
@@ -415,6 +498,15 @@ export default function RoundDetail() {
         onCancel={() => setShowDeleteSubmission(null)}
       />
 
+      <ConfirmDialog
+        isOpen={showRemoveParticipant !== null}
+        title="Remove Participant"
+        message={`Are you sure you want to remove ${showRemoveParticipant?.name} from this round?`}
+        confirmLabel="Remove"
+        onConfirm={() => showRemoveParticipant && handleRemoveParticipant(showRemoveParticipant.userId)}
+        onCancel={() => setShowRemoveParticipant(null)}
+      />
+
       {showEditRound && (
         <EditRoundModal
           round={round}
@@ -433,19 +525,16 @@ export default function RoundDetail() {
 function SubmissionCard({
   submission,
   isDirector,
-  isPreselector,
   onPlay,
   onDelete,
 }: {
   submission: Submission;
   isDirector: boolean;
-  isPreselector: boolean;
   onPlay: () => void;
   onDelete: () => void;
 }) {
   const { getUser, ensureUser } = useUserCache();
   const actor = getUser(submission.actorId);
-  const hasScore = submission.score !== null;
   const statusStyle = getStatusStyle(submission.status);
 
   useEffect(() => {
@@ -465,9 +554,16 @@ function SubmissionCard({
         onClick={onPlay}
         className="relative w-full aspect-video bg-surface-container-highest overflow-hidden cursor-pointer"
       >
-        <div className="w-full h-full flex items-center justify-center bg-surface-container">
-          <span className="material-symbols-outlined text-on-surface-variant text-4xl">play_circle</span>
-        </div>
+        <video
+          src={submission.videoUrl}
+          preload="metadata"
+          muted
+          className="w-full h-full object-cover"
+          onLoadedData={(e) => {
+            const video = e.currentTarget;
+            video.currentTime = 1;
+          }}
+        />
         {/* Play Overlay */}
         <div className="absolute inset-0 bg-background/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]">
           <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center text-on-primary">
@@ -488,34 +584,32 @@ function SubmissionCard({
             {actor?.email && (
               <p className="font-label-caps text-label-caps text-on-surface-variant truncate">{actor.email}</p>
             )}
+            <p className="text-[11px] text-on-surface-variant font-mono">#{submission.id}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {submission.duration != null && (
-              <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">schedule</span>
-                {formatDuration(submission.duration)}
-              </span>
-            )}
-            {hasScore && (
-              <div className="bg-surface-bright border border-outline-variant/50 px-2 py-1 rounded flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-primary">star</span>
-                <span className="font-title-sm text-title-sm text-on-surface">{submission.score}</span>
-              </div>
-            )}
-          </div>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-on-surface-variant">
+          {submission.score != null && submission.score > 0 && (
+            <span className="flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map(s => (
+                <span key={s} className={`material-symbols-outlined text-[14px] ${s <= scoreToStars(submission.score!) ? 'text-primary' : 'text-outline-variant'}`}>
+                  {s <= scoreToStars(submission.score!) ? 'star' : 'star_border'}
+                </span>
+              ))}
+            </span>
+          )}
+          {submission.duration != null && (
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px]">schedule</span>
+              {formatDuration(submission.duration)}
+            </span>
+          )}
         </div>
         <div className="w-full h-px bg-outline-variant/20 my-1" />
-        <div>
-          <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-1">Director&apos;s Note</p>
-          <p className={`font-body-sm text-body-sm line-clamp-2 ${submission.feedback ? 'text-on-surface' : 'text-on-surface-variant italic'}`}>
-            {submission.feedback || 'No feedback yet.'}
-          </p>
-        </div>
-        {(isDirector || isPreselector) && (
-          <button className="mt-1 bg-surface-container-high text-on-surface font-title-sm text-title-sm py-2 px-4 rounded hover:bg-surface-container-low transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">rate_review</span>
-            Review
-          </button>
+        {submission.feedback && submission.feedback.trim() && submission.feedback !== 'No feedback yet.' && (
+          <>
+            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-1">Director&apos;s Note</p>
+            <p className="font-body-sm text-body-sm text-on-surface line-clamp-2">{submission.feedback}</p>
+          </>
         )}
         {isDirector && (
           <button
@@ -523,7 +617,7 @@ function SubmissionCard({
             className="mt-1 border border-error/30 text-error font-title-sm text-title-sm py-2 px-4 rounded hover:bg-error-container/20 transition-colors flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[18px]">delete</span>
-            Delete
+            Delete Submission
           </button>
         )}
       </div>

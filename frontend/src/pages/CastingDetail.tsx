@@ -15,6 +15,7 @@ interface Round {
   id: string;
   number: number;
   participants: { actorId: string; role: string }[];
+  submissions?: { id: string; status: string }[];
 }
 
 interface Casting {
@@ -36,6 +37,7 @@ export default function CastingDetail() {
   const [error, setError] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [submissionCounts, setSubmissionCounts] = useState<Record<string, { total: number; pending: number }>>({});
 
   const role = castingId ? getRoleInCasting(castingId) : null;
   const isDirector = castingId ? isDirectorOf(castingId) : false;
@@ -54,6 +56,25 @@ export default function CastingDetail() {
     if (!casting) return;
     casting.participants.forEach((p) => ensureUser(p.userId));
   }, [casting, ensureUser]);
+
+  useEffect(() => {
+    if (!casting) return;
+    casting.rounds.forEach((round) => {
+      client.get(`/rounds/${round.id}`)
+        .then((res) => {
+          const data = res.data as { submissions?: { id: string; status: string }[] };
+          const subs = data.submissions ?? [];
+          setSubmissionCounts((prev) => ({
+            ...prev,
+            [round.id]: {
+              total: subs.length,
+              pending: subs.filter((s) => s.status !== 'reviewed').length,
+            },
+          }));
+        })
+        .catch(() => {});
+    });
+  }, [casting]);
 
   const handleDelete = async () => {
     if (!castingId) return;
@@ -95,7 +116,7 @@ export default function CastingDetail() {
             <h1 className="font-display-lg text-display-lg text-on-background">
               {casting.title}
             </h1>
-            <p className="text-on-surface-variant mt-2 font-body-lg text-body-lg">
+            <p className="text-on-surface-variant mt-2 font-body-lg text-lg leading-relaxed">
               {casting.description}
             </p>
           </div>
@@ -158,24 +179,47 @@ export default function CastingDetail() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="font-headline-md text-headline-md text-on-background">Rounds</h2>
         </div>
-        <div className="space-y-3">
-          {casting.rounds.map((round) => (
-            <Link
-              key={round.id}
-              to={`/rounds/${round.id}`}
-              className="flex items-center justify-between bg-surface-container-high rounded-lg p-4 hover:bg-surface-container-low transition-colors"
-            >
-              <div>
-                <p className="text-on-surface font-title-sm text-title-sm">Round {round.number}</p>
-                <p className="text-on-surface-variant text-xs">{round.participants.length} participants</p>
-              </div>
-              <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
-            </Link>
-          ))}
-          {casting.rounds.length === 0 && (
-            <p className="text-on-surface-variant text-sm">No rounds yet.</p>
-          )}
-        </div>
+        {casting.rounds.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {casting.rounds.map((round) => {
+              const counts = submissionCounts[round.id];
+              return (
+                <Link
+                  key={round.id}
+                  to={`/rounds/${round.id}`}
+                  className="group bg-surface-container-high border border-outline-variant/30 rounded-xl p-5 hover:border-primary/50 hover:bg-surface-container-low transition-colors duration-300 flex flex-col"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-display-lg text-display-lg text-primary">{round.number}</span>
+                    <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-on-surface-variant mb-2">
+                    <span className="material-symbols-outlined text-[14px]">group</span>
+                    <span className="font-body-sm text-body-sm">{round.participants.length} participants</span>
+                  </div>
+                  {counts ? (
+                    <div className="flex gap-4 mt-auto pt-3 border-t border-outline-variant/20">
+                      <div>
+                        <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">Pending</p>
+                        <p className="font-headline-sm text-headline-sm text-primary">{counts.pending}</p>
+                      </div>
+                      <div>
+                        <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">Total</p>
+                        <p className="font-headline-sm text-headline-sm text-on-surface">{counts.total}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-auto pt-3 border-t border-outline-variant/20">
+                      <p className="text-sm text-on-surface-variant">Loading...</p>
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-on-surface-variant text-sm">No rounds yet.</p>
+        )}
       </div>
 
       {/* Edit Modal */}

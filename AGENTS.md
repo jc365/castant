@@ -2,460 +2,272 @@
 
 ## Stack
 
-- TypeScript 6.0 (`strict: true`, ES2020, `moduleResolution: node16`)
-- Backend: ESM (`"type": "module"`), `tsx` como runtime (`npm run dev`)
-- Express 5 + cors + dotenv
-- Prisma 7 con SQLite (`@prisma/adapter-libsql`, `@libsql/client`)
+- TypeScript 6.0 (`strict: true`, ES2020)
+- Backend: ESM (`"type": "module"`), `tsx` runtime, `moduleResolution: node16`
+- Frontend: Vite + React, `moduleResolution: bundler`
+- Express 5 + cors + dotenv (no helmet, no rate-limit, CORS allows all origins)
+- Prisma 7 with SQLite (`@prisma/adapter-libsql`, `@libsql/client`)
 - Logging: pino + pino-pretty + pino-http + nanoid
-- Vitest 4 con `@vitest/coverage-v8` — configurado en raíz
-- DB: SQLite en `backend/prisma/dev.db` (dev), `backend/test.db` (tests)
-- Auth: JWT (`jsonwebtoken`) con login demo via `DEMO_MODE`
+- Auth: JWT (`jsonwebtoken`) — `JWT_SECRET` in `.env` is mandatory (app throws if missing)
 - Password hashing: `bcrypt` via `HashService` (`infrastructure/security/HashService.ts`)
-- Frontend testing: Vitest + React Testing Library + Playwright (E2E)
+- Testing: Vitest 4 (backend root), Vitest + React Testing Library (frontend), Playwright (E2E)
+- DB: SQLite `backend/prisma/dev.db` (dev), `backend/test.db` (tests)
 
-## Reglas de actuación (Obligatorias)
+## Rules (Always Apply)
 
-**Estas reglas se aplican SIEMPRE, en TODAS las interacciones:**
+1. **Never modify imports** — no `.js` extensions on import paths.
+2. **Backup AGENTS.md** before editing → `docu/saves-agents/AGENTS_<YYYYMMDD_HHMMSS>.md`.
+3. **IDs are flat strings** with prefixes (e.g. `user-...`). No `TypedId`.
+4. **Director is a `Participant`** with `role: 'director'`.
 
-1. **NO modifiques las importaciones** de ningún archivo. No añadas extensiones `.js` a las rutas de importación.
-2. **SIEMPRE que modifiques `AGENTS.md`**, crea una copia de seguridad en el mismo directorio con el formato `AGENTS_<timestamp>.md` (ej. `AGENTS_20260713_123456.md`).
-3. **Los IDs son strings planos** con prefijos (ej. `user-...`). No uses `TypedId`.
-4. **El director es un `Participant`** con `role: 'director'`.
-
-El incumplimiento de estas reglas se considera un error.
-
-## Estructura del proyecto
-
-```
-castant/
-├── backend/
-│   ├── src/
-│   │   ├── domain/
-│   │   │   ├── entities/        ← User, Director, Casting (con CastingParticipantEntry), Round (con RoundParticipantEntry), Submission
-│   │   │   ├── utils/           ← genUUID (generador de IDs con prefijo)
-│   │   │   └── value-objects/   ← Email, FullName, VideoUrl, CastingTitle, Score, Feedback, Description
-│   │   ├── application/
-│   │   │   ├── interfaces/      ← IUserRepository, ICastingRepository, IRoundRepository, ISubmissionRepository, IDirectorRepository, IBitacoraRepository
-│   │   │   ├── use-cases/       ← CreateUserUseCase, GetAllUsersUseCase, CreateCastingUseCase, SubmitVideoUseCase, ManageRoundParticipantsUseCase, ReviewSubmissionUseCase, LoginUseCase
-│   │   │   └── dtos/            ← CreateUserInput, CreateCastingInput, SubmitVideoInput, ManageRoundParticipantsInput, ReviewSubmissionInput, ReviewSubmissionOutput, LoginInput, LoginOutput
-│   │   ├── infrastructure/
-│   │   │   ├── logging/         ← logger.ts (pino base), requestContext.ts (AsyncLocalStorage + middleware), BitacoraService.ts (servicio de bitácora)
-│   │   │   ├── persistence/     ← prismaClient.ts, PrismaUserRepository.ts, PrismaCastingRepository.ts, PrismaRoundRepository.ts, PrismaSubmissionRepository.ts, PrismaDirectorRepository.ts, PrismaBitacoraRepository.ts
-│   │   │   ├── middleware/      ← auth.ts (middleware de autenticación JWT/demo)
-│   │   │   ├── security/        ← HashService.ts (bcrypt hash/compare)
-│   │   │   ├── storage/         ← videoUpload.ts (multer config para subida de videos)
-│   │   │   └── api/             ← v1/routes.ts, v2/routes.ts (versionado por prefijo)
-│   │   └── index.ts             ← Express server, entrypoint (exporta `app`)
-│   ├── scripts/               ← backup-db.ts, backup-and-reset.ts
-│   ├── prisma/
-│   │   ├── schema.prisma      ← modelos Prisma (SQLite)
-│   │   └── backups/           ← copias de seguridad de dev.db
-│   ├── uploads/videos/        ← videos subidos localmente (nombre: {timestamp}-{random}.{ext})
-│   └── tsconfig.json
-├── tests/
-│   ├── globalSetup.ts           ← resetea test.db antes de cada suite
-│   ├── unit/domain/value-objects/
-│   ├── unit/domain/entities/
-│   ├── unit/application/use-cases/
-│   └── integration/api/v1/      ← tests de endpoints con supertest
-├── frontend/
-│   ├── src/
-│   │   ├── api/                 ← client.ts (Axios con interceptor JWT Bearer)
-│   │   ├── components/          ← Layout.tsx, LoginForm.tsx, SubmitVideoModal.tsx, VideoPlayerModal.tsx
-│   │   ├── context/             ← UserContext.tsx (usuario + participaciones + polling), ThemeContext.tsx (dark/light mode)
-│   │   ├── pages/               ← Dashboard.tsx, Castings.tsx, CreateCasting.tsx, CastingDetail.tsx, RoundDetail.tsx
-│   │   ├── App.tsx              ← Rutas + UserProvider + ThemeProvider
-│   │   └── index.css            ← Tailwind directives + CSS custom properties (dark/light)
-│   ├── design/                  ← Maquetas HTML y DESIGN.md
-│   ├── tailwind.config.js       ← Slate Casting design system
-│   └── vite.config.ts           ← Proxy /api → :3000
-└── vitest.config.ts             ← config de Vitest + DATABASE_URL para tests
-```
-
-## Comandos
+## Commands
 
 ```bash
-# Typecheck backend (sin output = ok)
+# Typecheck backend (no output = ok)
 cd backend && npx tsc --noEmit
 
-# Tests (desde la raíz — backend)
+# Backend tests (from root)
 npm test
 
-# Tests de integración (endpoints)
+# Integration tests (endpoints)
 npm run test:integration
 
-# Tests del frontend (desde la raíz)
+# Frontend tests (from root)
 npm run test:front
 
-# Tests de frontend en modo watch
-npm run test:front:watch
-
-# Todos los tests (backend + frontend + integration)
+# All tests (backend + frontend)
 npm run test:all
 
-# Cobertura
+# Coverage (backend only)
 npm run test:coverage
 
-# Ejecutar servidor dev
+# Dev server
 cd backend && npm run dev
 
-# Regenerar cliente Prisma tras cambios en schema.prisma
+# Regenerate Prisma client after schema changes
 cd backend && npx prisma generate
 
-# Sincronizar BD con schema
+# Sync DB with schema (no data loss)
 cd backend && npm run db:push
 
-# Backup de la BD de desarrollo
+# Backup dev DB
 cd backend && npm run db:backup
 
-# Backup + reset de la BD (RECOMENDADO en lugar de prisma db push --force-reset)
+# Backup + reset DB (RECOMMENDED over prisma db push --force-reset)
 cd backend && npm run db:reset
 
-# Seed de datos de demo
+# Restore latest backup + seed
+cd backend && npm run db:restore
+
+# Seed demo data (runs automatically via db:restore)
 cd backend && npx tsx prisma/seed.ts
 
-# Reset forzado SIN backup (NO recomendado)
+# Force reset WITHOUT backup (NOT recommended)
 cd backend && npx prisma db push --force-reset
+
+# Frontend unit tests
+cd frontend && npm test
+
+# Frontend E2E tests (auto-starts dev server)
+cd frontend && npx playwright test
+
+# Install Playwright browsers (first time only)
+cd frontend && npx playwright install chromium
 ```
 
-**Orden correcto:** `typecheck → test`
+**Order:** `typecheck → test`
 
-## Base de Datos - Backups
+## DB Backups
 
-**IMPORTANTE:** Siempre hacer backup antes de ejecutar `prisma db push --force-reset`, ya que esta operación elimina todos los datos.
+- Backups stored in `backend/prisma/backups/`
+- `db:reset` always backs up before resetting
+- Schema change flow: `db:push` if compatible, `db:reset` if requires column drops
 
-- `npm run db:backup` — Crea una copia de `dev.db` en `prisma/backups/dev-<timestamp>.db`
-- `npm run db:reset` — Ejecuta backup automático + `prisma db push --force-reset` (RECOMENDADO)
-- `npm run db:push` — Sincroniza BD con schema sin perder datos (equivalente a `prisma db push`)
-- `npm run db:push:force` — Backup + force reset (alternativa a `db:reset`)
+## Seed Data
 
-**Ubicación de backups:** `backend/prisma/backups/`
-
-**Flujo recomendado al cambiar schema.prisma:**
-1. `cd backend && npm run db:push` — Si el cambio es compatible (no requiere borrar columnas)
-2. `cd backend && npm run db:reset` — Si el cambio requiere resetear la BD (siempre hace backup primero)
-
-## Seed de Datos de Demo
-
-- Script: `backend/prisma/seed.ts`
-- Ejecutar: `cd backend && npx tsx prisma/seed.ts`
-- Se ejecuta automáticamente tras `npm run db:restore`
-- Datos creados:
-  - Usuarios: `director@demo.com`, `actor1@demo.com`, `actor2@demo.com`, `preselector@demo.com` (password: `changeme`)
-  - Casting demo con 2 rondas y participantes
-  - 2 submissions de demo
-- Usa `upsert` para evitar duplicados (basado en email/id)
-- Configurado en `package.json` bajo `"prisma": { "seed": "..." }`
+- Script: `backend/prisma/seed.ts` (configured as Prisma seed hook)
+- Users: `director@demo.com`, `actor1@demo.com`, `actor2@demo.com`, `preselector@demo.com` (password: `changeme`)
+- Demo casting with 2 rounds, participants, 2 submissions
+- Uses `upsert` to avoid duplicates
 
 ## Gotchas
 
 **Prisma 7 — datasource URL:**
-La URL de conexión (`DATABASE_URL`) va en `prisma.config.ts` y `.env`, NO en `schema.prisma`. El schema solo declara el provider.
+`DATABASE_URL` goes in `prisma.config.ts` and `.env`, NOT in `schema.prisma`.
 
-**Prisma client — ruta de importación:**
-El cliente generado está en `src/generated/prisma/client`. Se importa como `import { PrismaClient } from '../../generated/prisma/client'`.
+**Prisma client import:**
+`import { PrismaClient } from '../../generated/prisma/client'`
 
 **Tests — DATABASE_URL:**
-Los tests usan `backend/test.db` (no `dev.db`). La URL se configura en `vitest.config.ts` y `globalSetup.ts` ejecuta `prisma db push --force-reset` antes de cada suite. No hardcodear `DATABASE_URL` en tests individuales.
+Tests use `backend/test.db`. Configured in `vitest.config.ts` (sets `process.env.DATABASE_URL` and `process.env.JWT_SECRET`). `globalSetup.ts` runs `prisma db push --force-reset` before each suite. `fileParallelism: false` required (SQLite single-writer).
 
-## Patrones de código
+**Security:**
+- `auth.ts` throws if `JWT_SECRET` is missing (no fallback)
+- `console.log(authHeader)` removed — never log tokens
+- `.env`, `.env.local`, `.env.*.local` are in `.gitignore`
 
-**Value Objects:**
-- Constructor privado + `static create()` factory + `static isValid()` (sin throw)
-- `getValue()` para acceder al valor (no getter)
-- Inmutables: métodos que modifican retornan nueva instancia
+**Video upload:**
+- Multer config: `infrastructure/storage/videoUpload.ts`
+- Stored in `backend/uploads/videos/` with names `{timestamp}-{random}.{ext}`
+- Static middleware in `index.ts` serves `/uploads`
+- MIME types: MP4, WebM, OGG, MOV, AVI, MKV; max 100MB
 
-**Entidades:**
-- Constructor privado + `static create()` factory
-- `static create()` genera el ID automáticamente via `genUUID('prefix')` si no se proporciona
-- Getters con sintaxis `get` (`get id(): string`)
-- Los IDs son strings con formato `<prefix>-<uuid>` (ej. `user-550e8400-...`)
-- Reciben Value Objects ya construidos; no los crean internamente
-- Métodos que mutan estado retornan nueva instancia
+## Code Patterns
 
-**User — campo password:**
-- `User.create(name, email, password, id?)` — `password` es obligatorio (hash bcrypt)
-- El campo `password` almacena el hash, NUNCA el texto plano
-- `CreateUserUseCase` hashea la contraseña antes de crear el usuario
-- `LoginUseCase` compara la contraseña proporcionada con el hash usando `HashService.compare()`
-- `LoginUseCase` soporta login demo via `xUserId` opcional en `LoginInput` — si se provee, valida que `DEMO_MODE=true` antes de permitir el login; si no, lanza error `'Demo mode is disabled'` (el middleware siempre requiere JWT)
-- `LoginUseCase` valida `xUserId` contra un mapa `DEMO_USERS` que asocia roles a emails (`director`, `actor`, `preselector`) — si el role no existe en el mapa, lanza error `'Invalid demo role'`
-- `LoginInput` tiene `email` y `password` opcionales (requeridos solo para login normal)
-- Los usuarios creados internamente (directors, actors) usan password por defecto `'changeme'` hasheado
+**Value Objects:** Private constructor + `static create()` factory + `static isValid()` (no throw). `getValue()`. Immutable.
 
-**genUUID:**
-- Utilidad centralizada en `domain/utils/genUUID.ts`
-- Firma: `genUUID(prefix: string): string`
-- Retorna `'<prefix>-<crypto.randomUUID()>'`
-- Las entidades lo usan internamente; los casos de uso NO generan IDs
+**Entities:** Private constructor + `static create()` factory. Auto-generates ID via `genUUID('prefix')`. Getters with `get`. IDs: `<prefix>-<uuid>`. Receive Value Objects pre-built.
 
-**Casting — participantes a nivel de casting:**
-- `Casting.create(title, description, participants?, id?)` — ID es opcional
-- `CastingParticipantEntry` es `{ userId: string, role: 'director' | 'reviewer' }`
-- `directorIds` retorna solo IDs con role 'director'
-- `Participant` en Prisma vincula Users a Castings (castingId) con un `role`
-- Los participantes de casting tienen `castingId` seteado y `roundId` null
+**genUUID:** `domain/utils/genUUID.ts` — `genUUID(prefix)` → `'<prefix>-<crypto.randomUUID()>'`
 
-**Modelo Participant unificado:**
-- `Participant` en Prisma unifica roles de casting y ronda
-- Casting-level: `castingId` seteado, `roundId` null (directors, reviewers)
-- Round-level: `roundId` seteado, `castingId` null (actors, preselectors)
-- Campos de auditoría: `createdAt` y `updatedAt` en User, Casting, Round, Submission, Participant
+**User password:** `User.create(name, email, hash, id?)`. Hash NEVER plaintext. `CreateUserUseCase` hashes. `LoginUseCase` compares via `HashService.compare()`.
 
-**Round — roles de participantes:**
-- `Round.create(number, castingId, participants?, id?)` — ID es opcional, participants opcional (default `[]`)
-- `RoundParticipantEntry` es `{ id: string, role: 'actor' | 'preselector' }`
-- `actorIds` retorna solo IDs con role 'actor'; `preselectorIds` retorna solo preselectores
-- `Participant` en Prisma vincula Users a Rounds (roundId) o Castings (castingId) con un `role`
-- Los participantes de ronda tienen `roundId` seteado y `castingId` null
-- Los participantes de casting tienen `castingId` seteado y `roundId` null
+**LoginUseCase:** Supports demo via optional `xUserId` in `LoginInput`. Validates `DEMO_MODE=true`. Uses `DEMO_USERS` map: `{ director: 'director@demo.com', actor: 'actor1@demo.com', preselector: 'preselector@demo.com' }`.
 
-**CreateCastingUseCase — ronda inicial:**
-- Al crear un casting, automáticamente crea una `Round` con `number: 1` y participantes vacíos `[]`
-- Dependencias: `ICastingRepository`, `IUserRepository`, `IRoundRepository`
-- Retorna el casting con la ronda inicial en `casting.rounds`
+**Casting participants:** `CastingParticipantEntry` = `{ userId, role: 'director' | 'reviewer' }`. Casting-level participants have `castingId` set, `roundId` null.
 
-**ManageRoundParticipantsUseCase:**
-- DTO usa listas separadas: `actors: { email, name? }[]` y `preselectors: { email, name? }[]`
-- `detectAndAddUsers(inputs)` — crea o recupera usuarios por email, retorna `Set<string>` de IDs
-- `buildParticipantEntries(currentParticipants, newIds, role)` — combina existentes con nuevos, evita duplicados
-- `createNewRound=true` crea una nueva ronda con los actores indicados (no permite preselectores)
+**Round participants:** `RoundParticipantEntry` = `{ id, role: 'actor' | 'preselector' }`. Round-level participants have `roundId` set, `castingId` null.
 
-**Repositorios (Prisma):**
-- Implementan la interfaz de aplicación (`IUserRepository` etc.)
-- Usan `prismaClient.ts` (instancia singleton de PrismaClient)
-- `upsert` en `save()` para crear o actualizar
-- `toDomain()` privado para mapear registros Prisma → entidades de dominio
-- Los parámetros `findById`, `delete` etc. reciben strings (no typed IDs)
+**CreateCastingUseCase:** Auto-creates Round 1 with empty participants.
 
-**Logging:**
-- Logger base: `infrastructure/logging/logger.ts` (pino + pino-pretty en dev)
-- Logger enriquecido: `infrastructure/logging/requestContext.ts` — inyecta `requestId` automáticamente
-- En use cases: importar desde `requestContext`, NO desde `logger`
-- En routes/index.ts: importar `requestLogger` desde `requestContext`
-- pino-http configura `customProps` con `getRequestId()` para correlación automática
+**ManageRoundParticipantsUseCase:** `actors` and `preselectors` as separate lists. `createNewRound=true` marks submissions `selected`/`rejected` and creates new round.
 
-**Bitácora (Auditoría):**
-- Modelo `Bitacora` en Prisma: `id`, `timestamp`, `userId`, `action`, `details` (Json?), `castingId?`, `roundId?`, `submissionId?`
-- Interfaz: `application/interfaces/IBitacoraRepository.ts` — define `BitacoraEvent` y `IBitacoraRepository`
-- Repositorio: `infrastructure/persistence/PrismaBitacoraRepository.ts`
-- Servicio: `infrastructure/logging/BitacoraService.ts` — wrapper que captura errores silenciosamente (nunca bloquea operaciones)
-- Los use cases reciben `BitacoraService` como dependencia y llaman a `log()` después de cada operación exitosa
-- Acciones registradas: `create_user`, `create_casting`, `submit_video`, `review_submission`, `add_participants`, `create_round`
-- En tests: mockear `BitacoraService` con `{ log: vi.fn() } as unknown as BitacoraService`
-- En tests de integración: añadir `prisma.bitacora.deleteMany()` al `beforeEach` (foreign key constraint)
+**ReviewSubmissionUseCase:** Allows re-evaluation (`pending→reviewed`, `reviewed→reviewed`). Blocks `selected`/`rejected`. Empty feedback → `Feedback.none()`.
 
-**Autenticación:**
-- Middleware: `infrastructure/middleware/auth.ts` — `authMiddleware` + `generateToken`
-- El middleware es JWT-only: requiere `Authorization: Bearer <token>`, retorna 401 si falta o es inválido
-- Si el token es válido → decodifica `userId` y lo establece en `req.user.id`
-- No hay bypass por `DEMO_MODE` ni `X-User-Id` en el middleware — el demo login funciona via `LoginUseCase` que retorna un JWT válido
-- Endpoint de login: `POST /api/v1/auth/login` (body: `{ email, password, xUserId? }`) → retorna `{ token, userId }`
-- LoginUseCase compara password con hash usando `HashService.compare()` — lanza error 401 si no coincide
-- LoginUseCase valida `xUserId` contra mapa `DEMO_USERS` — roles válidos: `director`, `actor`, `preselector` — si el role no existe en el mapa, lanza error `'Invalid demo role'`
-- Para login demo: busca usuario por email del mapa (no por xUserId directamente)
-- Variables de entorno: `JWT_SECRET`
+**Repositories:** Prisma-based. `upsert` in `save()`. Private `toDomain()`. Params are plain strings.
 
-**VideoUrl — soporte para archivos locales:**
-- `VideoUrl.isValid()` acepta URLs HTTP(S) y rutas locales (`/uploads/...`)
-- `VideoUrl.platform()` retorna `'local'` para archivos subidos
-- `POST /submissions` soporta JSON (`{ roundId, videoUrl }`) y multipart/form-data (campo `video`)
-- Multer configura en `infrastructure/storage/videoUpload.ts` — almacena en `uploads/videos/` con nombres `{timestamp}-{random}.{ext}`
-- Static middleware en `index.ts` sirve archivos desde `/uploads`
-- Validación: tipos MIME de video (MP4, WebM, OGG, MOV), máximo 100MB
-- Frontend: `SubmitVideoModal` tiene dos pestañas: "URL" y "File Upload"
+**Logging:** Use cases import from `requestContext` (not `logger`). Routes import `requestLogger` from `requestContext`.
 
-**HashService (infrastructure/security/HashService.ts):**
-- Usa `bcrypt` con 10 salt rounds
-- `hash(password: string): Promise<string>` — hashea contraseña
-- `compare(password: string, hash: string): Promise<boolean>` — compara plaintext con hash
-- Inyectado en: `CreateUserUseCase`, `LoginUseCase`, `CreateCastingUseCase`, `ManageRoundParticipantsUseCase`
-- En tests: mockear con `{ hash: vi.fn().mockResolvedValue('hash'), compare: vi.fn() } as unknown as HashService`
+**Bitácora:** `BitacoraService` wraps errors silently (never blocks). Use cases call `log()` after operations. Actions: `create_user`, `create_casting`, `submit_video`, `review_submission`, `add_participants`, `create_round`.
 
-**Convenciones:**
-- 2 espacios, punto y coma, comillas simples, máx 100 chars
-- `export default` para clases, `export` para interfaces/tipos
-- Cabecera JSDoc obligatoria (`@file`, `@module`) en cada archivo
-- Imports relativos sin extensión `.js` (funciona con tsx en runtime)
+**Conventions:** 2 spaces, semicolons, single quotes, max 100 chars. `export default` for classes. JSDoc headers (`@file`, `@module`) on every file.
 
 ## Testing
 
-- Ubicación: `tests/unit/domain/value-objects/<Nombre>.test.ts`, `tests/unit/domain/entities/<Nombre>.test.ts`, `tests/unit/application/use-cases/<Nombre>.test.ts`
-- Mocking: usar `import { vi } from 'vitest'` (Vitest globals habilitados en config)
-- Imports: `import X from '../../../../backend/src/domain/value-objects/X'`
-- Patrón en Skill: `.opencode/skills/testing-pattern/SKILL.md`
-- Use cases en subdirectorios: `tests/unit/application/use-cases/rounds/<Nombre>.test.ts`
+- Backend tests: `tests/unit/domain/value-objects/`, `tests/unit/domain/entities/`, `tests/unit/application/use-cases/`
+- Use cases in subdirs: `tests/unit/application/use-cases/rounds/`
+- Frontend tests: `frontend/src/**/*.test.tsx` (co-located)
+- E2E tests: `frontend/tests/e2e/*.spec.ts`
+- Mocking: `import { vi } from 'vitest'`
+- Backend test imports: `import X from '../../../../backend/src/domain/value-objects/X'`
+- Pattern: `.opencode/skills/testing-pattern/SKILL.md`
 
-**Tests obligatorios para VOs:**
-- `create()`: caso feliz + casos de error (vacío, rango, formato)
-- `equals()`: iguales → `true`, diferentes → `false`
-- Métodos de negocio: comportamiento esperado + casos límite
+**VO tests:** `create()` happy + error cases, `equals()`, business methods.
+**Use case tests:** Happy path + mocks, error cases (validation, not found).
 
-**Tests obligatorios para Casos de Uso:**
-- Caso feliz + mocks de repositorios
-- Casos de error: validaciones de negocio, entidades no encontradas
+**E2E gotchas:**
+- `loginAs(page, role)` uses demo mode toggle (sidebar)
+- Tests share dev DB — create own resources for mutation tests
+- Re-seed: `cd backend && npm run db:reset && npm run db:seed`
 
-## Testing de Endpoints
+## API Routes
 
-Para cada nuevo endpoint añadido a la API, se deben generar tests de integración en `tests/integration/api/v1/<nombre>.test.ts`. Los tests deben cubrir:
-- Caso feliz (200/201).
-- Casos de error comunes (404, 400, 401, etc.).
-- Validaciones de entrada (campos obligatorios, formatos, etc.).
+**Public:** Only `POST /api/v1/auth/login`
+**Protected:** All other routes (JWT required via `Authorization: Bearer <token>`)
 
-**Ejecutar tests de integración:**
-```bash
-npm run test:integration
-```
+Auth middleware applied inside `routes.ts` via `router.use(authMiddleware)` — public routes defined before it, protected after.
 
-**Gotcha Prisma + Vitest:** El `globalSetup.ts` resetea la BD de tests (`test.db`) con `prisma db push --force-reset` antes de cada ejecución. `DATABASE_URL` se configura en `vitest.config.ts`, no en los tests. `fileParallelism: false` en vitest.config.ts es necesario porque SQLite no permite escrituras concurrentes desde múltiples procesos.
-
-## API (rutas existentes)
-
-- `GET /health` → `{ status: 'ok' }` (fuera de versionado, endpoint de sistema)
-- `POST /api/v1/auth/login` → login (body: `{ email, password, xUserId? }`) → retorna `{ token, userId }`
-- `GET /api/v1/users` → listar todos los usuarios
-- `GET /api/v1/users/me/participations` → participaciones del usuario autenticado (castings y rondas donde tiene un rol)
-- `GET /api/v1/users/:id` → user en JSON o 404
-- `POST /api/v1/users` → crea user (body: `{ id?, name, email, password }`) — id auto-generado si no se provee
-- `DELETE /api/v1/users/:id` → elimina user o 404
-- `GET /api/v1/castings` → listar todos los castings con participants
-- `GET /api/v1/castings/:id` → obtener casting con participants y rondas
-- `POST /api/v1/castings` → crea casting con ronda inicial (body: `{ title, description, directorEmail, directorName }`)
-- `PUT /api/v1/castings/:id` → actualiza casting (body: `{ title?, description? }`)
-- `DELETE /api/v1/castings/:id` → elimina casting con cascade (rounds, submissions, participants)
-- `GET /api/v1/rounds/:id` → obtener ronda con participants y submissions
-- `GET /api/v1/rounds/:id/submissions` → listar submissions de una ronda
-- `PATCH /api/v1/rounds/:id` → actualiza ronda (body: `{ number }`)
-- `DELETE /api/v1/rounds/:id` → elimina ronda con cascade (submissions, participants)
-- `POST /api/v1/submissions` → envía video (body: `{ roundId, videoUrl }` o multipart/form-data con campo `video`) — actorId de `req.user.id`
-- `GET /api/v1/submissions/:id` → obtener submission por ID
-- `DELETE /api/v1/submissions/:id` → elimina submission
-- `PATCH /api/v1/submissions/:id/review` → revisa submission (body: `{ score, feedback }`) — directorId de `req.user.id`
-- `POST /api/v1/rounds/participants` → gestiona participantes en ronda o crea nueva ronda (body: `{ roundId, actors, preselectors, createNewRound? }`)
+- `GET /health` → `{ status: 'ok' }` (outside versioned router)
+- `POST /api/v1/auth/login` → `{ email, password, xUserId? }` → `{ token, userId }`
+- `GET /api/v1/users` → list all users
+- `GET /api/v1/users/me/participations` → authenticated user's participations
+- `GET /api/v1/users/:id` → user or 404
+- `POST /api/v1/users` → create user `{ id?, name, email, password }`
+- `DELETE /api/v1/users/:id` → delete user or 404
+- `GET /api/v1/castings` → list castings with participants
+- `GET /api/v1/castings/:id` → casting with participants and rounds
+- `POST /api/v1/castings` → create casting `{ title, description, directorEmail, directorName }`
+- `PUT /api/v1/castings/:id` → update `{ title?, description? }`
+- `DELETE /api/v1/castings/:id` → delete with cascade
+- `GET /api/v1/rounds/:id` → round with participants and submissions
+- `GET /api/v1/rounds/:id/submissions` → list submissions
+- `PATCH /api/v1/rounds/:id` → update `{ number }`
+- `DELETE /api/v1/rounds/:id` → delete with cascade
+- `DELETE /api/v1/rounds/:roundId/participants/:userId` → remove participant (director only, returns `{ success, hadSubmissions }`)
+- `POST /api/v1/rounds/participants` → manage participants or create new round `{ roundId, actors, preselectors, createNewRound? }`
+- `POST /api/v1/submissions` → submit video (JSON `{ roundId, videoUrl }` or multipart with `video` field) — `actorId` from `req.user.id`
+- `GET /api/v1/submissions/:id` → submission by ID
+- `DELETE /api/v1/submissions/:id` → delete submission
+- `PATCH /api/v1/submissions/:id/review` → review `{ score, feedback }` — `directorId` from `req.user.id`
+- `PATCH /api/v1/submissions/:id/metadata` → update metadata `{ duration }` — used by VideoPlayerModal
 
 ## API Versioning
 
-Las rutas de la API se versionan por prefijo de URL (`/api/v1`, `/api/v2`, etc.). Cada versión es independiente y puede tener sus propias rutas y lógica.
+Routes versioned by URL prefix (`/api/v1`, `/api/v2`). Each version independent.
+- `infrastructure/api/v1/routes.ts` — version 1
+- `infrastructure/api/v2/routes.ts` — version 2 (placeholder)
+- `/health` outside versioning (system endpoint)
+- Each route file creates its own repository/use-case instances
 
-**Estructura de archivos:**
+## Frontend
+
+### Theme System
+
+6 themes: `light`, `dark`, `ocean`, `forest`, `sunset`, `night`.
+- CSS custom properties in `index.css` (`:root` for light, `.dark` for dark, `.theme-*` for others)
+- `tailwind.config.js` references `var(--color-*)` (no hardcoded colors)
+- `ThemeContext` (`src/context/ThemeContext.tsx`): `ThemeProvider` + `useTheme()` hook
+  - Returns: `{ theme, setTheme, toggleTheme, themes, getThemeLabel, getThemeClass }`
+  - `themes` is the array of `{ id, label, cssClass }` objects (not `allThemes`/`themeLabels`)
+  - Persisted in `localStorage('theme')`, detects system preference via `matchMedia`
+
+### Layout
+
+- Collapsible sidebar (280px open / 64px closed), persisted in `localStorage('sidebar-collapsed')`
+- Theme selector in sidebar (dropdown when expanded, palette icon when collapsed)
+- Header shows user info only when authenticated AND not in demo mode; shows `Demo: {selectedRole}` badge in demo mode
+- `handleLogout` resets `demoEnabled` state
+
+### Auth Flow
+
+- `/login` route redirects to `/dashboard` — login is NOT a standalone page
+- `Layout` renders `LoginForm` when `!localStorage.getItem('token')`, otherwise renders `<Outlet />`
+- Demo mode: sidebar toggle calls `POST /auth/login` with `{ xUserId: selectedRole }`, stores JWT
+- `UserContext` provides: `user`, `participations`, `refreshUser()`, `isAuthenticated`, role helpers
+- Polling: refreshes participations every 30s, pauses when tab hidden
+
+### Components
+
+- **`SubmitVideoModal`** — Two tabs: File Upload (default, drag-and-drop, progress bar) and URL
+- **`VideoPlayerModal`** — YouTube/Vimeo/local detection, `< >` nav with counter, `<< >>` first/last with vertical divider, star review (⭐/☆), film strip border, captures video duration via `loadedmetadata`
+- **`CreateNextRoundModal`** — Score filter (1-5 stars), actor checkboxes, Select All/Deselect All, "Create empty round" option
+- **`AddParticipantsModal`** — Two textareas (actors, pre-selectors), email parsing
+- **`ConfirmDialog`** — Focus management, Escape key, danger-styled confirm
+- **`ToastProvider`** — `showSuccess/showError/showInfo`, auto-close 4s, bottom-right
+
+### Frontend Utils
+
+- `utils/scoring.ts` — `scoreToStars(score: number): number` (0-10 → 0-5)
+- `utils/submissionStatus.ts` — `STATUS_STYLES`, `getStatusStyle()`, `SubmissionStatus` type
+
+### UserCacheContext
+
+- `getUser(id)` → `{ name, email }` from cache or null
+- `ensureUser(id)` → fetches from `GET /users/:id`, caches, deduplicates concurrent requests
+- Guards against falsy `id`
+
+### E2E Testing (Playwright)
+
+- Config: `frontend/playwright.config.ts` (baseURL: `localhost:5173`, auto-starts dev server)
+- Helpers: `tests/e2e/helpers/auth.ts` (`loginAs`), `helpers/wait.ts` (`waitForToast`)
+- Run: `cd frontend && npx playwright test`
+- Single test: `cd frontend && npx playwright test -g "test name"`
+
+### Frontend Structure
+
 ```
-infrastructure/api/
-├── v1/routes.ts   ← rutas de la versión 1
-└── v2/routes.ts   ← rutas de la versión 2 (placeholder)
+frontend/src/
+├── api/client.ts              ← Axios with JWT Bearer interceptor
+├── components/                ← Layout, LoginForm, SubmitVideoModal, VideoPlayerModal,
+│                                CreateNextRoundModal, AddParticipantsModal, ConfirmDialog
+├── context/                   ← UserContext, ThemeContext, ToastContext, UserCacheContext
+├── pages/                     ← Dashboard, Castings, CreateCasting, CastingDetail, RoundDetail
+├── utils/                     ← scoring.ts, submissionStatus.ts
+├── App.tsx                    ← Routes + UserProvider + ThemeProvider
+└── index.css                  ← Tailwind + CSS custom properties
 ```
 
-**Cómo añadir una nueva versión:**
-1. Crear `infrastructure/api/vX/routes.ts` con las rutas de la nueva versión
-2. Importar y montar en `index.ts`: `app.use('/api/vX', vXRouter)`
-3. Cada versión es independiente — no afecta a versiones anteriores
+## Versioned AGENTS.md
 
-**Reglas:**
-- El endpoint `/health` se mantiene fuera del versionado (es un endpoint de sistema)
-- No se mantiene retrocompatibilidad entre versiones en esta fase del desarrollo
-- Cada archivo de rutas crea sus propias instancias de repositorios y use cases
-
-**Middleware de autenticación (patrón Laravel):**
-- El `authMiddleware` se aplica DENTRO de `routes.ts` con `router.use(authMiddleware)`, no en `index.ts`
-- Las rutas públicas (como `/auth/login`) se definen ANTES de `router.use(authMiddleware)`
-- Las rutas protegidas se definen DESPUÉS de `router.use(authMiddleware)`
-- Requiere JWT válido en header `Authorization: Bearer <token>`
-- `req.user.id` se usa en endpoints que requieren usuario autenticado
-
-## Frontend - Diseño
-
-- El sistema de diseño del frontend está definido en la Skill `frontend-design`. Carga esta Skill antes de generar cualquier código frontend.
-
-### Dark/Light Mode
-
-El sistema de dark/light mode usa **CSS custom properties** (no `dark:` prefix de Tailwind):
-
-- **`index.css`**: Define `:root` (light palette con colores MD3), `.dark` (dark palette), y temas predefinidos (`.theme-ocean`, `.theme-forest`, `.theme-sunset`, `.theme-night`)
-- **`tailwind.config.js`**: Todos los colores referencian `var(--color-*)` en lugar de valores hardcoded
-- **`ThemeContext`** (`src/context/ThemeContext.tsx`): `ThemeProvider` + `useTheme()` hook
-  - Soporta 6 temas: `light`, `dark`, `ocean`, `forest`, `sunset`, `night`
-  - Persistencia en `localStorage('theme')`
-  - Detección de preferencia del sistema via `matchMedia('(prefers-color-scheme: dark)')`
-  - `setTheme(theme)` para cambiar tema, `toggleTheme()` para ciclar
-  - `allThemes` y `themeLabels` para el selector de UI
-- **Layout.tsx**: Selector de temas en la sidebar (dropdown cuando expandido, botón toggle cuando colapsado)
-
-### Funcionalidades del Frontend
-
-- **Barra lateral colapsable:** Botón de menú en la parte superior de la sidebar para abrir/cerrar. Ancho: 280px (abierta) / 64px (cerrada). Persiste la preferencia en `localStorage` (`sidebar-collapsed`).
-- **Modo Demo:** Toggle en la parte inferior de la sidebar. Solo visible si `VITE_DEMO_MODE=true` en `.env` del frontend. Al activarse, llama a `POST /auth/login` con `{ xUserId: selectedRole }` y guarda el token JWT recibido.
-- **Selector de Roles:** Desplegable con opciones: director, actor, preselector. Solo visible cuando el modo Demo está activo. El valor se envía como `xUserId` en el body del login demo.
-- **API Client:** Axios interceptor en `src/api/client.ts` que añade `Authorization: Bearer <token>` de `localStorage` a todas las peticiones.
-- **Dark/Light Mode:** Selector de temas en la sidebar (dropdown). Soporta 6 temas: light, dark, ocean, forest, sunset, night. Usa CSS custom properties en `:root` (light) y `.dark` (dark) con temas predefinidos. `ThemeContext` gestiona estado con persistencia en `localStorage` y detección de preferencia del sistema.
-- **Toast Notifications:** `ToastProvider` + `useToast()` hook en `src/context/ToastContext.tsx`. Funciones: `showSuccess(msg)`, `showError(msg)`, `showInfo(msg)`. Auto-cierre a los 4 segundos. Posición: esquina inferior derecha. Estilo consistente con el diseño (bg-surface, border, sombra).
-- **ConfirmDialog:** Componente reutilizable en `src/components/ConfirmDialog.tsx` para acciones destructivas. Props: `isOpen`, `title`, `message`, `confirmLabel`, `onConfirm`, `onCancel`. Focus management y cierre con Escape.
-- **UserCacheContext:** `UserCacheProvider` + `useUserCache()` hook en `src/context/UserCacheContext.tsx`. Caché global de usuarios por ID. Métodos: `getUser(id)` retorna `{ name, email }` del caché o null; `ensureUser(id)` fetcha y cachea el usuario bajo demanda. Disponible en toda la aplicación.
-
-### Login integrado en el Dashboard
-
-El login no es una ruta independiente. Se muestra como componente dentro del Layout principal:
-
-- **Cuando no hay autenticación** (`!token`): `LoginForm` se renderiza en el área principal del Dashboard (donde iría `<Outlet />`).
-- **Cuando hay token**: Se muestra el contenido normal del dashboard (rutas hijas).
-- **`LoginForm`** (`src/components/LoginForm.tsx`): Formulario con email/password. Llama a `POST /api/v1/auth/login`, almacena `token` y `userId` en localStorage. Al hacer login exitoso, invoca `onLoginSuccess` (prop) que dispara `refreshUser()` en el contexto, cargando usuario y participaciones automáticamente.
-- **`handleLogout`** en Layout: Limpia `token` y `userId` de localStorage. No redirige a ninguna ruta; solo actualiza el estado para que aparezca el `LoginForm`.
-- **Ruta `/login`**: Redirige a `/dashboard` (el LoginForm se muestra automáticamente si no hay auth).
-- **Modo Demo**: Si se activa el toggle de Demo, el usuario accede al contenido sin necesidad de email/password. El toggle llama a `POST /auth/login` con `{ xUserId: selectedRole }` y el backend devuelve un JWT.
-
-### Contexto de Usuario y Participaciones
-
-- **`UserContext`** (`src/context/UserContext.tsx`): Proveedor de contexto que gestiona el usuario autenticado y sus participaciones.
-  - `user`: datos del usuario (`id`, `name`, `email`).
-  - `participations`: lista de participaciones (castings donde es director/reviewer, rondas donde es actor/preselector).
-  - `isLoading`: estado de carga.
-  - `refreshUser()`: recarga usuario Y participaciones. Se llama tras login/logout para sincronizar estado.
-  - `isAuthenticated`: estado reactivo derivado de `localStorage.token`.
-  - Helper functions: `isDirectorOf(castingId)`, `isActorOf(roundId)`, `isPreselectorOf(roundId)`, `getRoleInCasting(castingId)`, `getRoleInRound(roundId)`.
-- **Polling automático**: Refresca participaciones cada 30 segundos. Se detiene cuando la pestaña no está visible (`document.hidden`) y se reanuda al volver.
-- **Endpoint**: `GET /api/v1/users/me/participations` retorna las participaciones del usuario autenticado.
-- **`UserProvider`** se renderiza en `App.tsx` envolviendo todas las rutas. Layout usa `useUser()` para mostrar datos en la top bar.
-
-### Páginas del Frontend
-
-- **`Dashboard`** (`src/pages/Dashboard.tsx`): Panel principal con métricas (KPI cards: Total Castings, Active Castings, Reviewed, Pending), grid de castings del usuario, gráficos de barras CSS (Submissions per Round con nombre de casting, Score Distribution), y actividad reciente.
-- **`CastingDetail`** (`src/pages/CastingDetail.tsx`): Detalle de un casting con participants, rondas, y botones de acción para directors (editar con modal, eliminar con confirmación). Usa `useToast` para feedback.
-- **`RoundDetail`** (`src/pages/RoundDetail.tsx`): Detalle de una ronda con panel lateral derecho (sticky actions, gestión de rondas, pre-selectores, actores), grid de submissions con `SubmissionCard` (thumbnail, chip de estado, badge de score, nota del director), y botones de acción según el rol (ej. "Submit Video" para actors, "Review" para directors/preselectors, "Create Next Round" solo para directors). Usa UserCache para mostrar nombres de usuarios.
-- **`SubmitVideoModal`** (`src/components/SubmitVideoModal.tsx`): Modal accesible para subir videos. Props: `roundId`, `isOpen`, `onClose`, `onSuccess`. Validación de URL, estados loading/error, cierre con Escape o clic fuera. Soporta subida de archivos con barra de progreso (onUploadProgress de Axios).
-- **`ConfirmDialog`** (`src/components/ConfirmDialog.tsx`): Diálogo de confirmación reutilizable para acciones destructivas. Props: `isOpen`, `title`, `message`, `confirmLabel`, `onConfirm`, `onCancel`. Focus management y cierre con Escape.
-- **`VideoPlayerModal`** (`src/components/VideoPlayerModal.tsx`): Modal de reproductor de videos con navegación y review. Detecta YouTube/Vimeo/URLs locales. Navegación `<`/`>` entre submissions. Panel de review para directores (estrellas 1-5, feedback, submit/update). Score mapeado a backend (0-10). Marco de claqueta decorativo con perforaciones.
-- **`CreateNextRoundModal`** (`src/components/CreateNextRoundModal.tsx`): Modal para crear la siguiente ronda. Filtro de score por estrellas (1-5), lista de actores con checkbox, score y feedback resumido. Select All/Deselect All, contador de selección. Checkbox "Create empty round" cuando no hay actores que cumplan el filtro. Llama a `POST /rounds/participants` con `createNewRound: true`. Navega a la nueva ronda tras crear.
-
-### Frontend Testing
-
-**Unit/Component Tests (Vitest + React Testing Library):**
-- Configuración: `frontend/vitest.config.ts` con `jsdom` environment
-- Setup: `frontend/src/test/setup.ts` (cleanup automático + jest-dom + `window.matchMedia` mock)
-- Scripts en `frontend/package.json`:
-  - `npm test` — Ejecuta tests una vez
-  - `npm run test:watch` — Ejecuta tests en modo watch
-  - `npm run test:coverage` — Ejecuta tests con cobertura
-- Tests: `frontend/src/**/*.test.tsx` (junto a los componentes)
-- Cobertura: `@vitest/coverage-v8` con reporter text/json/html
-- **Gotcha:** Cualquier componente que use `useTheme()` debe estar envuelto por `ThemeProvider` en tests. Mockear `ThemeContext` si se necesita aislamiento.
-
-**E2E Tests (Playwright):**
-- Configuración: `frontend/playwright.config.ts` (baseURL: `http://localhost:5173`, webServer: `npm run dev`)
-- Tests: `frontend/tests/e2e/*.spec.ts`
-- Helpers: `frontend/tests/e2e/helpers/auth.ts` (`loginAs(page, role)`) y `helpers/wait.ts` (`waitForToast()`)
-- Ejecutar: `cd frontend && npx playwright test`
-- Ejecutar un solo test: `cd frontend && npx playwright test tests/e2e/critical-flows.spec.ts -g "test name"`
-- Viewport report: `cd frontend && npx playwright show-report`
-- Playwright auto-inicia el dev server (`npm run dev`) antes de los tests
-- **Helpers:**
-  - `loginAs(page, role)` — habilita demo mode, selecciona rol (`director`/`actor`/`preselector`), verifica autenticación
-  - `waitForToast(page, message, type?)` — espera a que aparezca un toast con el mensaje dado
-- **Gotcha:** Los tests comparten la BD de dev. Tests que mutan datos (edit/delete) deben crear sus propios recursos o cancelar la acción. Re-seed con `cd backend && npm run db:reset && npm run db:seed` si la BD queda en estado inconsistente.
-- **Gotcha:** `npx playwright install chromium` es necesario la primera vez o tras actualizar Playwright.
-
-## Versionado de AGENTS.md
-
-**Regla obligatoria:** Cada vez que se vaya a actualizar este archivo, se debe crear una copia de seguridad de la versión anterior en el directorio `docu/saves-agents/` con el formato `AGENTS_<timestamp>.md`, donde `<timestamp>` sigue el patrón `YYYYMMDD_HHMMSS` (ej. `AGENTS_20260709_123456.md`).
-
-**Propósito:** Este historial permite:
-- Revertir a versiones anteriores si el agente genera directrices incorrectas.
-- Rastrear la evolución de las reglas del proyecto a lo largo del tiempo.
-- Consultar decisiones pasadas durante la redacción de la memoria del TFM.
+Backup rule: Before editing, copy current file to `docu/saves-agents/AGENTS_<YYYYMMDD_HHMMSS>.md`.
+Purpose: Revert bad agent changes, track rule evolution, reference past decisions.

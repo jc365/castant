@@ -217,11 +217,10 @@ export default function RoundDetail() {
                 <button
                   key={status}
                   onClick={() => toggleStatusFilter(status)}
-                  className={`px-3 py-1.5 rounded-full font-label-caps text-label-caps transition-colors ${
-                    active
+                  className={`px-3 py-1.5 rounded-full font-label-caps text-label-caps transition-colors ${active
                       ? style.chipClass
                       : 'bg-surface-container text-on-surface-variant border border-outline-variant/30'
-                  }`}
+                    }`}
                 >
                   {style.label}
                 </button>
@@ -337,11 +336,7 @@ export default function RoundDetail() {
           <section>
             <div className="flex justify-between items-center mb-4">
               <h4 className="font-title-sm text-title-sm text-on-surface">Pre-Selectors</h4>
-              {isDirector && (
-                <button className="text-primary hover:text-primary-fixed transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                </button>
-              )}
+              <span className="font-label-caps text-label-caps text-on-surface-variant">{preselectors.length} Total</span>
             </div>
             {preselectors.length > 0 ? (
               <ul className="flex flex-col gap-3">
@@ -356,19 +351,13 @@ export default function RoundDetail() {
                         <p className="font-body-sm text-body-sm text-on-surface leading-tight truncate">{getUser(p.id)?.name || p.id}</p>
                         <p className="font-label-caps text-label-caps text-on-surface-variant truncate">{getUser(p.id)?.email || p.email}</p>
                       </div>
-                      <span
-                        className={`material-symbols-outlined text-[16px] ${hasReviewed ? 'text-primary' : 'text-outline-variant'}`}
-                        title={hasReviewed ? 'Reviewed' : 'Pending'}
-                      >
-                        {hasReviewed ? 'check_circle' : 'pending'}
-                      </span>
                       {isDirector && (
                         <button
                           onClick={() => setShowRemoveParticipant({ userId: p.id, name: getUser(p.id)?.name || p.email || p.id })}
                           className="text-error/60 hover:text-error transition-colors flex-shrink-0"
                           title="Remove participant"
                         >
-                          <span className="material-symbols-outlined text-[16px]">close</span>
+                          <span className="text-error material-symbols-outlined text-[16px]">close</span>
                         </button>
                       )}
                     </li>
@@ -389,10 +378,8 @@ export default function RoundDetail() {
             {actors.length > 0 ? (
               <ul className="flex flex-col gap-3 overflow-y-auto max-h-[300px] pr-2">
                 {actors.map((a) => {
-                  const submitted = round.submissions.some((s) => s.actorId === a.id);
-                  const passed = round.submissions.some((s) => s.actorId === a.id && s.score !== null && s.score < 5);
                   return (
-                    <li key={a.id} className={`flex items-center gap-3 ${passed ? 'opacity-50' : ''}`}>
+                    <li key={a.id} className={`flex items-center gap-3`}>
                       <div className="w-8 h-8 rounded bg-surface-container border border-outline-variant flex items-center justify-center flex-shrink-0">
                         <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
                       </div>
@@ -400,20 +387,13 @@ export default function RoundDetail() {
                         <p className="font-body-sm text-body-sm text-on-surface leading-tight truncate">{getUser(a.id)?.name || a.name || a.id}</p>
                         <p className="font-label-caps text-label-caps text-on-surface-variant truncate">{getUser(a.id)?.email || a.email}</p>
                       </div>
-                      {passed ? (
-                        <span className="material-symbols-outlined text-[16px] text-error flex-shrink-0" title="Passed">close</span>
-                      ) : submitted ? (
-                        <span className="material-symbols-outlined text-[16px] text-primary flex-shrink-0" title="Submitted">check_circle</span>
-                      ) : (
-                        <span className="material-symbols-outlined text-[16px] text-outline-variant flex-shrink-0" title="Pending">pending</span>
-                      )}
                       {isDirector && (
                         <button
                           onClick={() => setShowRemoveParticipant({ userId: a.id, name: getUser(a.id)?.name || a.name || a.id })}
                           className="text-error/60 hover:text-error transition-colors flex-shrink-0"
                           title="Remove participant"
                         >
-                          <span className="material-symbols-outlined text-[16px]">close</span>
+                          <span className="text-error material-symbols-outlined text-[16px]">close</span>
                         </button>
                       )}
                     </li>

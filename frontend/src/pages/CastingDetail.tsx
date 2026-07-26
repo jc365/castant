@@ -37,7 +37,7 @@ export default function CastingDetail() {
   const [error, setError] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [submissionCounts, setSubmissionCounts] = useState<Record<string, { total: number; pending: number }>>({});
+  const [submissionCounts, setSubmissionCounts] = useState<Record<string, { total: number; pending: number; reviewed: number; selected: number; rejected: number }>>({});
 
   const role = castingId ? getRoleInCasting(castingId) : null;
   const isDirector = castingId ? isDirectorOf(castingId) : false;
@@ -68,7 +68,10 @@ export default function CastingDetail() {
             ...prev,
             [round.id]: {
               total: subs.length,
-              pending: subs.filter((s) => s.status !== 'reviewed').length,
+              pending: subs.filter((s) => s.status === 'pending').length,
+              reviewed: subs.filter((s) => s.status === 'reviewed').length,
+              selected: subs.filter((s) => s.status === 'selected').length,
+              rejected: subs.filter((s) => s.status === 'rejected').length,
             },
           }));
         })
@@ -150,30 +153,6 @@ export default function CastingDetail() {
         </div>
       </div>
 
-      {/* Participants */}
-      <div className="bg-surface border border-outline-variant/30 rounded-xl p-6 mb-6">
-        <h2 className="font-headline-md text-headline-md text-on-background mb-4">Participants</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {casting.participants.map((p) => {
-            const user = getUser(p.userId);
-            return (
-              <div key={p.userId} className="flex items-center gap-3 bg-surface-container-high rounded-lg p-3">
-                <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center">
-                  <span className="material-symbols-outlined text-on-primary-container text-sm">person</span>
-                </div>
-                <div>
-                  <p className="text-sm text-on-surface">{user?.name || p.userId}</p>
-                  {user?.email && (
-                    <p className="text-xs text-on-surface-variant">{user.email}</p>
-                  )}
-                  <p className="text-xs text-on-surface-variant uppercase">{p.role}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Rounds */}
       <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
         <div className="flex justify-between items-center mb-4">
@@ -183,6 +162,8 @@ export default function CastingDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {casting.rounds.map((round) => {
               const counts = submissionCounts[round.id];
+              const actors = round.participants.filter((p) => p.role === 'actor').length;
+              const preselectors = round.participants.filter((p) => p.role === 'preselector').length;
               return (
                 <Link
                   key={round.id}
@@ -190,27 +171,41 @@ export default function CastingDetail() {
                   className="group bg-surface-container-high border border-outline-variant/30 rounded-xl p-5 hover:border-primary/50 hover:bg-surface-container-low transition-colors duration-300 flex flex-col"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-display-lg text-display-lg text-primary">{round.number}</span>
-                    <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+                    <span className="font-display-lg text-display-lg text-primary">Round {round.number}</span>
+                    {/* <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span> */}
                   </div>
-                  <div className="flex items-center gap-1 text-on-surface-variant mb-2">
+
+                  <div className="flex items-center gap-1.5 text-on-surface-variant mb-1">
                     <span className="material-symbols-outlined text-[14px]">group</span>
-                    <span className="font-body-sm text-body-sm">{round.participants.length} participants</span>
+                    <span className="font-body-sm text-body-sm">Participants: {round.participants.length}</span>
+                  </div>
+                  <div className="flex gap-4 text-xs text-on-surface-variant mb-3 pl-[22px]">
+                    <span>Preselectors: {preselectors}</span>
+                    <span>Actors: {actors}</span>
+                  </div>
+
+                  <div className="w-full h-px bg-outline-variant/20" />
+
+                  <div className="flex items-center gap-1.5 text-on-surface-variant mt-3 mb-1">
+                    <span className="material-symbols-outlined text-[14px]">videocam</span>
+                    <span className="font-body-sm text-body-sm">Submissions: {counts ? counts.total : '...'}</span>
                   </div>
                   {counts ? (
-                    <div className="flex gap-4 mt-auto pt-3 border-t border-outline-variant/20">
-                      <div>
-                        <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">Pending</p>
-                        <p className="font-headline-sm text-headline-sm text-primary">{counts.pending}</p>
+                    <div className="pl-[22px]">
+                      <div className="flex gap-4 text-xs text-on-surface-variant">
+                        <span>Pendings: <span className="text-primary font-medium">{counts.pending}</span></span>
+                        <span>Revieweds: <span className="font-medium">{counts.reviewed}</span></span>
                       </div>
-                      <div>
-                        <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">Total</p>
-                        <p className="font-headline-sm text-headline-sm text-on-surface">{counts.total}</p>
-                      </div>
+                      {(counts.selected > 0 || counts.rejected > 0) && (
+                        <div className="flex gap-4 text-xs text-on-surface-variant mt-1">
+                          <span>Selecteds: <span className="text-green-600 font-medium">{counts.selected}</span></span>
+                          <span>Rejected: <span className="text-red-600 font-medium">{counts.rejected}</span></span>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="mt-auto pt-3 border-t border-outline-variant/20">
-                      <p className="text-sm text-on-surface-variant">Loading...</p>
+                    <div className="pl-[22px]">
+                      <p className="text-xs text-on-surface-variant">Loading...</p>
                     </div>
                   )}
                 </Link>

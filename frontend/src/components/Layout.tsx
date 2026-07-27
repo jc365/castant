@@ -216,7 +216,7 @@ export default function Layout() {
       </nav>
 
       {/* TopAppBar */}
-      <header className={`fixed top-0 right-0 ${mainMargin} h-16 bg-background/80 backdrop-blur-md border-b border-outline-variant/20 flex justify-between items-center px-margin-desktop w-[calc(100%-0rem)] z-40 transition-all duration-300`}>
+      {/* <header className={`fixed top-0 right-0 ${mainMargin} h-16 bg-background/80 backdrop-blur-md border-b border-outline-variant/20 flex justify-between items-center px-margin-desktop w-[calc(100%-0rem)] z-40 transition-all duration-300`}>
         <div />
         <div className="flex items-center gap-4 ml-auto">
           {demoEnabled && (
@@ -241,7 +241,37 @@ export default function Layout() {
             </div>
           )}
         </div>
+      </header> */}
+
+
+<header className={`fixed top-0 right-0 ${mainMargin} h-16 bg-background/80 backdrop-blur-md border-b border-outline-variant/20 flex justify-between items-center px-margin-desktop w-[calc(100%-0rem)] z-40 transition-all duration-300`}>
+        <div />
+        <div className="flex items-center gap-4 ml-auto">
+          {demoEnabled && (
+            <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full font-label-caps uppercase">
+              Mode Demo Activated 
+            </span>
+          )}
+          {user && (
+            <div className="flex items-center gap-2 ml-2">
+              <div className="text-right">
+                <p className="text-sm font-medium text-on-surface leading-tight">{user.name}</p>
+                <p className="text-xs text-on-surface-variant leading-tight">{user.email}</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant/30 overflow-hidden flex items-center justify-center">
+                <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
+              </div>
+            </div>
+          )}
+          {!user && (
+            <div className="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant/30 overflow-hidden ml-2 cursor-pointer flex items-center justify-center">
+              <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
+            </div>
+          )}
+        </div>
       </header>
+
+
 
       {/* Main Content */}
       <main className={`${mainMargin} pt-16 min-h-screen px-margin-desktop py-10 max-w-container-max transition-all duration-300`}>

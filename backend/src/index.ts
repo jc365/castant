@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from './infrastructure/logging/logger';
@@ -16,9 +17,36 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+// 📌 Habilita trust proxy para que req.ip sea la IP real del cliente
+// "1" significa que confía en el primer proxy que está delante de la aplicación
+// De no hacerlo asi, los intentos los computa siempre sobre la IP del proxy
+app.set('trust proxy', 1);
+
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+
+// CORS: configurable via CORS_ORIGIN env var (comma-separated for multiple origins)
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+  : ['http://localhost:5173'];
+
+app.use(cors({
+  origin: corsOrigins,
+  credentials: true,
+}));
+
+// --- Estado de var de ENV
+// console.log('🔍 CORS_ORIGIN:', process.env.CORS_ORIGIN);
+// console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+// console.log('🔍 DEMO_MODE:', process.env.DEMO_MODE);
+
+// Helmet (HSTS desactivado en desarrollo)
+app.use(helmet({
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
+}));
+
 app.use(express.json());
 app.use(requestContextMiddleware);
 

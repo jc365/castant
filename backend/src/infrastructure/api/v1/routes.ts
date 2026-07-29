@@ -4,6 +4,7 @@
  */
 
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { CreateUserUseCase } from '../../../application/use-cases/CreateUserUseCase';
 import { GetAllUsersUseCase } from '../../../application/use-cases/GetAllUsersUseCase';
 import { CreateCastingUseCase } from '../../../application/use-cases/CreateCastingUseCase';
@@ -46,10 +47,30 @@ const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userReposit
 const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository, bitacoraService);
 
 // ============================================
+// Rate limiters
+// ============================================
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,   // tiempo de espera para reset: 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 10 : 100,    // 100 en desarrollo
+  message: { error: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ============================================
 // Rutas públicas (sin autenticación)
 // ============================================
 
-router.post('/auth/login', async (req, res) => {
+router.post('/auth/login', loginLimiter, async (req, res) => {
   requestLogger.info({}, 'POST /auth/login');
 
   try {
@@ -68,6 +89,7 @@ router.post('/auth/login', async (req, res) => {
 // ============================================
 
 router.use(authMiddleware);
+router.use(apiLimiter);
 
 router.get('/users', async (_req, res) => {
   requestLogger.info({}, 'GET /users');

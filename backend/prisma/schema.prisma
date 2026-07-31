@@ -46,6 +46,7 @@ model Round {
   id          String       @id
   number      Int
   castingId   String
+  status      String       @default("active") // "active" | "passed"
   casting     Casting      @relation(fields: [castingId], references: [id])
   participants Participant[]
   submissions Submission[]

@@ -7,23 +7,6 @@ import SubmitVideoModal from '../components/SubmitVideoModal';
 import type { SubmissionStatus } from '../utils/submissionStatus';
 import { scoreToStars } from '../utils/scoring';
 
-interface CastingParticipation {
-  type: 'casting';
-  castingId: string;
-  castingTitle: string;
-  castingDescription: string;
-  role: string;
-}
-
-interface RoundParticipation {
-  type: 'round';
-  roundId: string;
-  roundNumber: number;
-  castingId: string;
-  castingTitle: string;
-  role: string;
-}
-
 interface Participant {
   userId: string;
   role: string;
@@ -87,6 +70,19 @@ interface ActivityItem {
   roundId: string;
 }
 
+function relativeTime(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+const participationsRef = useRef<string>('');
+
 export default function Dashboard() {
   const { participations } = useUser();
   const { getUser, ensureUser } = useUserCache();
@@ -96,32 +92,57 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [submitModalRoundId, setSubmitModalRoundId] = useState<string | null>(null);
 
-  const directorCastings = useMemo(() =>
-    participations.filter((p): p is CastingParticipation => p.type === 'casting' && p.role === 'director'),
-    [participations]
-  );
+  const todo = useUser();
 
-  const actorRounds = useMemo(() =>
-    participations.filter((p): p is RoundParticipation => p.type === 'round' && p.role === 'actor'),
-    [participations]
-  );
+  //---------------------------------
+  // 🔥 Convertir a string para comparar contenido
+  const participationsKey = JSON.stringify(participations);
 
-  const preselectorRounds = useMemo(() =>
-    participations.filter((p): p is RoundParticipation => p.type === 'round' && p.role === 'preselector'),
-    [participations]
-  );
+  if (participationsKey !== participationsRef.current) {
+    participationsRef.current = participationsKey;
+    // 🔥 Aquí puedes ejecutar lógica cuando cambia
+    console.log('📌 participations ha cambiado:', participations);
+  }
+  // 🔍 Agrupar participaciones por rol
+  const directorCastings = participations
+    .filter(p => p.type === 'casting' && p.role === 'director')
+    .map(p => p.castingId);
+
+  const actorRounds = participations
+    .filter(p => p.type === 'round' && p.role === 'actor')
+    .map(p => ({ roundId: p.roundId, roundNumber: p.roundNumber, castingTitle: p.castingTitle }));
+
+  const preselectorRounds = participations
+    .filter(p => p.type === 'round' && p.role === 'preselector')
+    .map(p => ({ roundId: p.roundId, roundNumber: p.roundNumber, castingTitle: p.castingTitle }));
+
+  // 🔍 Mostrar secciones SOLO si hay elementos
+  const hasDirectorRole = directorCastings.length > 0;
+  const hasActorRole = actorRounds.length > 0;
+  const hasPreselectorRole = preselectorRounds.length > 0;
+  //---------------------------------
 
   const myCastingIds = useMemo(() =>
-    new Set(directorCastings.map((p) => p.castingId)),
-    [directorCastings]
+    new Set(participations.filter((p) => p.type === 'casting').map((p) => p.castingId)),
+    [participations]
   );
 
-  const myRoundIds = useMemo(() => {
-    const ids = new Set<string>();
-    actorRounds.forEach((p) => ids.add(p.roundId));
-    preselectorRounds.forEach((p) => ids.add(p.roundId));
-    return ids;
-  }, [actorRounds, preselectorRounds]);
+  const myRoundIds = useMemo(() =>
+    new Set(participations.filter((p) => p.type === 'round').map((p) => p.roundId)),
+    [participations]
+  );
+
+  const isActor = participations.some((p) => p.type === 'round' && p.role === 'actor');
+
+  const activeRounds = useMemo(() =>
+    rounds.filter((r) => r.status === 'active' && myRoundIds.has(r.id)),
+    [rounds, myRoundIds]
+  );
+
+  const passedRounds = useMemo(() =>
+    rounds.filter((r) => r.status === 'passed' && myRoundIds.has(r.id)),
+    [rounds, myRoundIds]
+  );
 
   const hasLoadedRef = useRef(false);
   const previousIdsRef = useRef<string>('');
@@ -129,12 +150,29 @@ export default function Dashboard() {
   useEffect(() => {
     const currentIds = Array.from(myCastingIds).sort().join(',');
 
+    // if (previousIdsRef.current === currentIds && hasLoadedRef.current) {
+    //   setLoading(false);
+    //   return;
+    // }
+
+    // if (previousIdsRef.current !== currentIds) {
+    //   hasLoadedRef.current = false;
+    //   previousIdsRef.current = currentIds;
+    // }
+
+
+
+
+    // ✅ Si ya cargó y los IDs no han cambiado → no hacer nada
     if (previousIdsRef.current === currentIds && hasLoadedRef.current) {
       setLoading(false);
       return;
     }
 
+    // ✅ Si los IDs cambiaron pero ya cargamos → resetear para recargar
     if (previousIdsRef.current !== currentIds && hasLoadedRef.current) {
+      // Solo recargar si realmente hay cambios significativos
+      // (ej: nuevos castings, no solo por el polling)
       hasLoadedRef.current = false;
     }
 
@@ -142,10 +180,14 @@ export default function Dashboard() {
       previousIdsRef.current = currentIds;
     }
 
+    // 🔥 Si ya cargó y los IDs no cambiaron, salimos
     if (hasLoadedRef.current) {
       setLoading(false);
       return;
     }
+
+
+
 
     let cancelled = false;
 
@@ -153,53 +195,31 @@ export default function Dashboard() {
       setLoading(true);
       setError('');
       try {
-        const roundsMap = new Map<string, RoundSummary>();
+        const castingsRes = await client.get('/castings');
+        if (cancelled) return;
+        const allCastings: Casting[] = castingsRes.data;
+        const myCastings = allCastings.filter((c) => myCastingIds.has(c.id));
+        setCastings(myCastings);
 
-        if (myCastingIds.size > 0) {
-          const castingsRes = await client.get('/castings');
+        const roundsData: RoundSummary[] = [];
+        for (const casting of myCastings) {
+          const castingRes = await client.get(`/castings/${casting.id}`);
           if (cancelled) return;
-          const allCastings: Casting[] = castingsRes.data;
-          const myCastings = allCastings.filter((c) => myCastingIds.has(c.id));
-          setCastings(myCastings);
-
-          for (const casting of myCastings) {
-            const castingRes = await client.get(`/castings/${casting.id}`);
+          for (const r of castingRes.data.rounds) {
+            const roundRes = await client.get(`/rounds/${r.id}`);
             if (cancelled) return;
-            for (const r of castingRes.data.rounds) {
-              const roundRes = await client.get(`/rounds/${r.id}`);
-              if (cancelled) return;
-              roundsMap.set(r.id, {
-                id: r.id,
-                number: r.number,
-                castingId: casting.id,
-                castingTitle: casting.title,
-                status: r.status || 'active',
-                submissions: roundRes.data.submissions,
-              });
-            }
+            roundsData.push({
+              id: r.id,
+              number: r.number,
+              castingId: casting.id,
+              castingTitle: casting.title,
+              status: r.status || 'active',
+              submissions: roundRes.data.submissions,
+            });
           }
         }
-
-        const neededRoundIds = Array.from(myRoundIds).filter((id) => !roundsMap.has(id));
-        for (const roundId of neededRoundIds) {
-          const roundRes = await client.get(`/rounds/${roundId}`);
-          if (cancelled) return;
-          const data = roundRes.data;
-          const castingTitle = data.castingId
-            ? (await client.get(`/castings/${data.castingId}`).catch(() => null))?.data?.title ?? ''
-            : '';
-          roundsMap.set(roundId, {
-            id: data.id,
-            number: data.number,
-            castingId: data.castingId || '',
-            castingTitle,
-            status: data.status || 'active',
-            submissions: data.submissions,
-          });
-        }
-
         if (!cancelled) {
-          setRounds(Array.from(roundsMap.values()));
+          setRounds(roundsData);
           hasLoadedRef.current = true;
         }
       } catch (err: unknown) {
@@ -211,40 +231,19 @@ export default function Dashboard() {
 
     load();
     return () => { cancelled = true; };
-  }, [myCastingIds, myRoundIds]);
+  }, [myCastingIds]);
 
-  const directorRoundIds = useMemo(() => {
-    const ids = new Set<string>();
-    rounds.forEach((r) => { if (myCastingIds.has(r.castingId)) ids.add(r.id); });
-    return ids;
-  }, [rounds, myCastingIds]);
-
-  const directorRounds = useMemo(() =>
-    rounds.filter((r) => directorRoundIds.has(r.id)),
-    [rounds, directorRoundIds]
-  );
-
-  const actorRoundData = useMemo(() =>
-    rounds.filter((r) => actorRounds.some((p) => p.roundId === r.id)),
-    [rounds, actorRounds]
-  );
-
-  const preselectorRoundData = useMemo(() =>
-    rounds.filter((r) => preselectorRounds.some((p) => p.roundId === r.id)),
-    [rounds, preselectorRounds]
-  );
-
-  const directorStats = useMemo<DashboardStats>(() => {
+  const stats = useMemo<DashboardStats>(() => {
     let reviewed = 0;
     let pending = 0;
-    for (const r of directorRounds) {
+    for (const r of rounds) {
       for (const s of r.submissions) {
         if (s.status === 'pending') pending++;
         else reviewed++;
       }
     }
     const activeCastingIds = new Set(
-      directorRounds.filter((r) => r.submissions.some((s) => s.status === 'pending')).map((r) => r.castingId)
+      rounds.filter((r) => r.submissions.some((s) => s.status === 'pending')).map((r) => r.castingId)
     );
     return {
       totalCastings: castings.length,
@@ -252,36 +251,22 @@ export default function Dashboard() {
       reviewedSubmissions: reviewed,
       pendingSubmissions: pending,
     };
-  }, [castings, directorRounds]);
-
-  const actorStats = useMemo(() => {
-    let totalVideos = 0;
-    let reviewed = 0;
-    let pending = 0;
-    for (const r of actorRoundData) {
-      for (const s of r.submissions) {
-        totalVideos++;
-        if (s.status === 'pending') pending++;
-        else reviewed++;
-      }
-    }
-    return { totalVideos, reviewed, pending };
-  }, [actorRoundData]);
+  }, [castings, rounds]);
 
   const roundStats = useMemo<RoundStat[]>(() => {
-    const max = Math.max(1, ...directorRounds.map((r) => r.submissions.length));
-    return directorRounds.map((r) => ({
+    const max = Math.max(1, ...rounds.map((r) => r.submissions.length));
+    return rounds.map((r) => ({
       id: r.id,
       label: `Round ${r.number}`,
       count: r.submissions.length,
       max,
       castingTitle: r.castingTitle || '',
     }));
-  }, [directorRounds]);
+  }, [rounds]);
 
   const scoreDistribution = useMemo<ScoreBucket[]>(() => {
     const buckets = [0, 0, 0, 0, 0];
-    for (const r of directorRounds) {
+    for (const r of rounds) {
       for (const s of r.submissions) {
         if (s.score !== null) {
           const stars = Math.min(5, Math.max(1, scoreToStars(s.score)));
@@ -290,11 +275,10 @@ export default function Dashboard() {
       }
     }
     return buckets.map((count, i) => ({ stars: i + 1, count })).reverse();
-  }, [directorRounds]);
+  }, [rounds]);
 
   const recentActivity = useMemo<ActivityItem[]>(() => {
     const castingMap = new Map(castings.map((c) => [c.id, c.title]));
-    rounds.forEach((r) => { if (!castingMap.has(r.castingId)) castingMap.set(r.castingId, r.castingTitle); });
     const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
 
     const pending: ActivityItem[] = [];
@@ -332,16 +316,6 @@ export default function Dashboard() {
     recentActivity.forEach((item) => ensureUser(item.actorId));
   }, [recentActivity, ensureUser]);
 
-  const activeActorRounds = useMemo(() =>
-    actorRoundData.filter((r) => r.status === 'active'),
-    [actorRoundData]
-  );
-
-  const passedActorRounds = useMemo(() =>
-    actorRoundData.filter((r) => r.status === 'passed'),
-    [actorRoundData]
-  );
-
   if (loading) {
     return (
       <div className="flex items-center gap-3 text-on-surface-variant">
@@ -367,176 +341,122 @@ export default function Dashboard() {
         <p className="text-on-surface-variant mt-2 font-body-lg text-body-lg">
           Overview of your casting activity.
         </p>
-        <RoleBadge
-          directorCount={directorCastings.length}
-          actorCount={actorRounds.length}
-          preselectorCount={preselectorRounds.length}
-        />
       </div>
 
-      {/* As Director Section */}
-      {directorCastings.length > 0 && (
-        <section className="flex flex-col gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-[20px]">movie_creation</span>
-            </div>
-            <h2 className="font-headline-md text-headline-md text-on-background">As Director</h2>
-          </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard icon="movie_creation" label="Total Castings" value={stats.totalCastings} />
+        <KPICard icon="live_tv" label="Active Castings" value={stats.activeCastings} />
+        <KPICard icon="check_circle" label="Reviewed" value={stats.reviewedSubmissions} />
+        <KPICard icon="pending" label="Pending" value={stats.pendingSubmissions} />
+      </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard icon="movie_creation" label="Total Castings" value={directorStats.totalCastings} />
-            <KPICard icon="live_tv" label="Active Castings" value={directorStats.activeCastings} />
-            <KPICard icon="check_circle" label="Reviewed" value={directorStats.reviewedSubmissions} />
-            <KPICard icon="pending" label="Pending" value={directorStats.pendingSubmissions} />
+      {/* Castings Grid */}
+      <div>
+        <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Your Castings</h3>
+        {castings.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+            {castings.map((casting) => (
+              <CastingCard key={casting.id} casting={casting} />
+            ))}
           </div>
-
-          <div>
-            <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Your Castings</h3>
-            {castings.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-                {castings.map((casting) => (
-                  <CastingCard key={casting.id} casting={casting} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 bg-surface border border-outline-variant/30 rounded-xl">
-                <span className="material-symbols-outlined text-6xl text-outline mb-4 block">movie_creation</span>
-                <p className="text-on-surface-variant font-body-lg text-body-lg">
-                  No castings yet. Create your first one.
-                </p>
-              </div>
-            )}
+        ) : (
+          <div className="text-center py-16 bg-surface border border-outline-variant/30 rounded-xl">
+            <span className="material-symbols-outlined text-6xl text-outline mb-4 block">movie_creation</span>
+            <p className="text-on-surface-variant font-body-lg text-body-lg">
+              No castings yet. Create your first one.
+            </p>
           </div>
+        )}
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-              <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Submissions per Round</h3>
-              {roundStats.length > 0 ? (
-                <div className="flex flex-col gap-4">
-                  {roundStats.map((r) => (
-                    <div key={r.id} className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-body-sm text-body-sm text-on-surface-variant whitespace-normal break-words" title={r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}>
-                          {r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}
-                        </span>
-                        <span className="font-body-sm text-body-sm text-on-surface font-medium ml-2">{r.count}</span>
-                      </div>
-                      <div className="w-full h-3 bg-surface-container rounded overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded transition-all duration-500"
-                          style={{ width: `${(r.count / r.max) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon="bar_chart" message="No rounds yet" />
-              )}
-            </div>
-
-            <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-              <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Score Distribution</h3>
-              {scoreDistribution.some((b) => b.count > 0) ? (
-                <div className="flex flex-col gap-3">
-                  {scoreDistribution.map((b) => (
-                    <div key={b.stars} className="flex items-center gap-3">
-                      <span className="font-body-sm text-on-surface-variant w-28 text-right">
-                        {'★'.repeat(b.stars)}{'☆'.repeat(5 - b.stars)}
-                      </span>
-                      <div className="flex-1 h-6 bg-surface-container rounded overflow-hidden">
-                        <div
-                          className="h-full bg-primary-container rounded transition-all duration-500"
-                          style={{ width: `${b.count > 0 ? Math.max(8, (b.count / Math.max(1, ...scoreDistribution.map((x) => x.count))) * 100) : 0}%` }}
-                        />
-                      </div>
-                      <span className="font-body-sm text-on-surface w-8">{b.count}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon="star" message="No reviews yet" />
-              )}
-            </div>
+      {/* Actor: Active Rounds */}
+      {isActor && activeRounds.length > 0 && (
+        <div>
+          <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Active Rounds</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+            {activeRounds.map((round) => (
+              <RoundCard
+                key={round.id}
+                round={round}
+                showSubmitButton
+                onSubmitVideo={() => setSubmitModalRoundId(round.id)}
+              />
+            ))}
           </div>
-        </section>
+        </div>
       )}
 
-      {/* As Actor Section */}
-      {actorRounds.length > 0 && (
-        <section className="flex flex-col gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-[20px]">person</span>
-            </div>
-            <h2 className="font-headline-md text-headline-md text-on-background">As Actor</h2>
+      {/* Actor: Passed Rounds */}
+      {isActor && passedRounds.length > 0 && (
+        <div>
+          <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Passed Rounds</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+            {passedRounds.map((round) => (
+              <RoundCard
+                key={round.id}
+                round={round}
+                showSubmitButton={false}
+              />
+            ))}
           </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <KPICard icon="video_library" label="My Videos" value={actorStats.totalVideos} />
-            <KPICard icon="check_circle" label="Reviewed" value={actorStats.reviewed} />
-            <KPICard icon="pending" label="Pending" value={actorStats.pending} />
-          </div>
-
-          {activeActorRounds.length > 0 && (
-            <div>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Active Rounds</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-                {activeActorRounds.map((round) => (
-                  <RoundCard
-                    key={round.id}
-                    round={round}
-                    showSubmitButton
-                    onSubmitVideo={() => setSubmitModalRoundId(round.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {passedActorRounds.length > 0 && (
-            <div>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Passed Rounds</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-                {passedActorRounds.map((round) => (
-                  <RoundCard
-                    key={round.id}
-                    round={round}
-                    showSubmitButton={false}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
+        </div>
       )}
 
-      {/* As Preselector Section */}
-      {preselectorRounds.length > 0 && (
-        <section className="flex flex-col gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-[20px]">how_to_reg</span>
-            </div>
-            <h2 className="font-headline-md text-headline-md text-on-background">As Preselector</h2>
-          </div>
-
-          {preselectorRoundData.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-              {preselectorRoundData.map((round) => (
-                <RoundCard
-                  key={round.id}
-                  round={round}
-                  showSubmitButton={false}
-                />
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Submissions per Round */}
+        <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
+          <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Submissions per Round</h3>
+          {roundStats.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {roundStats.map((r) => (
+                <div key={r.id} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-body-sm text-body-sm text-on-surface-variant whitespace-normal break-words" title={r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}>
+                      {r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}
+                    </span>
+                    <span className="font-body-sm text-body-sm text-on-surface font-medium ml-2">{r.count}</span>
+                  </div>
+                  <div className="w-full h-3 bg-surface-container rounded overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded transition-all duration-500"
+                      style={{ width: `${(r.count / r.max) * 100}%` }}
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
-            <EmptyState icon="how_to_reg" message="No rounds assigned yet" />
+            <EmptyState icon="bar_chart" message="No rounds yet" />
           )}
-        </section>
-      )}
+        </div>
+
+        {/* Score Distribution */}
+        <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
+          <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Score Distribution</h3>
+          {scoreDistribution.some((b) => b.count > 0) ? (
+            <div className="flex flex-col gap-3">
+              {scoreDistribution.map((b) => (
+                <div key={b.stars} className="flex items-center gap-3">
+                  <span className="font-body-sm text-on-surface-variant w-28 text-right">
+                    {'★'.repeat(b.stars)}{'☆'.repeat(5 - b.stars)}
+                  </span>
+                  <div className="flex-1 h-6 bg-surface-container rounded overflow-hidden">
+                    <div
+                      className="h-full bg-primary-container rounded transition-all duration-500"
+                      style={{ width: `${b.count > 0 ? Math.max(8, (b.count / Math.max(1, ...scoreDistribution.map((x) => x.count))) * 100) : 0}%` }}
+                    />
+                  </div>
+                  <span className="font-body-sm text-on-surface w-8">{b.count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon="star" message="No reviews yet" />
+          )}
+        </div>
+      </div>
 
       {/* Recent Activity */}
       <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
@@ -605,37 +525,6 @@ export default function Dashboard() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function RoleBadge({
-  directorCount,
-  actorCount,
-  preselectorCount,
-}: {
-  directorCount: number;
-  actorCount: number;
-  preselectorCount: number;
-}) {
-  const roles: { label: string; count: number; icon: string }[] = [];
-  if (directorCount > 0) roles.push({ label: 'Director', count: directorCount, icon: 'movie_creation' });
-  if (actorCount > 0) roles.push({ label: 'Actor', count: actorCount, icon: 'person' });
-  if (preselectorCount > 0) roles.push({ label: 'Preselector', count: preselectorCount, icon: 'how_to_reg' });
-
-  if (roles.length === 0) return null;
-
-  return (
-    <div className="flex items-center gap-3 mt-3 flex-wrap">
-      {roles.map((role) => (
-        <span
-          key={role.label}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container border border-outline-variant/30 font-body-sm text-body-sm text-on-surface-variant"
-        >
-          <span className="material-symbols-outlined text-[14px]">{role.icon}</span>
-          {role.label} ({role.count})
-        </span>
-      ))}
     </div>
   );
 }

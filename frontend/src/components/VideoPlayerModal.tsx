@@ -19,6 +19,7 @@ interface VideoPlayerModalProps {
   submissions: Submission[];
   currentIndex: number;
   isDirector: boolean;
+  isActor?: boolean;
   onClose: () => void;
   onNavigate: (index: number) => void;
   onReviewUpdated: () => void;
@@ -62,7 +63,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function VideoPlayerModal({
-  isOpen, submissions, currentIndex, isDirector, onClose, onNavigate, onReviewUpdated,
+  isOpen, submissions, currentIndex, isDirector, isActor = false, onClose, onNavigate, onReviewUpdated,
 }: VideoPlayerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [selectedStars, setSelectedStars] = useState<number | null>(null);
@@ -280,29 +281,31 @@ export default function VideoPlayerModal({
                 <div className="w-72 flex-shrink-0 bg-surface-container-low border border-outline-variant/30 rounded-xl p-5 flex flex-col gap-4">
                   <h3 className="font-title-sm text-title-sm text-on-surface">Review</h3>
 
-                  {/* Stars */}
-                  <div>
-                    <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
-                      Score
-                    </label>
-                    <div className="flex gap-1">
-                      {Array.from({ length: 5 }, (_, i) => {
-                        const starNum = i + 1;
-                        const isSelected = selectedStars !== null && starNum <= selectedStars;
-                        return (
-                          <button
-                            key={starNum}
-                            type="button"
-                            onClick={() => setSelectedStars(starNum === selectedStars ? null : starNum)}
-                            aria-label={`${starNum} star${starNum > 1 ? 's' : ''}`}
-                            className="text-2xl transition-colors"
-                          >
-                            {isSelected ? '⭐' : '☆'}
-                          </button>
-                        );
-                      })}
+                  {/* Stars - only visible for directors, not actors */}
+                  {!isActor && (
+                    <div>
+                      <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
+                        Score
+                      </label>
+                      <div className="flex gap-1">
+                        {Array.from({ length: 5 }, (_, i) => {
+                          const starNum = i + 1;
+                          const isSelected = selectedStars !== null && starNum <= selectedStars;
+                          return (
+                            <button
+                              key={starNum}
+                              type="button"
+                              onClick={() => setSelectedStars(starNum === selectedStars ? null : starNum)}
+                              aria-label={`${starNum} star${starNum > 1 ? 's' : ''}`}
+                              className="text-2xl transition-colors"
+                            >
+                              {isSelected ? '⭐' : '☆'}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Feedback */}
                   <div className="flex-1">
@@ -330,26 +333,28 @@ export default function VideoPlayerModal({
                     </div>
                   )}
 
-                  {/* Submit Button */}
-                  <button
-                    onClick={handleSubmitReview}
-                    disabled={loading || selectedStars === null}
-                    className="w-full py-2.5 bg-primary-container text-on-primary-container font-title-sm text-title-sm rounded hover:bg-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined text-[18px]">
-                          {hasReview ? 'edit' : 'rate_review'}
-                        </span>
-                        {hasReview ? 'Update Review' : 'Submit Review'}
-                      </>
-                    )}
-                  </button>
+                  {/* Submit Button - only visible for directors, not actors */}
+                  {!isActor && (
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={loading || selectedStars === null}
+                      className="w-full py-2.5 bg-primary-container text-on-primary-container font-title-sm text-title-sm rounded hover:bg-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[18px]">
+                            {hasReview ? 'edit' : 'rate_review'}
+                          </span>
+                          {hasReview ? 'Update Review' : 'Submit Review'}
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

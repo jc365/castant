@@ -60,6 +60,10 @@ export class ManageRoundParticipantsUseCase {
       );
       await this.roundRepository.save(newRound);
 
+      // Mark current round as passed
+      const passedRound = currentRound.markAsPassed();
+      await this.roundRepository.save(passedRound);
+
       const currentSubmissions = await this.submissionRepository.findByRoundId(currentRound.id);
       for (const sub of currentSubmissions) {
         if (actorIds.has(sub.actorId)) {

@@ -49,7 +49,6 @@ export default function RoundDetail() {
   const [showAddParticipants, setShowAddParticipants] = useState(false);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showEditRound, setShowEditRound] = useState(false);
   const [showDeleteSubmission, setShowDeleteSubmission] = useState<string | null>(null);
   const [castingTitle, setCastingTitle] = useState('');
   const [statusFilter, setStatusFilter] = useState<Set<SubmissionStatus>>(new Set(['pending', 'reviewed', 'selected', 'rejected']));
@@ -275,22 +274,13 @@ export default function RoundDetail() {
               <span className="material-symbols-outlined text-[16px]">add_circle</span>
               Create Next Round
             </button>
-            <div className="flex gap-2 mt-1">
-              <button
-                onClick={() => setShowEditRound(true)}
-                className="flex-1 py-1.5 border border-outline-variant/50 text-on-surface-variant font-label-caps text-label-caps rounded hover:bg-surface-container transition-colors flex items-center justify-center gap-1"
-              >
-                <span className="material-symbols-outlined text-[14px]">edit</span>
-                Edit
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="flex-1 py-1.5 border border-error/30 text-error font-label-caps text-label-caps rounded hover:bg-error-container/20 transition-colors flex items-center justify-center gap-1"
-              >
-                <span className="material-symbols-outlined text-[14px]">delete</span>
-                Delete Round
-              </button>
-            </div>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full py-1.5 border border-error/30 text-error font-label-caps text-label-caps rounded hover:bg-error-container/20 transition-colors flex items-center justify-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[14px]">delete</span>
+              Delete Round
+            </button>
           </div>
         )}
 
@@ -486,18 +476,6 @@ export default function RoundDetail() {
         onConfirm={() => showRemoveParticipant && handleRemoveParticipant(showRemoveParticipant.userId)}
         onCancel={() => setShowRemoveParticipant(null)}
       />
-
-      {showEditRound && (
-        <EditRoundModal
-          round={round}
-          onClose={() => setShowEditRound(false)}
-          onSaved={() => {
-            setShowEditRound(false);
-            client.get(`/rounds/${roundId}`).then((res) => setRound(res.data));
-            showSuccess('Round updated');
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -600,70 +578,6 @@ function SubmissionCard({
             Delete Submission
           </button>
         )}
-      </div>
-    </div>
-  );
-}
-
-function EditRoundModal({
-  round,
-  onClose,
-  onSaved,
-}: {
-  round: { id: string; number: number; castingId: string };
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [number, setNumber] = useState(round.number.toString());
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSave = async () => {
-    const num = parseInt(number, 10);
-    if (isNaN(num) || num < 1) {
-      setError('Round number must be a positive integer');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      await client.patch(`/rounds/${round.id}`, { number: num });
-      onSaved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update round');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Edit round">
-      <div className="bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 w-full max-w-sm mx-4 p-6">
-        <h2 className="font-headline-md text-headline-md text-on-surface mb-4">Edit Round</h2>
-        <div>
-          <label className="font-label-caps text-label-caps text-on-surface-variant uppercase mb-2 block">Round Number</label>
-          <input
-            type="number"
-            min="1"
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            className="w-full bg-surface border border-outline-variant/50 rounded-lg p-3 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary"
-          />
-        </div>
-        {error && <p className="text-error font-body-sm text-body-sm mt-2">{error}</p>}
-        <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onClose} className="py-2 px-4 rounded font-title-sm text-title-sm text-on-surface-variant hover:bg-surface-container transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="py-2 px-5 rounded font-title-sm text-title-sm bg-primary-container text-on-primary-container hover:bg-primary-container/80 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {saving && <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>}
-            Save
-          </button>
-        </div>
       </div>
     </div>
   );

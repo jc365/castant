@@ -234,7 +234,7 @@ describe('ManageRoundParticipantsUseCase', () => {
       expect(result.number).toBe(2);
       expect(result.participants).toHaveLength(1);
       expect(result.participants[0].role).toBe('actor');
-      expect(roundRepo.save).toHaveBeenCalledTimes(1);
+      expect(roundRepo.save).toHaveBeenCalledTimes(2); // new round + mark previous as passed
     });
 
     it('should not inherit participants from the previous round', async () => {

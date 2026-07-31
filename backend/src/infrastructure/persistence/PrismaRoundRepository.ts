@@ -3,7 +3,7 @@
  * @module infrastructure/persistence
  */
 
-import Round, { type RoundParticipantEntry, type RoundParticipantRole } from '../../domain/entities/Round';
+import Round, { type RoundParticipantEntry, type RoundParticipantRole, type RoundStatus } from '../../domain/entities/Round';
 import type IRoundRepository from '../../application/interfaces/IRoundRepository';
 import prisma from './prismaClient';
 
@@ -32,6 +32,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
         id: round.id,
         number: round.number,
         castingId: round.castingId,
+        status: round.status,
         participants: {
           create: round.participants.map((entry) => ({
             userId: entry.id,
@@ -41,6 +42,7 @@ export default class PrismaRoundRepository implements IRoundRepository {
       },
       update: {
         number: round.number,
+        status: round.status,
         participants: {
           deleteMany: { roundId: round.id },
           create: round.participants.map((entry) => ({
@@ -65,12 +67,13 @@ export default class PrismaRoundRepository implements IRoundRepository {
     id: string;
     number: number;
     castingId: string;
+    status: string;
     participants: { userId: string; role: string }[];
   }): Round {
     const participants: RoundParticipantEntry[] = record.participants.map((p) => ({
       id: p.userId,
       role: p.role as RoundParticipantRole,
     }));
-    return Round.create(record.number, record.castingId, participants, record.id);
+    return Round.create(record.number, record.castingId, participants, record.id, record.status as RoundStatus);
   }
 }

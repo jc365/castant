@@ -60,8 +60,7 @@ const loginLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
-  message: { error: 'Too many requests, please try again later' },
+  max: process.env.NODE_ENV === 'production' ? 100 : 500, // ← 500 en desarrollo
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -293,6 +292,7 @@ router.get('/castings/:id', async (req, res) => {
     const roundsData = rounds.map((r) => ({
       id: r.id,
       number: r.number,
+      status: r.status,
       participants: r.participants.map((p) => ({
         actorId: p.id,
         role: p.role,
@@ -347,6 +347,7 @@ router.get('/rounds/:id', async (req, res) => {
       id: round.id,
       number: round.number,
       castingId: round.castingId,
+      status: round.status,
       participants: participantsWithEmail,
       submissions: submissions.map((s) => ({
         id: s.id,

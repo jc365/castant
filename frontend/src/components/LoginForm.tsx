@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import client from '../api/client';
+import { useUser } from '../context/UserContext';
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
 }
 
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
+  const { login } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,9 +18,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setLoading(true);
 
     try {
-      const res = await client.post('/auth/login', { email, password });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('userId', res.data.userId);
+      await login({ email, password });
       onLoginSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Credenciales inválidas');

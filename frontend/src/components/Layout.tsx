@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import LoginForm from './LoginForm';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import type { ThemeId } from '../context/ThemeContext';
-import client from '../api/client';
 
 const navItems = [
   { to: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
@@ -21,7 +20,8 @@ const DEMO_USER_MAP: Record<string, string> = {
 
 export default function Layout() {
   const location = useLocation();
-  const { user, refreshUser } = useUser();
+  const navigate = useNavigate();
+  const { user, refreshUser, login, logout } = useUser();
   const { theme, setTheme, toggleTheme, themes, getThemeLabel } = useTheme();
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
@@ -70,10 +70,8 @@ export default function Layout() {
   const handleDemoLogin = async (role: string) => {
     setDemoError('');
     try {
-      const res = await client.post('/auth/login', { xUserId: role });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('userId', res.data.userId);
-      refreshUser();
+      await login({ xUserId: role });
+      navigate('/dashboard');
     } catch (err) {
       setDemoError(err instanceof Error ? err.message : 'Demo login failed');
     }
@@ -87,20 +85,16 @@ export default function Layout() {
 
   const toggleDemo = async () => {
     if (demoEnabled) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('userId');
+      logout();
       setDemoEnabled(false);
-      refreshUser();
       return;
     }
 
     setDemoError('');
     try {
-      const res = await client.post('/auth/login', { xUserId: selectedRole });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('userId', res.data.userId);
+      await login({ xUserId: selectedRole });
       setDemoEnabled(true);
-      refreshUser();
+      navigate('/dashboard');
     } catch (err) {
       setDemoError(err instanceof Error ? err.message : 'Demo login failed');
     }
@@ -112,10 +106,8 @@ export default function Layout() {
     if (demoEnabled) {
       setDemoError('');
       try {
-        const res = await client.post('/auth/login', { xUserId: role });
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('userId', res.data.userId);
-        refreshUser();
+        await login({ xUserId: role });
+        navigate('/dashboard');
       } catch (err) {
         setDemoError(err instanceof Error ? err.message : 'Demo login failed');
       }
@@ -123,10 +115,8 @@ export default function Layout() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
+    logout();
     setDemoEnabled(false);
-    refreshUser();
   };
 
   const handleLogin = () => {
@@ -270,10 +260,10 @@ export default function Layout() {
         <div className="flex items-center gap-4 ml-auto">
           {demoEnabled && (
             <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full font-label-caps uppercase">
-              Mode Demo Activated
+              Demo: {selectedRole}
             </span>
           )}
-          {user && (
+          {user && !demoEnabled && (
             <div className="flex items-center gap-2 ml-2">
               <div className="text-right">
                 <p className="text-sm font-medium text-on-surface leading-tight">{user.name}</p>

@@ -4,11 +4,15 @@ import { MemoryRouter } from 'react-router-dom';
 import Layout from './Layout';
 
 const mockRefreshUser = vi.fn();
+const mockLogin = vi.fn();
+const mockLogout = vi.fn();
 
 vi.mock('../context/UserContext', () => ({
   useUser: () => ({
     user: null,
     refreshUser: mockRefreshUser,
+    login: mockLogin,
+    logout: mockLogout,
   }),
   UserProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -32,15 +36,6 @@ vi.mock('../context/ThemeContext', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('../api/client', () => ({
-  default: {
-    post: vi.fn(),
-    get: vi.fn(),
-  },
-}));
-
-import client from '../api/client';
-
 describe('Layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,11 +56,8 @@ describe('Layout', () => {
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
-  it('toggle demo llama a POST /auth/login con xUserId', async () => {
-    const mockPost = vi.mocked(client.post);
-    mockPost.mockResolvedValueOnce({
-      data: { token: 'demo-token', userId: 'user-director-1' },
-    });
+  it('toggle demo llama a login con xUserId', async () => {
+    mockLogin.mockResolvedValueOnce(undefined);
 
     render(
       <MemoryRouter>
@@ -79,14 +71,14 @@ describe('Layout', () => {
     }
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith('/auth/login', { xUserId: 'director' });
+      expect(mockLogin).toHaveBeenCalledWith({ xUserId: 'director' });
     });
   });
 
   it('toggle demo guarda token y userId en localStorage', async () => {
-    const mockPost = vi.mocked(client.post);
-    mockPost.mockResolvedValueOnce({
-      data: { token: 'demo-token', userId: 'user-director-1' },
+    mockLogin.mockImplementation(async () => {
+      localStorage.setItem('token', 'demo-token');
+      localStorage.setItem('userId', 'user-director-1');
     });
 
     render(
@@ -110,6 +102,11 @@ describe('Layout', () => {
     localStorage.setItem('token', 'existing-token');
     localStorage.setItem('userId', 'user-123');
 
+    mockLogout.mockImplementation(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+    });
+
     render(
       <MemoryRouter>
         <Layout />
@@ -122,17 +119,14 @@ describe('Layout', () => {
     }
 
     await waitFor(() => {
+      expect(mockLogout).toHaveBeenCalled();
       expect(localStorage.getItem('token')).toBeNull();
       expect(localStorage.getItem('userId')).toBeNull();
-      expect(mockRefreshUser).toHaveBeenCalled();
     });
   });
 
   it('role selector changes selected role', async () => {
-    const mockPost = vi.mocked(client.post);
-    mockPost.mockResolvedValue({
-      data: { token: 'demo-token', userId: 'user-director-1' },
-    });
+    mockLogin.mockResolvedValue(undefined);
 
     render(
       <MemoryRouter>

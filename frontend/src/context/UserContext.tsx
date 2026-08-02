@@ -26,6 +26,8 @@ interface UserContextValue {
   isLoading: boolean;
   refreshParticipations: () => void;
   refreshUser: () => void;
+  login: (credentials: { email: string; password: string } | { xUserId: string }) => Promise<void>;
+  logout: () => void;
   isDirectorOf: (castingId: string) => boolean;
   isActorOf: (roundId: string) => boolean;
   isPreselectorOf: (roundId: string) => boolean;
@@ -162,6 +164,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return p ? p.role : null;
   }, [participations]);
 
+  const login = useCallback(async (credentials: { email: string; password: string } | { xUserId: string }) => {
+    const res = await client.post('/auth/login', credentials);
+    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('userId', res.data.userId);
+    refreshUser();
+  }, [refreshUser]);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    refreshUser();
+  }, [refreshUser]);
+
   return (
     <UserContext.Provider value={{
       user,
@@ -169,6 +184,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       refreshParticipations,
       refreshUser,
+      login,
+      logout,
       isDirectorOf,
       isActorOf,
       isPreselectorOf,

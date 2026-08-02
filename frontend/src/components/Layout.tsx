@@ -260,10 +260,10 @@ export default function Layout() {
         <div className="flex items-center gap-4 ml-auto">
           {demoEnabled && (
             <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full font-label-caps uppercase">
-              Demo: {selectedRole}
+              Mode Demo Activated
             </span>
           )}
-          {user && !demoEnabled && (
+          {user && (
             <div className="flex items-center gap-2 ml-2">
               <div className="text-right">
                 <p className="text-sm font-medium text-on-surface leading-tight">{user.name}</p>

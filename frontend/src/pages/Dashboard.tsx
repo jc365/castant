@@ -2,27 +2,9 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../api/client';
 import { useUser } from '../context/UserContext';
-import { useUserCache } from '../context/UserCacheContext';
 import SubmitVideoModal from '../components/SubmitVideoModal';
 import type { SubmissionStatus } from '../utils/submissionStatus';
-import { scoreToStars } from '../utils/scoring';
-
-interface CastingParticipation {
-  type: 'casting';
-  castingId: string;
-  castingTitle: string;
-  castingDescription: string;
-  role: string;
-}
-
-interface RoundParticipation {
-  type: 'round';
-  roundId: string;
-  roundNumber: number;
-  castingId: string;
-  castingTitle: string;
-  role: string;
-}
+import { getRoleBadge } from '../utils/roleConfig';
 
 interface Participant {
   userId: string;
@@ -54,74 +36,42 @@ interface SubmissionData {
   feedback: string | null;
 }
 
-interface DashboardStats {
-  totalCastings: number;
-  activeCastings: number;
-  reviewedSubmissions: number;
+interface CastingWithRoles {
+  id: string;
+  title: string;
+  description: string;
+  roles: string[];
+  roundsCount: number;
+  totalSubmissions: number;
   pendingSubmissions: number;
-}
-
-interface RoundStat {
-  id: string;
-  label: string;
-  count: number;
-  max: number;
-  castingTitle: string;
-}
-
-interface ScoreBucket {
-  stars: number;
-  count: number;
-}
-
-interface ActivityItem {
-  id: string;
-  type: 'submission' | 'review';
-  actorId: string;
-  castingTitle: string;
-  roundNumber: number;
-  score: number | null;
-  timestamp: Date;
-  submissionId: string;
-  status: SubmissionStatus;
-  roundId: string;
 }
 
 export default function Dashboard() {
   const { participations } = useUser();
-  const { getUser, ensureUser } = useUserCache();
   const [castings, setCastings] = useState<Casting[]>([]);
   const [rounds, setRounds] = useState<RoundSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitModalRoundId, setSubmitModalRoundId] = useState<string | null>(null);
 
-  const directorCastings = useMemo(() =>
-    participations.filter((p): p is CastingParticipation => p.type === 'casting' && p.role === 'director'),
-    [participations]
-  );
-
-  const actorRounds = useMemo(() =>
-    participations.filter((p): p is RoundParticipation => p.type === 'round' && p.role === 'actor'),
-    [participations]
-  );
-
-  const preselectorRounds = useMemo(() =>
-    participations.filter((p): p is RoundParticipation => p.type === 'round' && p.role === 'preselector'),
-    [participations]
-  );
-
-  const myCastingIds = useMemo(() =>
-    new Set(directorCastings.map((p) => p.castingId)),
-    [directorCastings]
-  );
-
-  const myRoundIds = useMemo(() => {
+  const myCastingIds = useMemo(() => {
     const ids = new Set<string>();
-    actorRounds.forEach((p) => ids.add(p.roundId));
-    preselectorRounds.forEach((p) => ids.add(p.roundId));
+    participations.forEach((p) => {
+      if (p.type === 'casting') ids.add(p.castingId);
+      if (p.type === 'round') ids.add(p.castingId);
+    });
     return ids;
-  }, [actorRounds, preselectorRounds]);
+  }, [participations]);
+
+  const rolesByCasting = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    participations.forEach((p) => {
+      const castingId = p.type === 'casting' ? p.castingId : p.castingId;
+      if (!map.has(castingId)) map.set(castingId, new Set());
+      map.get(castingId)!.add(p.role);
+    });
+    return map;
+  }, [participations]);
 
   const hasLoadedRef = useRef(false);
   const previousIdsRef = useRef<string>('');
@@ -153,8 +103,6 @@ export default function Dashboard() {
       setLoading(true);
       setError('');
       try {
-        const roundsMap = new Map<string, RoundSummary>();
-
         if (myCastingIds.size > 0) {
           const castingsRes = await client.get('/castings');
           if (cancelled) return;
@@ -162,13 +110,14 @@ export default function Dashboard() {
           const myCastings = allCastings.filter((c) => myCastingIds.has(c.id));
           setCastings(myCastings);
 
+          const roundsData: RoundSummary[] = [];
           for (const casting of myCastings) {
             const castingRes = await client.get(`/castings/${casting.id}`);
             if (cancelled) return;
             for (const r of castingRes.data.rounds) {
               const roundRes = await client.get(`/rounds/${r.id}`);
               if (cancelled) return;
-              roundsMap.set(r.id, {
+              roundsData.push({
                 id: r.id,
                 number: r.number,
                 castingId: casting.id,
@@ -178,29 +127,10 @@ export default function Dashboard() {
               });
             }
           }
-        }
-
-        const neededRoundIds = Array.from(myRoundIds).filter((id) => !roundsMap.has(id));
-        for (const roundId of neededRoundIds) {
-          const roundRes = await client.get(`/rounds/${roundId}`);
-          if (cancelled) return;
-          const data = roundRes.data;
-          const castingTitle = data.castingId
-            ? (await client.get(`/castings/${data.castingId}`).catch(() => null))?.data?.title ?? ''
-            : '';
-          roundsMap.set(roundId, {
-            id: data.id,
-            number: data.number,
-            castingId: data.castingId || '',
-            castingTitle,
-            status: data.status || 'active',
-            submissions: data.submissions,
-          });
-        }
-
-        if (!cancelled) {
-          setRounds(Array.from(roundsMap.values()));
-          hasLoadedRef.current = true;
+          if (!cancelled) {
+            setRounds(roundsData);
+            hasLoadedRef.current = true;
+          }
         }
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load dashboard');
@@ -211,136 +141,28 @@ export default function Dashboard() {
 
     load();
     return () => { cancelled = true; };
-  }, [myCastingIds, myRoundIds]);
+  }, [myCastingIds]);
 
-  const directorRoundIds = useMemo(() => {
-    const ids = new Set<string>();
-    rounds.forEach((r) => { if (myCastingIds.has(r.castingId)) ids.add(r.id); });
-    return ids;
-  }, [rounds, myCastingIds]);
-
-  const directorRounds = useMemo(() =>
-    rounds.filter((r) => directorRoundIds.has(r.id)),
-    [rounds, directorRoundIds]
-  );
-
-  const actorRoundData = useMemo(() =>
-    rounds.filter((r) => actorRounds.some((p) => p.roundId === r.id)),
-    [rounds, actorRounds]
-  );
-
-  const preselectorRoundData = useMemo(() =>
-    rounds.filter((r) => preselectorRounds.some((p) => p.roundId === r.id)),
-    [rounds, preselectorRounds]
-  );
-
-  const directorStats = useMemo<DashboardStats>(() => {
-    let reviewed = 0;
-    let pending = 0;
-    for (const r of directorRounds) {
-      for (const s of r.submissions) {
-        if (s.status === 'pending') pending++;
-        else reviewed++;
-      }
-    }
-    const activeCastingIds = new Set(
-      directorRounds.filter((r) => r.submissions.some((s) => s.status === 'pending')).map((r) => r.castingId)
-    );
-    return {
-      totalCastings: castings.length,
-      activeCastings: activeCastingIds.size,
-      reviewedSubmissions: reviewed,
-      pendingSubmissions: pending,
-    };
-  }, [castings, directorRounds]);
-
-  const actorStats = useMemo(() => {
-    let totalVideos = 0;
-    let reviewed = 0;
-    let pending = 0;
-    for (const r of actorRoundData) {
-      for (const s of r.submissions) {
-        totalVideos++;
-        if (s.status === 'pending') pending++;
-        else reviewed++;
-      }
-    }
-    return { totalVideos, reviewed, pending };
-  }, [actorRoundData]);
-
-  const roundStats = useMemo<RoundStat[]>(() => {
-    const max = Math.max(1, ...directorRounds.map((r) => r.submissions.length));
-    return directorRounds.map((r) => ({
-      id: r.id,
-      label: `Round ${r.number}`,
-      count: r.submissions.length,
-      max,
-      castingTitle: r.castingTitle || '',
-    }));
-  }, [directorRounds]);
-
-  const scoreDistribution = useMemo<ScoreBucket[]>(() => {
-    const buckets = [0, 0, 0, 0, 0];
-    for (const r of directorRounds) {
-      for (const s of r.submissions) {
-        if (s.score !== null) {
-          const stars = Math.min(5, Math.max(1, scoreToStars(s.score)));
-          buckets[stars - 1]++;
-        }
-      }
-    }
-    return buckets.map((count, i) => ({ stars: i + 1, count })).reverse();
-  }, [directorRounds]);
-
-  const recentActivity = useMemo<ActivityItem[]>(() => {
-    const castingMap = new Map(castings.map((c) => [c.id, c.title]));
-    rounds.forEach((r) => { if (!castingMap.has(r.castingId)) castingMap.set(r.castingId, r.castingTitle); });
-    const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60 * 1000;
-
-    const pending: ActivityItem[] = [];
-    const reviewed: ActivityItem[] = [];
-
-    for (const r of rounds) {
-      const title = castingMap.get(r.castingId) || 'Unknown';
-      for (const s of r.submissions) {
-        const item: ActivityItem = {
-          id: s.id,
-          type: s.status !== 'pending' ? 'review' : 'submission',
-          actorId: s.actorId,
-          castingTitle: title,
-          roundNumber: r.number,
-          score: s.score,
-          timestamp: new Date(),
-          submissionId: s.id,
-          status: s.status,
-          roundId: r.id,
-        };
-        if (s.status === 'pending') {
-          pending.push(item);
-        } else if (item.timestamp.getTime() >= twoDaysAgo) {
-          reviewed.push(item);
-        }
-      }
-    }
-
-    reviewed.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-    return [...pending, ...reviewed].slice(0, 10);
-  }, [castings, rounds]);
-
-  useEffect(() => {
-    recentActivity.forEach((item) => ensureUser(item.actorId));
-  }, [recentActivity, ensureUser]);
-
-  const activeActorRounds = useMemo(() =>
-    actorRoundData.filter((r) => r.status === 'active'),
-    [actorRoundData]
-  );
-
-  const passedActorRounds = useMemo(() =>
-    actorRoundData.filter((r) => r.status === 'passed'),
-    [actorRoundData]
-  );
+  const castingsWithRoles = useMemo<CastingWithRoles[]>(() => {
+    return castings.map((casting) => {
+      const roles = Array.from(rolesByCasting.get(casting.id) || []);
+      const castingRounds = rounds.filter((r) => r.castingId === casting.id);
+      const totalSubmissions = castingRounds.reduce((acc, r) => acc + r.submissions.length, 0);
+      const pendingSubmissions = castingRounds.reduce(
+        (acc, r) => acc + r.submissions.filter((s) => s.status === 'pending').length,
+        0
+      );
+      return {
+        id: casting.id,
+        title: casting.title,
+        description: casting.description,
+        roles,
+        roundsCount: castingRounds.length,
+        totalSubmissions,
+        pendingSubmissions,
+      };
+    });
+  }, [castings, rounds, rolesByCasting]);
 
   if (loading) {
     return (
@@ -361,239 +183,28 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Header */}
       <div>
         <h1 className="font-display-lg text-display-lg text-on-background">Dashboard</h1>
         <p className="text-on-surface-variant mt-2 font-body-lg text-body-lg">
-          Overview of your casting activity.
+          Your castings and participations.
         </p>
-        <RoleBadge
-          directorCount={directorCastings.length}
-          actorCount={actorRounds.length}
-          preselectorCount={preselectorRounds.length}
-        />
       </div>
 
-      {/* As Director Section */}
-      {directorCastings.length > 0 && (
-        <section className="flex flex-col gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-[20px]">movie_creation</span>
-            </div>
-            <h2 className="font-headline-md text-headline-md text-on-background">As Director</h2>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard icon="movie_creation" label="Total Castings" value={directorStats.totalCastings} />
-            <KPICard icon="live_tv" label="Active Castings" value={directorStats.activeCastings} />
-            <KPICard icon="check_circle" label="Reviewed" value={directorStats.reviewedSubmissions} />
-            <KPICard icon="pending" label="Pending" value={directorStats.pendingSubmissions} />
-          </div>
-
-          <div>
-            <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Your Castings</h3>
-            {castings.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-                {castings.map((casting) => (
-                  <CastingCard key={casting.id} casting={casting} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 bg-surface border border-outline-variant/30 rounded-xl">
-                <span className="material-symbols-outlined text-6xl text-outline mb-4 block">movie_creation</span>
-                <p className="text-on-surface-variant font-body-lg text-body-lg">
-                  No castings yet. Create your first one.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-              <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Submissions per Round</h3>
-              {roundStats.length > 0 ? (
-                <div className="flex flex-col gap-4">
-                  {roundStats.map((r) => (
-                    <div key={r.id} className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-body-sm text-body-sm text-on-surface-variant whitespace-normal break-words" title={r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}>
-                          {r.castingTitle ? `${r.label} — ${r.castingTitle}` : r.label}
-                        </span>
-                        <span className="font-body-sm text-body-sm text-on-surface font-medium ml-2">{r.count}</span>
-                      </div>
-                      <div className="w-full h-3 bg-surface-container rounded overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded transition-all duration-500"
-                          style={{ width: `${(r.count / r.max) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon="bar_chart" message="No rounds yet" />
-              )}
-            </div>
-
-            <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-              <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Score Distribution</h3>
-              {scoreDistribution.some((b) => b.count > 0) ? (
-                <div className="flex flex-col gap-3">
-                  {scoreDistribution.map((b) => (
-                    <div key={b.stars} className="flex items-center gap-3">
-                      <span className="font-body-sm text-on-surface-variant w-28 text-right">
-                        {'★'.repeat(b.stars)}{'☆'.repeat(5 - b.stars)}
-                      </span>
-                      <div className="flex-1 h-6 bg-surface-container rounded overflow-hidden">
-                        <div
-                          className="h-full bg-primary-container rounded transition-all duration-500"
-                          style={{ width: `${b.count > 0 ? Math.max(8, (b.count / Math.max(1, ...scoreDistribution.map((x) => x.count))) * 100) : 0}%` }}
-                        />
-                      </div>
-                      <span className="font-body-sm text-on-surface w-8">{b.count}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon="star" message="No reviews yet" />
-              )}
-            </div>
-          </div>
-        </section>
+      {castingsWithRoles.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+          {castingsWithRoles.map((casting) => (
+            <CastingCard key={casting.id} casting={casting} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16 bg-surface border border-outline-variant/30 rounded-xl">
+          <span className="material-symbols-outlined text-6xl text-outline mb-4 block">movie_creation</span>
+          <p className="text-on-surface-variant font-body-lg text-body-lg">
+            No castings yet. Create your first one.
+          </p>
+        </div>
       )}
 
-      {/* As Actor Section */}
-      {actorRounds.length > 0 && (
-        <section className="flex flex-col gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-[20px]">person</span>
-            </div>
-            <h2 className="font-headline-md text-headline-md text-on-background">As Actor</h2>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <KPICard icon="video_library" label="My Videos" value={actorStats.totalVideos} />
-            <KPICard icon="check_circle" label="Reviewed" value={actorStats.reviewed} />
-            <KPICard icon="pending" label="Pending" value={actorStats.pending} />
-          </div>
-
-          {activeActorRounds.length > 0 && (
-            <div>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Active Rounds</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-                {activeActorRounds.map((round) => (
-                  <RoundCard
-                    key={round.id}
-                    round={round}
-                    showSubmitButton
-                    onSubmitVideo={() => setSubmitModalRoundId(round.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {passedActorRounds.length > 0 && (
-            <div>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface mb-4">Passed Rounds</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-                {passedActorRounds.map((round) => (
-                  <RoundCard
-                    key={round.id}
-                    round={round}
-                    showSubmitButton={false}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* As Preselector Section */}
-      {preselectorRounds.length > 0 && (
-        <section className="flex flex-col gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-[20px]">how_to_reg</span>
-            </div>
-            <h2 className="font-headline-md text-headline-md text-on-background">As Preselector</h2>
-          </div>
-
-          {preselectorRoundData.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-              {preselectorRoundData.map((round) => (
-                <RoundCard
-                  key={round.id}
-                  round={round}
-                  showSubmitButton={false}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState icon="how_to_reg" message="No rounds assigned yet" />
-          )}
-        </section>
-      )}
-
-      {/* Recent Activity */}
-      <div className="bg-surface border border-outline-variant/30 rounded-xl p-6">
-        <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-4">Recent Activity</h3>
-        {recentActivity.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-outline-variant/20">
-            {recentActivity.map((item) => (
-              <li key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <span className={`material-symbols-outlined text-[20px] ${item.type === 'review' ? 'text-primary' : 'text-on-surface-variant'}`}>
-                  {item.type === 'review' ? 'rate_review' : 'upload'}
-                </span>
-                <div className="flex-1 min-w-0">
-                  {item.status === 'pending' ? (
-                    <Link to={`/rounds/${item.roundId}`} className="block">
-                      <p className="font-body-sm text-body-sm text-on-surface truncate">
-                        <span className="font-medium">{getUser(item.actorId)?.name || item.actorId}</span>
-                        {' '}
-                        {item.type === 'review' ? 'reviewed in' : 'submitted to'}
-                        {' '}
-                        <span className="text-on-surface-variant">{item.castingTitle}</span>
-                        {' '}
-                        <span className="text-on-surface-variant">· Round {item.roundNumber}</span>
-                        {' '}
-                        <span className="text-on-surface-variant">· </span>
-                        <span className="text-on-surface-variant font-mono text-[11px]">{item.submissionId}</span>
-                      </p>
-                    </Link>
-                  ) : (
-                    <p className="font-body-sm text-body-sm text-on-surface truncate">
-                      <span className="font-medium">{getUser(item.actorId)?.name || item.actorId}</span>
-                      {' '}
-                      {item.type === 'review' ? 'reviewed in' : 'submitted to'}
-                      {' '}
-                      <span className="text-on-surface-variant">{item.castingTitle}</span>
-                      {' '}
-                      <span className="text-on-surface-variant">· Round {item.roundNumber}</span>
-                      {' '}
-                      <span className="text-on-surface-variant">· </span>
-                      <span className="text-on-surface-variant font-mono text-[11px]">{item.submissionId}</span>
-                    </p>
-                  )}
-                </div>
-                {item.score !== null && (
-                  <span className="flex items-center gap-1 flex-shrink-0">
-                    <span className="material-symbols-outlined text-[14px] text-primary">star</span>
-                    <span className="font-body-sm text-body-sm text-on-surface">{item.score}</span>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState icon="history" message="No activity yet" />
-        )}
-      </div>
-
-      {/* Submit Video Modal */}
       {submitModalRoundId && (
         <SubmitVideoModal
           roundId={submitModalRoundId}
@@ -609,63 +220,7 @@ export default function Dashboard() {
   );
 }
 
-function RoleBadge({
-  directorCount,
-  actorCount,
-  preselectorCount,
-}: {
-  directorCount: number;
-  actorCount: number;
-  preselectorCount: number;
-}) {
-  const roles: { label: string; count: number; icon: string }[] = [];
-  if (directorCount > 0) roles.push({ label: 'Director', count: directorCount, icon: 'movie_creation' });
-  if (actorCount > 0) roles.push({ label: 'Actor', count: actorCount, icon: 'person' });
-  if (preselectorCount > 0) roles.push({ label: 'Preselector', count: preselectorCount, icon: 'how_to_reg' });
-
-  if (roles.length === 0) return null;
-
-  return (
-    <div className="flex items-center gap-3 mt-3 flex-wrap">
-      {roles.map((role) => (
-        <span
-          key={role.label}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container border border-outline-variant/30 font-body-sm text-body-sm text-on-surface-variant"
-        >
-          <span className="material-symbols-outlined text-[14px]">{role.icon}</span>
-          {role.label} ({role.count})
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function KPICard({ icon, label, value }: { icon: string; label: string; value: number }) {
-  return (
-    <div className="bg-surface border border-outline-variant/30 rounded-xl p-5 flex flex-col gap-3">
-      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-        <span className="material-symbols-outlined text-primary text-[20px]">{icon}</span>
-      </div>
-      <div>
-        <p className="font-display-lg text-display-lg text-on-surface">{value}</p>
-        <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ icon, message }: { icon: string; message: string }) {
-  return (
-    <div className="text-center py-10">
-      <span className="material-symbols-outlined text-4xl text-outline mb-2 block">{icon}</span>
-      <p className="text-on-surface-variant font-body-sm text-body-sm">{message}</p>
-    </div>
-  );
-}
-
-function CastingCard({ casting }: { casting: Casting }) {
-  const directorCount = casting.participants.filter((p) => p.role === 'director').length;
-
+function CastingCard({ casting }: { casting: CastingWithRoles }) {
   return (
     <Link
       to={`/castings/${casting.id}`}
@@ -673,23 +228,40 @@ function CastingCard({ casting }: { casting: Casting }) {
     >
       <div className="absolute inset-0 bg-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       <div className="p-6 flex-1 flex flex-col z-10">
-        <h3 className="font-headline-md text-headline-md text-on-background mb-1">
+        <h3 className="font-headline-md text-headline-md text-on-background mb-2">
           {casting.title}
         </h3>
-        <p className="font-body-sm text-body-sm text-on-surface-variant mb-6 line-clamp-2">
-          {casting.description}
-        </p>
-        <div className="mt-auto grid grid-cols-2 gap-4 border-t border-outline-variant/20 pt-4">
-          <div>
-            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">Participants</p>
-            <p className="font-title-sm text-title-sm text-on-surface">
-              {casting.participants.length} {casting.participants.length === 1 ? 'Member' : 'Members'}
-            </p>
-          </div>
-          <div>
-            <p className="font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">Directors</p>
-            <p className="font-title-sm text-title-sm text-on-surface">{directorCount}</p>
-          </div>
+
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {casting.roles.map((role) => {
+            const config = getRoleBadge(role);
+            return (
+              <span
+                key={role}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-label-caps border ${config.className}`}
+              >
+                <span>{config.icon}</span>
+                {config.label}
+              </span>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-4 text-sm text-on-surface-variant mt-auto">
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-[16px]">loop</span>
+            {casting.roundsCount} {casting.roundsCount === 1 ? 'round' : 'rounds'}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-[16px]">upload</span>
+            {casting.totalSubmissions} submissions
+          </span>
+          {casting.pendingSubmissions > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px]">pending</span>
+              {casting.pendingSubmissions} pending
+            </span>
+          )}
         </div>
       </div>
       <div className="bg-surface-container-high border-t border-outline-variant/30 p-4 z-10 relative">
@@ -699,72 +271,5 @@ function CastingCard({ casting }: { casting: Casting }) {
         </span>
       </div>
     </Link>
-  );
-}
-
-function RoundCard({
-  round,
-  showSubmitButton,
-  onSubmitVideo,
-}: {
-  round: RoundSummary;
-  showSubmitButton: boolean;
-  onSubmitVideo?: () => void;
-}) {
-  const pendingCount = round.submissions.filter((s) => s.status === 'pending').length;
-  const reviewedCount = round.submissions.filter((s) => s.status !== 'pending').length;
-
-  return (
-    <div className="bg-surface border border-outline-variant/30 rounded-xl overflow-hidden flex flex-col h-full">
-      <div className="p-5 flex-1 flex flex-col">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h4 className="font-headline-sm text-headline-sm text-on-surface">Round {round.number}</h4>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">{round.castingTitle}</p>
-          </div>
-          <span className={`px-2 py-1 rounded font-label-caps text-label-caps ${round.status === 'active'
-            ? 'bg-primary-container/20 text-primary-fixed-dim border border-primary-container/30'
-            : 'bg-surface-container text-on-surface-variant border border-outline-variant/30'
-            }`}>
-            {round.status === 'active' ? 'ACTIVE' : 'PASSED'}
-          </span>
-        </div>
-        <div className="flex gap-4 text-sm text-on-surface-variant mt-auto">
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[16px]">upload</span>
-            {round.submissions.length} submissions
-          </span>
-          {pendingCount > 0 && (
-            <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px]">pending</span>
-              {pendingCount} pending
-            </span>
-          )}
-          {reviewedCount > 0 && (
-            <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px]">check_circle</span>
-              {reviewedCount} reviewed
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="bg-surface-container-high border-t border-outline-variant/30 p-4 flex gap-2">
-        <Link
-          to={`/rounds/${round.id}`}
-          className="flex-1 py-2 text-center border border-outline-variant/50 text-on-surface-variant font-title-sm text-title-sm rounded hover:bg-surface-container transition-colors"
-        >
-          View
-        </Link>
-        {showSubmitButton && onSubmitVideo && (
-          <button
-            onClick={onSubmitVideo}
-            className="flex-1 py-2 bg-primary-container text-on-primary-container font-title-sm text-title-sm rounded hover:bg-primary transition-colors flex items-center justify-center gap-1"
-          >
-            <span className="material-symbols-outlined text-[16px]">upload</span>
-            Submit Video
-          </button>
-        )}
-      </div>
-    </div>
   );
 }

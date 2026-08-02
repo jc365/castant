@@ -5,6 +5,7 @@ import { useUser } from '../context/UserContext';
 import { useUserCache } from '../context/UserCacheContext';
 import { useToast } from '../context/ToastContext';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { getRoleBadge } from '../utils/roleConfig';
 
 interface Participant {
   userId: string;
@@ -125,9 +126,10 @@ export default function CastingDetail() {
           </div>
           <div className="flex items-center gap-3">
             {role && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30">
-                <span className="font-label-caps text-label-caps text-primary uppercase">
-                  Your role: {role}
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${getRoleBadge(role).className}`}>
+                <span>{getRoleBadge(role).icon}</span>
+                <span className="font-label-caps text-label-caps uppercase">
+                  Your role: {getRoleBadge(role).label}
                 </span>
               </span>
             )}

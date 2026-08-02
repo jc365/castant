@@ -77,6 +77,7 @@ describe('App', () => {
     });
 
     it('failed login shows error message', async () => {
+      mockedPost.mockRejectedValueOnce({ message: 'Demo login failed' });
       mockedPost.mockRejectedValueOnce({ message: 'Credenciales inválidas' });
 
       const { container } = render(<App />);
@@ -103,7 +104,7 @@ describe('App', () => {
       render(<App />);
 
       await waitFor(() => {
-        expect(screen.getByText('Your Castings')).toBeInTheDocument();
+        expect(screen.getByText('Your castings and participations.')).toBeInTheDocument();
       });
     });
 

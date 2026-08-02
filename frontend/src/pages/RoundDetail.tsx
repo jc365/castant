@@ -11,6 +11,7 @@ import AddParticipantsModal from '../components/AddParticipantsModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { getStatusStyle, type SubmissionStatus } from '../utils/submissionStatus';
 import { scoreToStars } from '../utils/scoring';
+import { getRoleBadge } from '../utils/roleConfig';
 
 interface Participant {
   id: string;
@@ -314,9 +315,10 @@ export default function RoundDetail() {
           {/* Role Badge */}
           {role && (
             <section>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30 w-full justify-center">
-                <span className="font-label-caps text-label-caps text-primary uppercase">
-                  Your role: {role}
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border w-full justify-center ${getRoleBadge(role).className}`}>
+                <span>{getRoleBadge(role).icon}</span>
+                <span className="font-label-caps text-label-caps uppercase">
+                  Your role: {getRoleBadge(role).label}
                 </span>
               </span>
             </section>

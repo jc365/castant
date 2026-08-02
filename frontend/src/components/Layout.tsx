@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import LoginForm from './LoginForm';
 import { useUser } from '../context/UserContext';
-import { useTheme } from '../context/ThemeContext';      // Importa useTheme
-import type { ThemeId } from '../context/ThemeContext';  // Importa el tipo ThemeId
+import { useTheme } from '../context/ThemeContext';
+import type { ThemeId } from '../context/ThemeContext';
 import client from '../api/client';
 
 const navItems = [
@@ -11,6 +11,13 @@ const navItems = [
   { to: '/castings', icon: 'groups', label: 'Casting Calls' },
   { to: '/castings/create', icon: 'add_circle', label: 'Create Casting' },
 ];
+
+const DEMO_USER_MAP: Record<string, string> = {
+  'director@demo.com': 'director',
+  'actor1@demo.com': 'actor',
+  'actor2@demo.com': 'actor',
+  'preselector@demo.com': 'preselector',
+};
 
 export default function Layout() {
   const location = useLocation();
@@ -21,6 +28,7 @@ export default function Layout() {
   const [demoEnabled, setDemoEnabled] = useState(() => !!localStorage.getItem('token'));
   const [selectedRole, setSelectedRole] = useState('director');
   const [demoError, setDemoError] = useState('');
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
   const token = localStorage.getItem('token');
@@ -28,6 +36,48 @@ export default function Layout() {
 
   const sidebarWidth = collapsed ? 'w-16' : 'w-[280px]';
   const mainMargin = collapsed ? 'ml-16' : 'ml-[280px]';
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      refreshUser();
+    } else {
+      setSelectedRole('director');
+      setDemoEnabled(true);
+      handleDemoLogin('director');
+    }
+    setInitialLoadDone(true);
+  }, []);
+
+  useEffect(() => {
+    if (!initialLoadDone) return;
+
+    if (!user) {
+      return;
+    }
+
+    const isDemoUser = user.email in DEMO_USER_MAP;
+
+    if (isDemoUser) {
+      setDemoEnabled(true);
+      const role = DEMO_USER_MAP[user.email] || 'director';
+      setSelectedRole(role);
+    } else {
+      setDemoEnabled(false);
+    }
+  }, [user, initialLoadDone]);
+
+  const handleDemoLogin = async (role: string) => {
+    setDemoError('');
+    try {
+      const res = await client.post('/auth/login', { xUserId: role });
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('userId', res.data.userId);
+      refreshUser();
+    } catch (err) {
+      setDemoError(err instanceof Error ? err.message : 'Demo login failed');
+    }
+  };
 
   const toggleSidebar = () => {
     const next = !collapsed;
@@ -188,8 +238,8 @@ export default function Layout() {
                 >
                   <div
                     className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${demoEnabled
-                        ? 'left-5 bg-on-primary-container'
-                        : 'left-0.5 bg-outline'
+                      ? 'left-5 bg-on-primary-container'
+                      : 'left-0.5 bg-outline'
                       }`}
                   />
                 </div>
@@ -216,40 +266,11 @@ export default function Layout() {
       </nav>
 
       {/* TopAppBar */}
-      {/* <header className={`fixed top-0 right-0 ${mainMargin} h-16 bg-background/80 backdrop-blur-md border-b border-outline-variant/20 flex justify-between items-center px-margin-desktop w-[calc(100%-0rem)] z-40 transition-all duration-300`}>
-        <div />
+      <header className={`fixed top-0 right-0 ${mainMargin} h-16 bg-background/80 backdrop-blur-md border-b border-outline-variant/20 flex justify-between items-center px-margin-desktop w-[calc(100%-0rem)] z-40 transition-all duration-300`}>
         <div className="flex items-center gap-4 ml-auto">
           {demoEnabled && (
             <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full font-label-caps uppercase">
-              Demo: {selectedRole}
-            </span>
-          )}
-          {user && !demoEnabled && (
-            <div className="flex items-center gap-2 ml-2">
-              <div className="text-right">
-                <p className="text-sm font-medium text-on-surface leading-tight">{user.name}</p>
-                <p className="text-xs text-on-surface-variant leading-tight">{user.email}</p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant/30 overflow-hidden flex items-center justify-center">
-                <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
-              </div>
-            </div>
-          )}
-          {!user && (
-            <div className="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant/30 overflow-hidden ml-2 cursor-pointer flex items-center justify-center">
-              <span className="material-symbols-outlined text-on-surface-variant text-sm">person</span>
-            </div>
-          )}
-        </div>
-      </header> */}
-
-
-<header className={`fixed top-0 right-0 ${mainMargin} h-16 bg-background/80 backdrop-blur-md border-b border-outline-variant/20 flex justify-between items-center px-margin-desktop w-[calc(100%-0rem)] z-40 transition-all duration-300`}>
-        <div />
-        <div className="flex items-center gap-4 ml-auto">
-          {demoEnabled && (
-            <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full font-label-caps uppercase">
-              Mode Demo Activated 
+              Mode Demo Activated
             </span>
           )}
           {user && (
@@ -270,8 +291,6 @@ export default function Layout() {
           )}
         </div>
       </header>
-
-
 
       {/* Main Content */}
       <main className={`${mainMargin} pt-16 min-h-screen px-margin-desktop py-10 max-w-container-max transition-all duration-300`}>

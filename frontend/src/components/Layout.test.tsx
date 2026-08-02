@@ -131,7 +131,7 @@ describe('Layout', () => {
   it('role selector changes selected role', async () => {
     const mockPost = vi.mocked(client.post);
     mockPost.mockResolvedValue({
-      data: { token: 'demo-token', userId: 'user-actor-1' },
+      data: { token: 'demo-token', userId: 'user-director-1' },
     });
 
     render(
@@ -139,11 +139,6 @@ describe('Layout', () => {
         <Layout />
       </MemoryRouter>
     );
-
-    const toggle = screen.getByText('Demo Mode').closest('div')?.querySelector('.relative');
-    if (toggle) {
-      fireEvent.click(toggle);
-    }
 
     await waitFor(() => {
       expect(screen.getByText('Demo: director')).toBeInTheDocument();
@@ -155,6 +150,8 @@ describe('Layout', () => {
       fireEvent.change(roleSelect, { target: { value: 'actor' } });
     }
 
-    expect(screen.getByText('Demo: actor')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Demo: actor')).toBeInTheDocument();
+    });
   });
 });

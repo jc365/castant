@@ -4,7 +4,7 @@ from typing import Callable
 from ..api.client import ApiClient
 from ..models.types import Casting
 from .casting_detail import CastingDetailWindow
-from .video_player import VideoPlayerWindow
+from .round_detail import RoundDetailWindow
 
 
 class DashboardWindow(ctk.CTkToplevel):
@@ -180,20 +180,14 @@ class DashboardWindow(ctk.CTkToplevel):
             self,
             self.api,
             full_casting,
-            on_round_selected=lambda round_id: self._on_round_selected(round_id),
+            on_round_selected=lambda rid, ct=casting.title: self._on_round_selected(rid, ct),
         )
 
-    def _on_round_selected(self, round_id: str) -> None:
-        round = self.api.get_round(round_id)
-        if not round.submissions:
-            return
-        VideoPlayerWindow(
-            self,
-            self.api,
-            submissions=round.submissions,
-            current_index=0,
-            is_director=True,
-            on_review_updated=self._load_castings,
+    def _on_round_selected(self, round_id: str, casting_title: str = "") -> None:
+        rnd = self.api.get_round(round_id)
+        RoundDetailWindow(
+            self, self.api, rnd, casting_title,
+            is_director=True, on_refresh=self._load_castings,
         )
 
     def _on_logout(self) -> None:

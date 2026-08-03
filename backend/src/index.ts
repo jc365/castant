@@ -16,6 +16,11 @@ import v1Router from './infrastructure/api/v1/routes';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// M2: Production DEMO_MODE guard
+if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE === 'true') {
+  throw new Error('DEMO_MODE cannot be enabled in production');
+}
+
 const app = express();
 // 📌 Habilita trust proxy para que req.ip sea la IP real del cliente
 // "1" significa que confía en el primer proxy que está delante de la aplicación
@@ -73,7 +78,6 @@ const httpLogger = pinoHttp({
     req: (req) => ({
       method: req.method,
       url: req.url,
-      ...(req.body ? { body: req.body } : {}),
     }),
     res: (res) => ({
       statusCode: res.statusCode,

@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import tkinter.messagebox as messagebox
 import threading
 import os
 from typing import Callable
@@ -31,11 +32,13 @@ class ExportDialog(ctk.CTkToplevel):
         self.on_complete = on_complete
 
         self.title(f"Export Round {round_number} Videos")
-        self.geometry("450x380")
+        self.geometry("480x380")
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self._exporting = False
+        self._cancelled = False
+        self._created_zips: list[str] = []
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -102,17 +105,20 @@ class ExportDialog(ctk.CTkToplevel):
         )
         self.export_btn.pack(side="left")
 
-        ctk.CTkButton(
+        self.cancel_btn = ctk.CTkButton(
             btn_frame, text="Cancel", height=36, width=100,
             font=ctk.CTkFont(size=12),
             fg_color="#6B7280", hover_color="#4B5563",
-            command=self._on_close,
-        ).pack(side="right")
+            command=self._on_cancel,
+        )
+        self.cancel_btn.pack(side="right")
 
     def _start_export(self) -> None:
         if self._exporting:
             return
         self._exporting = True
+        self._cancelled = False
+        self._created_zips = []
         self.export_btn.configure(state="disabled", text="Exporting...")
 
         try:
@@ -134,7 +140,9 @@ class ExportDialog(ctk.CTkToplevel):
                 quality=self.quality_var.get(),
                 max_size_per_zip=max_size,
                 on_progress=self._on_progress,
+                is_cancelled=lambda: self._cancelled,
             )
+            self._created_zips = zips
             self.after(0, lambda: self._on_done(zips))
 
         threading.Thread(target=_run, daemon=True).start()
@@ -148,20 +156,41 @@ class ExportDialog(ctk.CTkToplevel):
     def _on_done(self, zips: list[str]) -> None:
         self._exporting = False
         self.progress_bar.set(1.0)
-        count = len(zips)
-        if count > 0:
-            self.progress_label.configure(
-                text=f"Exported {count} ZIP file(s) to ~/Downloads/casting_exports/",
-                text_color="#22C55E",
-            )
-            self.export_btn.configure(state="normal", text="Done")
+
+        if self._cancelled:
+            self._cleanup_partial_zips()
+            self.destroy()
+            messagebox.showinfo("Export cancelled", "The export has been cancelled.")
+            return
+
+        if zips:
+            names = ", ".join(os.path.basename(z) for z in zips)
+            self.on_complete(zips)
+            self.destroy()
+            messagebox.showinfo("Export completed", f"Exported: {names}")
         else:
             self.progress_label.configure(
                 text="Export failed. Check if ffmpeg is installed.",
                 text_color="#EF4444",
             )
             self.export_btn.configure(state="normal", text="Retry")
-        self.on_complete(zips)
+            self.cancel_btn.configure(state="normal")
+
+    def _cleanup_partial_zips(self) -> None:
+        for zp in self._created_zips:
+            try:
+                if os.path.exists(zp):
+                    os.remove(zp)
+            except OSError:
+                pass
+
+    def _on_cancel(self) -> None:
+        if not self._exporting:
+            self.destroy()
+            return
+        self._cancelled = True
+        self.cancel_btn.configure(state="disabled", text="Cancelling...")
+        self.progress_label.configure(text="Cancelling...", text_color="#F59E0B")
 
     def _on_close(self) -> None:
         if not self._exporting:

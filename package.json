@@ -10,7 +10,7 @@
     "test:back": "vitest --run",
     "test:front": "cd frontend && npm test",
     "test:all": "concurrently \"npm run test:back\" \"npm run test:front\"",
-    "dev:all": "concurrently --names \"BACKEND,FRONTEND,OPENCODE\" --prefix-colors \"blue,green,magenta\" \"cd backend && npm run dev\" \"cd frontend && npm run dev\" \"opencode web --port 3001\""
+    "dev:all": "concurrently --names \"BACKEND,FRONTEND,OPENCODE,ORCHESTRATOR\" --prefix-colors \"blue,green,magenta,yellow\" \"cd backend && npm run dev\" \"cd frontend && npm run dev\" \"opencode web --port 3001\" \"cd orchestration && PYTHONPATH=.. venv/bin/python -m uvicorn orchestration.webhooks.server:app --host 0.0.0.0 --port 8080 --reload\""
   },
   "devDependencies": {
     "@types/supertest": "^7.2.0",

@@ -34,14 +34,15 @@ def _build_manifest(
     entries: list[dict],
 ) -> dict:
     total_size = sum(e.get("compressedSize", e.get("originalSize", 0)) for e in entries)
+    clean_entries = [{k: v for k, v in e.items() if k != "_localPath"} for e in entries]
     return {
         "exportDate": datetime.now(timezone.utc).isoformat(),
         "roundId": round_id,
-        "roundNumber": round_number,
         "castingTitle": casting_title,
-        "totalVideos": len(entries),
+        "roundNumber": round_number,
+        "totalVideos": len(clean_entries),
         "totalSize": total_size,
-        "videos": entries,
+        "videos": clean_entries,
     }
 
 
@@ -60,6 +61,7 @@ def export_round_videos(
     quality: str = "medium",
     max_size_per_zip: int = 500,
     on_progress: Optional[Callable[[int, int, str], None]] = None,
+    is_cancelled: Optional[Callable[[], bool]] = None,
 ) -> list[str]:
     os.makedirs(output_dir, exist_ok=True)
     tmp_dir = os.path.join(output_dir, "_tmp")
@@ -68,18 +70,39 @@ def export_round_videos(
     from datetime import datetime
     timestamp_prefix = datetime.now().strftime("%Y%m%d-%H%M%S")
 
+    actor_map: dict[str, dict[str, str]] = {}
+    try:
+        round_data = api.get_round(round_id)
+        for p in round_data.participants:
+            actor_map[p.user_id] = {
+                "name": p.name or p.user_id,
+                "email": p.email or "",
+            }
+    except Exception:
+        pass
+
+    def _cancelled() -> bool:
+        return is_cancelled is not None and is_cancelled()
+
     entries: list[dict] = []
     total = len(submissions)
     _log(f"Starting export: {total} videos, compress={compress}, quality={quality}")
 
     for idx, sub in enumerate(submissions):
+        if _cancelled():
+            _log("Export cancelled by user")
+            break
+
+        actor = actor_map.get(sub.actor_id, {"name": sub.actor_id, "email": ""})
+        actor_name = actor["name"]
+        actor_email = actor["email"]
+
         if on_progress:
-            on_progress(idx + 1, total, f"Downloading {sub.actor_id}...")
+            on_progress(idx + 1, total, f"Downloading {actor_name}...")
 
         ext = Path(sub.video_url).suffix or ".mp4"
-        safe_actor = sanitize_filename(sub.actor_id)
-        sub_id_short = sub.id[-12:] if len(sub.id) >= 12 else sub.id
-        original_file = os.path.join(tmp_dir, f"{safe_actor}_{sub_id_short}_original{ext}")
+        safe_actor = sanitize_filename(actor_name)
+        original_file = os.path.join(tmp_dir, f"{safe_actor}#{sub.id}_original{ext}")
 
         full_url = sub.video_url
         if not full_url.startswith("http"):
@@ -91,14 +114,17 @@ def export_round_videos(
             continue
 
         original_size = os.path.getsize(original_file)
-        _log(f"Downloaded {sub.actor_id}: {original_size / 1024 / 1024:.1f} MB")
+        _log(f"Downloaded {actor_name}: {original_size / 1024 / 1024:.1f} MB")
         final_file = original_file
 
         if compress:
+            if _cancelled():
+                _log("Export cancelled by user")
+                break
             if on_progress:
-                on_progress(idx + 1, total, f"Compressing {sub.actor_id}...")
-            compressed_file = os.path.join(tmp_dir, f"{safe_actor}_{sub_id_short}_compressed.mp4")
-            _log(f"Compressing {sub.actor_id} (CRF={quality})...")
+                on_progress(idx + 1, total, f"Compressing {actor_name}...")
+            compressed_file = os.path.join(tmp_dir, f"{safe_actor}#{sub.id}_compressed.mp4")
+            _log(f"Compressing {actor_name} (CRF={quality})...")
             ok = compress_video(original_file, compressed_file, quality)
             if ok and os.path.exists(compressed_file):
                 compressed_size = os.path.getsize(compressed_file)
@@ -108,10 +134,10 @@ def export_round_videos(
             else:
                 _log(f"Compression FAILED for {sub.actor_id}, using original")
 
-        final_name = f"{safe_actor}_{sub_id_short}{ext}"
+        final_name = f"{safe_actor}#{sub.id}{ext}"
         entry = {
-            "actorId": sub.actor_id,
-            "actorName": sub.actor_id,
+            "actorName": actor_name,
+            "actorEmail": actor_email,
             "filename": final_name,
             "score": sub.score,
             "feedback": sub.feedback,

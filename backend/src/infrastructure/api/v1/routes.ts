@@ -24,6 +24,7 @@ import { authMiddleware } from '../../middleware/auth';
 import type { AuthRequest } from '../../middleware/auth';
 import prisma from '../../persistence/prismaClient';
 import videoUpload from '../../storage/videoUpload';
+import { dispatchEvent } from '../../webhooks/webhookClient';
 
 const router = Router();
 
@@ -418,6 +419,14 @@ router.post('/submissions', videoUpload.single('video'), async (req: AuthRequest
     }
 
     const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl: finalVideoUrl, duration: duration ? Number(duration) : undefined });
+
+    dispatchEvent('submission.created', {
+      submission_id: submission.id,
+      actor_id: submission.actorId,
+      round_id: submission.roundId,
+      video_url: finalVideoUrl,
+    });
+
     res.status(201).json({
       id: submission.id,
       actorId: submission.actorId,
@@ -493,6 +502,15 @@ router.patch('/submissions/:id/review', async (req: AuthRequest, res) => {
       feedback,
       directorId,
     });
+
+    dispatchEvent('review.completed', {
+      submission_id: submission.id,
+      actor_id: submission.actorId,
+      director_id: directorId,
+      score: submission.score.getValue(),
+      feedback: submission.feedback.getValue(),
+    });
+
     res.json({
       id: submission.id,
       actorId: submission.actorId,

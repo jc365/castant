@@ -67,3 +67,17 @@ async def get_round(round_id: str) -> dict:
     resp = await client.get(f"/rounds/{round_id}")
     resp.raise_for_status()
     return resp.json()
+
+
+async def mark_event_complete(event_id: str) -> None:
+    client = await get_client()
+    resp = await client.patch(f"/events/{event_id}/complete")
+    resp.raise_for_status()
+    logger.info("Event %s marked complete", event_id)
+
+
+async def mark_event_failed(event_id: str, error: str) -> None:
+    client = await get_client()
+    resp = await client.patch(f"/events/{event_id}/fail", json={"error": error})
+    resp.raise_for_status()
+    logger.info("Event %s marked failed: %s", event_id, error)

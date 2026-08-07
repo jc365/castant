@@ -28,6 +28,7 @@ from orchestration.workflows.video_processor import VideoProcessorWorkflow
 from orchestration.workflows.cleanup import CleanupWorkflow
 from orchestration.workflows.notifications import NotificationWorkflow
 from orchestration.utils.backend_client import close_client
+from orchestration.event_poller import EventPoller
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,8 @@ WORKFLOWS = {
     "review.completed": NotificationWorkflow(),
 }
 
+poller = EventPoller(WORKFLOWS)
+
 
 async def _run_workflow(workflow, event: Event) -> WorkflowResult:
     return await workflow.safe_execute(event)
@@ -45,7 +48,9 @@ async def _run_workflow(workflow, event: Event) -> WorkflowResult:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Orchestration server starting — %d workflows registered", len(WORKFLOWS))
+    await poller.start()
     yield
+    await poller.stop()
     await close_client()
     logger.info("Orchestration server stopped")
 

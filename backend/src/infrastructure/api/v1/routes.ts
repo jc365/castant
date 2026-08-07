@@ -826,4 +826,88 @@ router.patch('/submissions/:id/metadata', async (req, res) => {
   }
 });
 
+// ============================================
+// Event Queue endpoints (service-to-service)
+// ============================================
+
+router.get('/events/pending', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 10, 50);
+    const events = await prisma.eventQueue.findMany({
+      where: { status: 'pending' },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+
+    if (events.length === 0) {
+      res.json({ events: [] });
+      return;
+    }
+
+    const ids = events.map(e => e.id);
+    await prisma.eventQueue.updateMany({
+      where: { id: { in: ids } },
+      data: { status: 'processing' },
+    });
+
+    res.json({ events });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message }, 'GET /events/pending failed');
+    res.status(500).json({ error: message });
+  }
+});
+
+router.patch('/events/:id/complete', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const event = await prisma.eventQueue.findUnique({ where: { id } });
+    if (!event) {
+      res.status(404).json({ error: 'Event not found' });
+      return;
+    }
+
+    const updated = await prisma.eventQueue.update({
+      where: { id },
+      data: { status: 'completed', processedAt: new Date() },
+    });
+
+    res.json({ id: updated.id, status: updated.status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'PATCH /events/:id/complete failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.patch('/events/:id/fail', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const event = await prisma.eventQueue.findUnique({ where: { id } });
+    if (!event) {
+      res.status(404).json({ error: 'Event not found' });
+      return;
+    }
+
+    const maxAttempts = 3;
+    const newAttempts = event.attempts + 1;
+    const newStatus = newAttempts >= maxAttempts ? 'failed' : 'pending';
+
+    const updated = await prisma.eventQueue.update({
+      where: { id },
+      data: {
+        status: newStatus,
+        attempts: newAttempts,
+        lastError: req.body.error || null,
+      },
+    });
+
+    res.json({ id: updated.id, status: updated.status, attempts: updated.attempts });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, id }, 'PATCH /events/:id/fail failed');
+    res.status(400).json({ error: message });
+  }
+});
+
 export default router;

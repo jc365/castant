@@ -42,7 +42,10 @@ npm run test:integration
 # Frontend tests (from root)
 npm run test:front
 
-# All tests (backend + frontend)
+# Orchestration tests (from root)
+npm run test:orch
+
+# All tests (backend + frontend + orchestration + integration)
 npm run test:all
 
 # Coverage (backend only)
@@ -149,6 +152,17 @@ python -m orchestration.main
 **Config:** `.env` in `orchestration/` (see `.env.example`). Uploads dir defaults to `backend/uploads/videos/`.
 
 **Backend integration:** `infrastructure/webhooks/webhookClient.ts` — fire-and-forget `dispatchEvent()` calls after submission creation and review completion.
+
+**Testing:**
+```bash
+cd orchestration && source venv/bin/activate
+PYTHONPATH=.. pytest tests/ -v          # Run all orchestration tests
+PYTHONPATH=.. pytest tests/test_cleanup.py -v  # Run specific file
+```
+- Framework: pytest + pytest-asyncio
+- Unit tests: `tests/test_notifications.py`, `tests/test_cleanup.py`, `tests/test_event_poller.py`
+- Integration tests: `tests/test_integration.py`
+- All mocked (no backend required)
 
 ## Code Patterns
 

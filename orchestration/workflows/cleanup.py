@@ -59,8 +59,10 @@ class CleanupWorkflow(BaseWorkflow):
                     try:
                         entry.unlink()
                         deleted.append(entry.name)
+                        logger.info("Deleted old thumb: %s (mtime: %s)", entry.name, mtime.isoformat())
                     except OSError as e:
                         errors.append(f"{entry.name}: {e}")
+                        logger.error("Failed to delete %s: %s", entry.name, e)
 
         msg = f"Deleted {len(deleted)} files, {len(errors)} errors"
         logger.info(msg)

@@ -135,7 +135,7 @@ describe('Layout', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Demo: director')).toBeInTheDocument();
+      expect(screen.getByText('Mode Demo Activated')).toBeInTheDocument();
     });
 
     const selects = screen.getAllByRole('combobox');
@@ -145,7 +145,7 @@ describe('Layout', () => {
     }
 
     await waitFor(() => {
-      expect(screen.getByText('Demo: actor')).toBeInTheDocument();
+      expect(screen.getByText('Mode Demo Activated')).toBeInTheDocument();
     });
   });
 });

@@ -24,6 +24,8 @@ import { authMiddleware } from '../../middleware/auth';
 import type { AuthRequest } from '../../middleware/auth';
 import prisma from '../../persistence/prismaClient';
 import videoUpload from '../../storage/videoUpload';
+import { uploadFile } from '../../storage/storageService';
+import path from 'path';
 import { dispatchEvent } from '../../webhooks/webhookClient';
 
 const router = Router();
@@ -408,8 +410,11 @@ router.post('/submissions', videoUpload.single('video'), async (req: AuthRequest
     // Determine video source: file upload or URL
     let finalVideoUrl: string;
     if (req.file) {
-      // File uploaded — construct local URL
-      finalVideoUrl = `/uploads/videos/${req.file.filename}`;
+      // File uploaded — store via StorageService (R2 or local)
+      const ext = path.extname(req.file.originalname) || '.mp4';
+      const key = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      await uploadFile(key, req.file.buffer, req.file.mimetype);
+      finalVideoUrl = `/uploads/videos/${key}`;
     } else if (videoUrl) {
       // URL provided
       finalVideoUrl = videoUrl;

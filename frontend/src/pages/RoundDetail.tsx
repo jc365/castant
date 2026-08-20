@@ -9,6 +9,7 @@ import VideoPlayerModal from '../components/VideoPlayerModal';
 import CreateNextRoundModal from '../components/CreateNextRoundModal';
 import AddParticipantsModal from '../components/AddParticipantsModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useVideoUrls } from '../hooks/useVideoUrls';
 import { getStatusStyle, type SubmissionStatus } from '../utils/submissionStatus';
 import { scoreToStars } from '../utils/scoring';
 import { getRoleBadge } from '../utils/roleConfig';
@@ -23,6 +24,7 @@ interface Participant {
 interface Submission {
   id: string;
   videoUrl: string;
+  videoKey?: string | null;
   actorId: string;
   duration: number | null;
   status: SubmissionStatus;
@@ -59,6 +61,8 @@ export default function RoundDetail() {
   const role = roundId ? getRoleInRound(roundId) : null;
   const isDirector = round ? isDirectorOf(round.castingId) : false;
   const isActor = roundId ? isActorOf(roundId) : false;
+
+  const { videoUrls, refreshAll: refreshVideoUrls } = useVideoUrls(round?.submissions || []);
 
   const allStatuses: SubmissionStatus[] = ['pending', 'reviewed', 'selected', 'rejected'];
 
@@ -241,6 +245,7 @@ export default function RoundDetail() {
                   isDirector={isDirector}
                   onPlay={() => setSelectedVideoIndex(originalIdx)}
                   onDelete={() => setShowDeleteSubmission(s.id)}
+                  resolvedUrl={videoUrls[s.id]}
                 />
               );
             })}
@@ -416,6 +421,8 @@ export default function RoundDetail() {
         isDirector={isDirector}
         onClose={() => setSelectedVideoIndex(null)}
         onNavigate={(idx) => setSelectedVideoIndex(idx)}
+        resolvedUrls={videoUrls}
+        onVideoError={() => refreshVideoUrls()}
         onReviewUpdated={() => {
           client.get(`/rounds/${roundId}`).then((res) => {
             const data = res.data;
@@ -487,11 +494,13 @@ function SubmissionCard({
   isDirector,
   onPlay,
   onDelete,
+  resolvedUrl,
 }: {
   submission: Submission;
   isDirector: boolean;
   onPlay: () => void;
   onDelete: () => void;
+  resolvedUrl?: string;
 }) {
   const { getUser, ensureUser } = useUserCache();
   const actor = getUser(submission.actorId);
@@ -515,7 +524,7 @@ function SubmissionCard({
         className="relative w-full aspect-video bg-surface-container-highest overflow-hidden cursor-pointer"
       >
         <video
-          src={submission.videoUrl}
+          src={resolvedUrl || submission.videoUrl}
           preload="metadata"
           muted
           className="w-full h-full object-cover"

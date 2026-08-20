@@ -1,20 +1,24 @@
 // backend/src/infrastructure/persistence/prismaClient.ts
 import { PrismaClient } from '../../generated/prisma/client';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { Pool } from 'pg';
 
-const url = process.env.DATABASE_URL || 'file:./dev.db';
+const connectionString = process.env.DATABASE_URL || 'file:./dev.db';
 
-// 🔥 Detectar si es PostgreSQL o SQLite/libsql
-const isPostgres = url.startsWith('postgresql://');
+// 🔥 Detectar si es PostgreSQL o SQLite
+const isPostgres = connectionString.startsWith('postgresql://');
 
 let prisma: PrismaClient;
 
 if (isPostgres) {
-  const adapter = new PrismaPg({ url });
+  // Usar adaptador de PostgreSQL
+  const pool = new Pool({ connectionString, });
+  const adapter = new PrismaPg(pool);
   prisma = new PrismaClient({ adapter });
 } else {
-  const adapter = new PrismaLibSql({ url });
+  // Usar adaptador libsql para SQLite
+  const adapter = new PrismaLibSql({ url: connectionString });
   prisma = new PrismaClient({ adapter });
 }
 

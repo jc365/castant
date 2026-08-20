@@ -21,7 +21,7 @@ export class SubmitVideoUseCase {
   ) {}
 
   async execute(input: SubmitVideoInput): Promise<Submission> {
-    const { actorId, roundId, videoUrl } = input;
+    const { actorId, roundId, videoUrl, videoKey } = input;
 
     logger.info({ actorId, roundId }, 'SubmitVideoUseCase: starting');
 
@@ -45,14 +45,14 @@ export class SubmitVideoUseCase {
 
     const videoUrlVO = VideoUrl.create(videoUrl);
 
-    const submission = Submission.create(actorId, roundId, videoUrlVO);
+    const submission = Submission.create(actorId, roundId, videoUrlVO, undefined, videoKey);
 
     await this.submissionRepository.save(submission);
 
     await this.bitacoraService.log({
       userId: actorId,
       action: 'submit_video',
-      details: { videoUrl, roundId },
+      details: { videoUrl, videoKey, roundId },
       roundId,
       submissionId: submission.id,
     });

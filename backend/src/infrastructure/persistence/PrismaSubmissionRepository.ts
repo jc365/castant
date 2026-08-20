@@ -41,12 +41,14 @@ export default class PrismaSubmissionRepository implements ISubmissionRepository
         actorId: submission.actorId,
         roundId: submission.roundId,
         videoUrl: submission.videoUrl.getValue(),
+        videoKey: submission.videoKey,
         duration: submission.duration,
         status: submission.status,
         score: submission.score.getValue() ?? 0,
         feedback: submission.feedback.getValue() ?? '',
       },
       update: {
+        videoKey: submission.videoKey,
         duration: submission.duration,
         status: submission.status,
         score: submission.score.getValue() ?? 0,
@@ -61,9 +63,9 @@ export default class PrismaSubmissionRepository implements ISubmissionRepository
     });
   }
 
-  private toDomain(record: { id: string; actorId: string; roundId: string; videoUrl: string; duration: number | null; status: string; score: number; feedback: string }): Submission {
+  private toDomain(record: { id: string; actorId: string; roundId: string; videoUrl: string; videoKey: string | null; duration: number | null; status: string; score: number; feedback: string }): Submission {
     const videoUrl = VideoUrl.create(record.videoUrl);
-    const submission = Submission.create(record.actorId, record.roundId, videoUrl, record.id);
+    const submission = Submission.create(record.actorId, record.roundId, videoUrl, record.id, record.videoKey ?? undefined);
 
     let result = record.duration != null ? submission.withDuration(record.duration) : submission;
 

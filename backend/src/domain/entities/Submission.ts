@@ -17,6 +17,7 @@ export default class Submission {
   private readonly _actorId: string;
   private readonly _roundId: string;
   private readonly _videoUrl: VideoUrl;
+  private readonly _videoKey: string | null;
   private readonly _duration: number | null;
   private readonly _status: SubmissionStatus;
   private readonly _score: Score;
@@ -25,20 +26,20 @@ export default class Submission {
   /**
    * Crea una nueva instancia de Submission (estado inicial: 'pending').
    */
-  static create(actorId: string, roundId: string, videoUrl: VideoUrl, id?: string): Submission {
+  static create(actorId: string, roundId: string, videoUrl: VideoUrl, id?: string, videoKey?: string): Submission {
     const finalId = id || genUUID('sub');
-    return new Submission(finalId, actorId, roundId, videoUrl);
+    return new Submission(finalId, actorId, roundId, videoUrl, videoKey ?? null);
   }
 
   /**
    * Constructor privado. Usar `Submission.create()` para instanciar.
-   * Acepta todos los atributos (los opcionales pueden ser null/undefined).
    */
   private constructor(
     id: string,
     actorId: string,
     roundId: string,
     videoUrl: VideoUrl,
+    videoKey: string | null = null,
     duration: number | null = null,
     status: SubmissionStatus = 'pending',
     score: Score = Score.none(),
@@ -48,7 +49,8 @@ export default class Submission {
     this._actorId = actorId;
     this._roundId = roundId;
     this._videoUrl = videoUrl;
-    this._duration = duration;  // Solo para ficheros, no URLs
+    this._videoKey = videoKey;
+    this._duration = duration;
     this._status = status;
     this._score = score;
     this._feedback = feedback;
@@ -69,6 +71,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._videoKey,
       this._duration,
       'reviewed',
       score,
@@ -88,6 +91,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._videoKey,
       this._duration,
       'reviewed',
       score,
@@ -107,6 +111,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._videoKey,
       this._duration,
       'selected',
       this._score,
@@ -126,6 +131,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._videoKey,
       this._duration,
       'rejected',
       this._score,
@@ -150,6 +156,10 @@ export default class Submission {
 
   get videoUrl(): VideoUrl {
     return this._videoUrl;
+  }
+
+  get videoKey(): string | null {
+    return this._videoKey;
   }
 
   get duration(): number | null {
@@ -179,6 +189,7 @@ export default class Submission {
       this._actorId,
       this._roundId,
       this._videoUrl,
+      this._videoKey,
       duration,
       this._status,
       this._score,

@@ -23,6 +23,8 @@ interface VideoPlayerModalProps {
   onClose: () => void;
   onNavigate: (index: number) => void;
   onReviewUpdated: () => void;
+  resolvedUrls?: Record<string, string>;
+  onVideoError?: (submissionId: string) => void;
 }
 
 function extractYouTubeId(url: string): string | null {
@@ -64,6 +66,7 @@ function formatDuration(seconds: number): string {
 
 export default function VideoPlayerModal({
   isOpen, submissions, currentIndex, isDirector, isActor = false, onClose, onNavigate, onReviewUpdated,
+  resolvedUrls = {}, onVideoError,
 }: VideoPlayerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [selectedStars, setSelectedStars] = useState<number | null>(null);
@@ -122,7 +125,8 @@ export default function VideoPlayerModal({
 
   if (!isOpen || !submission) return null;
 
-  const type = getVideoType(submission.videoUrl);
+  const resolvedUrl = resolvedUrls[submission.id] || submission.videoUrl;
+  const type = getVideoType(resolvedUrl);
   const actorUser = getUser(submission.actorId);
   const actorDisplay = actorUser?.name || submission.actorId;
   const actorEmail = actorUser?.email;
@@ -243,7 +247,7 @@ export default function VideoPlayerModal({
                   {type === 'youtube' && (
                     <iframe
                       key={submission.id}
-                      src={`https://www.youtube.com/embed/${extractYouTubeId(submission.videoUrl)}?autoplay=1&rel=0`}
+                      src={`https://www.youtube.com/embed/${extractYouTubeId(resolvedUrl)}?autoplay=1&rel=0`}
                       className="absolute inset-0 w-full h-full"
                       allow="autoplay; encrypted-media"
                       allowFullScreen
@@ -253,7 +257,7 @@ export default function VideoPlayerModal({
                   {type === 'vimeo' && (
                     <iframe
                       key={submission.id}
-                      src={`https://player.vimeo.com/video/${extractVimeoId(submission.videoUrl)}?autoplay=1`}
+                      src={`https://player.vimeo.com/video/${extractVimeoId(resolvedUrl)}?autoplay=1`}
                       className="absolute inset-0 w-full h-full"
                       allow="autoplay; encrypted-media"
                       allowFullScreen
@@ -268,8 +272,9 @@ export default function VideoPlayerModal({
                       autoPlay
                       className="absolute inset-0 w-full h-full object-contain"
                       onLoadedMetadata={handleLoadedMetadata}
+                      onError={() => onVideoError?.(submission.id)}
                     >
-                      <source src={submission.videoUrl} type={getMimeType(submission.videoUrl)} />
+                      <source src={resolvedUrl} type={getMimeType(resolvedUrl)} />
                       Your browser does not support the video tag.
                     </video>
                   )}

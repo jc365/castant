@@ -3,7 +3,7 @@
  * @module infrastructure/storage
  *
  * Servicio de almacenamiento unificado.
- * Si Cloudflare R2 está configurado, almacena en R2.
+ * Si Cloudflare R2 está configurado, almacena en R2 (bucket privado con presigned URLs).
  * Si no, usa almacenamiento local en backend/uploads/videos/.
  */
 
@@ -19,6 +19,7 @@ const __dirname = path.dirname(__filename);
 
 const LOCAL_UPLOADS_DIR = path.resolve(__dirname, '../../../uploads/videos');
 const R2_BUCKET = process.env.CLOUDFLARE_R2_BUCKET;
+const R2_FOLDER = process.env.CLOUDFLARE_R2_TARGET_FOLDER || 'castant/videos';
 const PRESIGNED_URL_EXPIRY = 3600; // 1 hour
 
 export function isR2Configured(): boolean {
@@ -30,15 +31,20 @@ export function isR2Configured(): boolean {
   );
 }
 
+function r2Key(key: string): string {
+  return `${R2_FOLDER}/${key}`;
+}
+
 export async function uploadFile(key: string, buffer: Buffer, contentType: string): Promise<string> {
   if (isR2Configured()) {
+    const fullKey = r2Key(key);
     await r2Client.send(new PutObjectCommand({
       Bucket: R2_BUCKET,
-      Key: key,
+      Key: fullKey,
       Body: buffer,
       ContentType: contentType,
     }));
-    return key;
+    return fullKey;
   }
 
   // Fallback: local storage
@@ -52,8 +58,6 @@ export async function uploadFile(key: string, buffer: Buffer, contentType: strin
 
 export function getFileUrl(key: string, expiresIn: number = PRESIGNED_URL_EXPIRY): string {
   if (isR2Configured()) {
-    // For R2, return a presigned URL — caller must await
-    // This function is sync for local; for R2 use getFileUrlAsync
     return key;
   }
   return `/uploads/videos/${key}`;

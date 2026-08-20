@@ -1,14 +1,13 @@
 // vitest.config.ts
 import { defineConfig } from 'vitest/config';
 import path from 'path';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const testDbPath = path.resolve(__dirname, 'backend', 'test.db');
 
-process.env.DATABASE_URL = `file:${testDbPath}`;
+// Tests use a separate PostgreSQL database on the same Docker server
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://castant:castant@localhost:5432/castant_test';
 process.env.JWT_SECRET = 'test-secret';
 
 export default defineConfig({

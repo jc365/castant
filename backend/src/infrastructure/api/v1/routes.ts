@@ -24,7 +24,7 @@ import { authMiddleware } from '../../middleware/auth';
 import type { AuthRequest } from '../../middleware/auth';
 import prisma from '../../persistence/prismaClient';
 import videoUpload from '../../storage/videoUpload';
-import { uploadFile } from '../../storage/storageService';
+import { uploadFile, isR2Configured, getFileUrlAsync } from '../../storage/storageService';
 import path from 'path';
 import { dispatchEvent } from '../../webhooks/webhookClient';
 
@@ -356,6 +356,7 @@ router.get('/rounds/:id', async (req, res) => {
         id: s.id,
         actorId: s.actorId,
         videoUrl: s.videoUrl.getValue(),
+        videoKey: s.videoKey,
         duration: s.duration,
         status: s.status,
         score: s.score.getValue(),
@@ -388,6 +389,7 @@ router.get('/rounds/:id/submissions', async (req, res) => {
       actorId: s.actorId,
       roundId: s.roundId,
       videoUrl: s.videoUrl.getValue(),
+      videoKey: s.videoKey,
       duration: s.duration,
       status: s.status,
       score: s.score.getValue(),
@@ -409,21 +411,25 @@ router.post('/submissions', videoUpload.single('video'), async (req: AuthRequest
 
     // Determine video source: file upload or URL
     let finalVideoUrl: string;
+    let videoKey: string | undefined;
     if (req.file) {
-      // File uploaded — store via StorageService (R2 or local)
+      // File uploaded — store key in BD, generate presigned URL for response
       const ext = path.extname(req.file.originalname) || '.mp4';
       const key = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      await uploadFile(key, req.file.buffer, req.file.mimetype);
-      finalVideoUrl = `/uploads/videos/${key}`;
+      const storedKey = await uploadFile(key, req.file.buffer, req.file.mimetype);
+      videoKey = storedKey;
+      finalVideoUrl = isR2Configured()
+        ? await getFileUrlAsync(storedKey)
+        : `/uploads/videos/${key}`;
     } else if (videoUrl) {
-      // URL provided
+      // URL provided (YouTube, Vimeo, etc.)
       finalVideoUrl = videoUrl;
     } else {
       res.status(400).json({ error: 'Either video URL or video file is required' });
       return;
     }
 
-    const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl: finalVideoUrl, duration: duration ? Number(duration) : undefined });
+    const submission = await submitVideoUseCase.execute({ actorId: actorId || '', roundId, videoUrl: finalVideoUrl, videoKey, duration: duration ? Number(duration) : undefined });
 
     dispatchEvent('submission.created', {
       submission_id: submission.id,
@@ -784,6 +790,7 @@ router.get('/submissions/:id', async (req, res) => {
       actorId: submission.actorId,
       roundId: submission.roundId,
       videoUrl: submission.videoUrl.getValue(),
+      videoKey: submission.videoKey,
       duration: submission.duration,
       status: submission.status,
       score: submission.score.getValue(),
@@ -792,6 +799,37 @@ router.get('/submissions/:id', async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     requestLogger.error({ error: message, id }, 'GET /submissions/:id failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.get('/videos/:submissionId/url', async (req, res) => {
+  const { submissionId } = req.params;
+  requestLogger.info({ submissionId }, 'GET /videos/:submissionId/url');
+
+  try {
+    const submission = await submissionRepository.findById(submissionId);
+
+    if (!submission) {
+      requestLogger.warn({ submissionId }, 'GET /videos/:submissionId/url: not found');
+      res.status(404).json({ error: 'Submission not found' });
+      return;
+    }
+
+    const videoKey = submission.videoKey;
+
+    if (!videoKey) {
+      // External URL (YouTube, Vimeo) or local — return as-is
+      res.json({ url: submission.videoUrl.getValue() });
+      return;
+    }
+
+    // Generate presigned URL from R2 key
+    const url = await getFileUrlAsync(videoKey, 7200);
+    res.json({ url });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, submissionId }, 'GET /videos/:submissionId/url failed');
     res.status(400).json({ error: message });
   }
 });

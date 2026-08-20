@@ -60,6 +60,7 @@ model Submission {
   actorId   String
   roundId   String
   videoUrl  String
+  videoKey  String?  // R2 key (e.g. castant/videos/video-123.mp4). Null for external URLs.
   duration  Int?
   status    String   @default("pending")
   score     Int      @default(0)

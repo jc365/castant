@@ -122,6 +122,7 @@ npm run dev:all
 - Script: `backend/prisma/seed.ts` (configured as Prisma seed hook)
 - Users: `director@demo.com`, `actor1@demo.com`, `actor2@demo.com`, `preselector@demo.com` (password: `changeme`)
 - Demo casting with 2 rounds, participants, 2 submissions
+- Config entries: logging, feature_flags, limits, integrations, ui (9 entries)
 - Uses `upsert` to avoid duplicates
 
 ## Gotchas
@@ -164,6 +165,43 @@ Tests use `backend/test.db`. Configured in `vitest.config.ts` (sets `process.env
 - `videoUrl` in DB stores the original URL (presigned at upload time, or external URL)
 - Frontend uses `useVideoUrls` hook to resolve keys → fresh presigned URLs
 - On 403 error, hook regenerates all URLs for the page
+
+## Configuración de Logs
+
+### `logging.level`
+
+Controla el nivel de logs en todos los componentes del sistema:
+
+| Nivel | Backend (pino) | Orquestador (Python) | Frontend (console) |
+|-------|----------------|----------------------|-------------------|
+| `debug` | ✅ | ✅ | ✅ |
+| `info` | ✅ | ✅ | ✅ |
+| `warn` | ✅ | ✅ | ✅ |
+| `error` | ✅ | ✅ | ✅ |
+
+**Comportamiento:**
+
+- Todos los logs de la aplicación y HTTP se controlan con este único nivel
+- Cambios en `logging.level` se aplican en caliente (sin reiniciar) en los tres componentes
+- Los logs de cambio de configuración (`🔄 [Config] Log level changed`) siempre son visibles
+
+**Ejemplo:**
+
+```bash
+# Cambiar a modo debug para depuración
+PATCH /api/v1/config/logging.level
+{ "value": "debug" }
+```
+
+### Logs de cambio de configuración
+
+Los logs de cambio de nivel (`🔄 [Config] Log level changed`) siempre son visibles, independientemente del nivel configurado:
+
+- **Backend:** `console.log()`
+- **Orquestador:** `logger.info()` (siempre visible)
+- **Frontend:** `console.log()`
+
+Esto garantiza que el administrador siempre vea los cambios de configuración, incluso si el nivel de logs es `warn` o `error`.
 
 ## Orchestration Server
 
@@ -278,6 +316,12 @@ Auth middleware applied inside `routes.ts` via `router.use(authMiddleware)` — 
 - `DELETE /api/v1/submissions/:id` → delete submission
 - `PATCH /api/v1/submissions/:id/review` → review `{ score, feedback }` — `directorId` from `req.user.id`
 - `PATCH /api/v1/submissions/:id/metadata` → update metadata `{ duration }` — used by VideoPlayerModal
+- `GET /api/v1/config` → list all configs
+- `GET /api/v1/config/category/:category` → list configs by category
+- `GET /api/v1/config/:key` → get config by key
+- `PUT /api/v1/config/:key` → upsert config `{ value, description?, category? }`
+- `PATCH /api/v1/config/:key` → partial update config `{ value?, description?, category? }`
+- `DELETE /api/v1/config/:key` → delete config
 
 ## API Versioning
 

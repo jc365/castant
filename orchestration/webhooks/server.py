@@ -28,6 +28,7 @@ from orchestration.workflows.video_processor import VideoProcessorWorkflow
 from orchestration.workflows.cleanup import CleanupWorkflow
 from orchestration.workflows.notifications import NotificationWorkflow
 from orchestration.utils.backend_client import close_client
+from orchestration.utils.config import start_auto_reload, stop_auto_reload
 from orchestration.event_poller import EventPoller
 
 logger = logging.getLogger(__name__)
@@ -48,9 +49,11 @@ async def _run_workflow(workflow, event: Event) -> WorkflowResult:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Orchestration server starting — %d workflows registered", len(WORKFLOWS))
+    start_auto_reload()
     await poller.start()
     yield
     await poller.stop()
+    stop_auto_reload()
     await close_client()
     logger.info("Orchestration server stopped")
 

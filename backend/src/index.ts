@@ -8,10 +8,13 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
+import pinoHttp from 'pino-http';
 import { fileURLToPath } from 'url';
 import logger from './infrastructure/logging/logger';
+import { startLogLevelSync } from './infrastructure/logging/logger';
 import { requestContextMiddleware, getRequestId } from './infrastructure/logging/requestContext';
 import v1Router from './infrastructure/api/v1/routes';
+import { startAutoReload } from './infrastructure/config/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +31,6 @@ const app = express();
 app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3000;
-
 
 // CORS: configurable via CORS_ORIGIN env var (comma-separated for multiple origins)
 const corsOrigins = process.env.CORS_ORIGIN
@@ -57,8 +59,6 @@ app.use(requestContextMiddleware);
 
 // Serve uploaded videos
 app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
-
-import pinoHttp from 'pino-http';
 
 const httpLogger = pinoHttp({
   logger,
@@ -100,6 +100,8 @@ export default app;
 
 // Solo inicia el servidor si se ejecuta directamente (no en tests)
 if (import.meta.url === `file://${process.argv[1]}`) {
+  startAutoReload();
+  startLogLevelSync();
   app.listen(port, () => {
     logger.info({ port }, 'Server started');
   });

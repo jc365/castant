@@ -92,5 +92,16 @@ export interface LoginOutput {
 }
 
 // ============================================
+// DTOs para Config
+// ============================================
+export interface UpsertConfigInput {
+  key: string;
+  value: unknown;
+  description?: string;
+  category?: string;
+  updatedBy?: string;
+}
+
+// ============================================
 // Más DTOs...
 // ============================================

@@ -12,11 +12,15 @@ import { SubmitVideoUseCase } from '../../../application/use-cases/SubmitVideoUs
 import { ManageRoundParticipantsUseCase } from '../../../application/use-cases/rounds/ManageRoundParticipantsUseCase';
 import { ReviewSubmissionUseCase } from '../../../application/use-cases/submissions/ReviewSubmissionUseCase';
 import { LoginUseCase } from '../../../application/use-cases/LoginUseCase';
+import { GetConfigUseCase, GetAllConfigUseCase, GetConfigByCategoryUseCase } from '../../../application/use-cases/config/GetConfigUseCase';
+import { UpsertConfigUseCase } from '../../../application/use-cases/config/UpsertConfigUseCase';
+import { DeleteConfigUseCase } from '../../../application/use-cases/config/DeleteConfigUseCase';
 import PrismaUserRepository from '../../persistence/PrismaUserRepository';
 import PrismaCastingRepository from '../../persistence/PrismaCastingRepository';
 import PrismaRoundRepository from '../../persistence/PrismaRoundRepository';
 import PrismaSubmissionRepository from '../../persistence/PrismaSubmissionRepository';
 import PrismaBitacoraRepository from '../../persistence/PrismaBitacoraRepository';
+import PrismaConfigRepository from '../../persistence/PrismaConfigRepository';
 import BitacoraService from '../../logging/BitacoraService';
 import HashService from '../../security/HashService';
 import requestLogger from '../../logging/requestContext';
@@ -27,6 +31,22 @@ import videoUpload from '../../storage/videoUpload';
 import { uploadFile, isR2Configured, getFileUrlAsync } from '../../storage/storageService';
 import path from 'path';
 import { dispatchEvent } from '../../webhooks/webhookClient';
+
+const LOG_LEVEL_NORMALIZE: Record<string, string> = {
+  'warning': 'warn',
+  'critical': 'fatal',
+  'debug': 'debug',
+  'info': 'info',
+  'warn': 'warn',
+  'error': 'error',
+  'fatal': 'fatal',
+  'trace': 'trace',
+};
+
+function normalizeLogLevel(value: unknown): string {
+  if (typeof value !== 'string') return 'info';
+  return LOG_LEVEL_NORMALIZE[value.toLowerCase()] ?? 'info';
+}
 
 const router = Router();
 
@@ -48,6 +68,13 @@ const submitVideoUseCase = new SubmitVideoUseCase(userRepository, roundRepositor
 
 const manageParticipantsUseCase = new ManageRoundParticipantsUseCase(userRepository, roundRepository, submissionRepository, bitacoraService, hashService);
 const reviewSubmissionUseCase = new ReviewSubmissionUseCase(submissionRepository, roundRepository, castingRepository, bitacoraService);
+
+const configRepository = new PrismaConfigRepository();
+const getConfigUseCase = new GetConfigUseCase(configRepository);
+const getAllConfigUseCase = new GetAllConfigUseCase(configRepository);
+const getConfigByCategoryUseCase = new GetConfigByCategoryUseCase(configRepository);
+const upsertConfigUseCase = new UpsertConfigUseCase(configRepository, bitacoraService);
+const deleteConfigUseCase = new DeleteConfigUseCase(configRepository, bitacoraService);
 
 // ============================================
 // Rate limiters
@@ -949,6 +976,160 @@ router.patch('/events/:id/fail', async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     requestLogger.error({ error: message, id }, 'PATCH /events/:id/fail failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+// ============================================
+// Config endpoints
+// ============================================
+
+router.get('/config', async (_req, res) => {
+  requestLogger.info({}, 'GET /config');
+  try {
+    const configs = await getAllConfigUseCase.execute();
+    res.json(configs.map((c) => ({
+      id: c.id,
+      key: c.key,
+      value: c.value,
+      description: c.description,
+      category: c.category,
+      updatedBy: c.updatedBy,
+      updatedAt: c.updatedAt,
+    })));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message }, 'GET /config failed');
+    res.status(500).json({ error: message });
+  }
+});
+
+router.get('/config/category/:category', async (req, res) => {
+  const { category } = req.params;
+  requestLogger.info({ category }, 'GET /config/category/:category');
+  try {
+    const configs = await getConfigByCategoryUseCase.execute(category);
+    res.json(configs.map((c) => ({
+      id: c.id,
+      key: c.key,
+      value: c.value,
+      description: c.description,
+      category: c.category,
+      updatedBy: c.updatedBy,
+      updatedAt: c.updatedAt,
+    })));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, category }, 'GET /config/category/:category failed');
+    res.status(500).json({ error: message });
+  }
+});
+
+router.get('/config/:key', async (req, res) => {
+  const { key } = req.params;
+  requestLogger.info({ key }, 'GET /config/:key');
+  try {
+    const config = await getConfigUseCase.execute(key);
+    if (!config) {
+      res.status(404).json({ error: `Config "${key}" not found` });
+      return;
+    }
+    res.json({
+      id: config.id,
+      key: config.key,
+      value: config.value,
+      description: config.description,
+      category: config.category,
+      updatedBy: config.updatedBy,
+      updatedAt: config.updatedAt,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, key }, 'GET /config/:key failed');
+    res.status(500).json({ error: message });
+  }
+});
+
+router.put('/config/:key', async (req: AuthRequest, res) => {
+  const { key } = req.params;
+  requestLogger.info({ key }, 'PUT /config/:key');
+  try {
+    const { value, description, category } = req.body;
+    if (value === undefined) {
+      res.status(400).json({ error: 'value is required' });
+      return;
+    }
+    const normalizedValue = key === 'logging.level' ? normalizeLogLevel(value) : value;
+    const config = await upsertConfigUseCase.execute({
+      key,
+      value: normalizedValue,
+      description,
+      category,
+      updatedBy: req.user?.id,
+    });
+    res.status(201).json({
+      id: config.id,
+      key: config.key,
+      value: config.value,
+      description: config.description,
+      category: config.category,
+      updatedBy: config.updatedBy,
+      updatedAt: config.updatedAt,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, key }, 'PUT /config/:key failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.patch('/config/:key', async (req: AuthRequest, res) => {
+  const { key } = req.params;
+  requestLogger.info({ key }, 'PATCH /config/:key');
+  try {
+    const existing = await getConfigUseCase.execute(key);
+    if (!existing) {
+      res.status(404).json({ error: `Config "${key}" not found` });
+      return;
+    }
+    const { value, description, category } = req.body;
+    const normalizedValue = key === 'logging.level' && value !== undefined ? normalizeLogLevel(value) : value;
+    const config = await upsertConfigUseCase.execute({
+      key,
+      value: normalizedValue !== undefined ? normalizedValue : existing.value,
+      description: description !== undefined ? description : existing.description ?? undefined,
+      category: category !== undefined ? category : existing.category ?? undefined,
+      updatedBy: req.user?.id,
+    });
+    res.json({
+      id: config.id,
+      key: config.key,
+      value: config.value,
+      description: config.description,
+      category: config.category,
+      updatedBy: config.updatedBy,
+      updatedAt: config.updatedAt,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    requestLogger.error({ error: message, key }, 'PATCH /config/:key failed');
+    res.status(400).json({ error: message });
+  }
+});
+
+router.delete('/config/:key', async (req: AuthRequest, res) => {
+  const { key } = req.params;
+  requestLogger.info({ key }, 'DELETE /config/:key');
+  try {
+    await deleteConfigUseCase.execute(key, req.user?.id);
+    res.status(204).send();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message.includes('not found')) {
+      res.status(404).json({ error: message });
+      return;
+    }
+    requestLogger.error({ error: message, key }, 'DELETE /config/:key failed');
     res.status(400).json({ error: message });
   }
 });

@@ -7,11 +7,16 @@
  */
 
 import { PrismaClient } from '../src/generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { Pool } from 'pg';
 import bcrypt from 'bcrypt';
 
 const url = process.env.DATABASE_URL || 'file:./dev.db';
-const adapter = new PrismaLibSql({ url });
+const isPostgres = url.startsWith('postgresql://');
+const adapter = isPostgres
+  ? new PrismaPg(new Pool({ connectionString: url }))
+  : new PrismaLibSql({ url });
 const prisma = new PrismaClient({ adapter });
 
 const DEMO_PASSWORD_HASH = bcrypt.hashSync('changeme', 10);
@@ -189,6 +194,34 @@ async function main() {
   });
 
   console.log('  ✅ Submissions: 2 videos de demo');
+
+  // --- Config ---
+  const configs = [
+    { key: 'logging.level', value: 'info', description: 'Nivel de logging global', category: 'logging' },
+    { key: 'feature_flags.demo_mode', value: 'true', description: 'Habilitar modo demo', category: 'feature_flags' },
+    { key: 'feature_flags.registration_enabled', value: 'true', description: 'Habilitar registro de usuarios', category: 'feature_flags' },
+    { key: 'limits.max_submissions_per_round', value: '10', description: 'Max submissions per round', category: 'limits' },
+    { key: 'limits.max_rounds_per_casting', value: '10', description: 'Max rounds per casting', category: 'limits' },
+    { key: 'integrations.r2_enabled', value: 'true', description: 'Habilitar Cloudflare R2', category: 'integrations' },
+    { key: 'integrations.webhooks_enabled', value: 'false', description: 'Habilitar webhooks', category: 'integrations' },
+    { key: 'ui.theme', value: 'dark', description: 'Tema por defecto', category: 'ui' },
+    { key: 'ui.language', value: 'es', description: 'Idioma por defecto', category: 'ui' },
+  ];
+
+  for (const cfg of configs) {
+    await prisma.config.upsert({
+      where: { key: cfg.key },
+      update: {},
+      create: {
+        key: cfg.key,
+        value: cfg.value,
+        description: cfg.description,
+        category: cfg.category,
+      },
+    });
+  }
+
+  console.log(`  ✅ Config: ${configs.length} entries`);
 
   console.log('\n🎉 Seed completado correctamente.');
 }

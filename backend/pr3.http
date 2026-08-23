@@ -1,3 +1,47 @@
+# @name login99
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "xUserId": "director"
+}
+
+###
+@token = {{login99.response.body.token}}
+
+### GET /config
+GET http://localhost:3000/api/v1/config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+### GET /config/logging.level
+GET http://localhost:3000/api/v1/config/category/logging
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+### PATH /config/logging level
+PATCH http://localhost:3000/api/v1/config/logging.level
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "value": "warning"
+}
+
+
+### PATH /config/logging level
+PATCH http://localhost:3000/api/v1/config/logging.http
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "value": "false"
+}
+
+
+
 ### ============================================
 ### VARIABLES GLOBALES (Para referencia)
 ### ============================================

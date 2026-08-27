@@ -31,7 +31,7 @@ export default function CastingDetail() {
   const { castingId } = useParams<{ castingId: string }>();
   const navigate = useNavigate();
   const { getRoleInCasting, isDirectorOf } = useUser();
-  const { getUser, ensureUser } = useUserCache();
+  const { ensureUser } = useUserCache();
   const { showSuccess, showError } = useToast();
   const [casting, setCasting] = useState<Casting | null>(null);
   const [loading, setLoading] = useState(true);

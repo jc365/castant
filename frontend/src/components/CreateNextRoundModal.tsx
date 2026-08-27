@@ -14,7 +14,7 @@ interface Submission {
 }
 
 interface Participant {
-  actorId: string;
+  id: string;
   role: string;
   email: string | null;
   name: string | null;
@@ -37,7 +37,6 @@ export default function CreateNextRoundModal({
   isOpen,
   roundId,
   submissions,
-  participants,
   onClose,
   onCreated,
 }: {

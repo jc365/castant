@@ -13,7 +13,6 @@ interface Submission {
   id: string;
   videoUrl: string;
   videoKey?: string | null;
-  [key: string]: unknown;
 }
 
 interface VideoUrlMap {
@@ -65,16 +64,18 @@ export function useVideoUrls(submissions: Submission[]): {
     return () => { mountedRef.current = false; };
   }, [refreshAll]);
 
-  const handleError = useCallback((submissionId: string) => {
+  const handleError = useCallback((_submissionId: string) => {
     // On 403, refresh all URLs
     refreshAll();
   }, [refreshAll]);
 
   // Attach error handler to window for VideoPlayerModal to call
   useEffect(() => {
-    (window as Record<string, unknown>).__videoUrlError = handleError;
+    const w = window as unknown as Record<string, unknown>;
+    w.__videoUrlError = handleError;
     return () => {
-      delete (window as Record<string, unknown>).__videoUrlError;
+      const w = window as unknown as Record<string, unknown>;
+      delete w.__videoUrlError;
     };
   }, [handleError]);
 

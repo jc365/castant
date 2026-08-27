@@ -1,5 +1,6 @@
 # @name login99
-POST http://localhost:3000/api/v1/auth/login
+# POST http://localhost:3000/api/v1/auth/login
+POST https://castant-backend.onrender.com/api/v1/auth/login
 Content-Type: application/json
 
 {
@@ -10,7 +11,8 @@ Content-Type: application/json
 @token = {{login99.response.body.token}}
 
 ### GET /config
-GET http://localhost:3000/api/v1/config
+# GET http://localhost:3000/api/v1/config
+GET https://castant-backend.onrender.com/api/v1/config
 Authorization: Bearer {{token}}
 Content-Type: application/json
 

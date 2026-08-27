@@ -338,7 +338,6 @@ export default function RoundDetail() {
             {preselectors.length > 0 ? (
               <ul className="flex flex-col gap-3">
                 {preselectors.map((p) => {
-                  const hasReviewed = round.submissions.some((s) => s.score !== null);
                   return (
                     <li key={p.id} className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded bg-surface-container border border-outline-variant flex items-center justify-center">

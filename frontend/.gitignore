@@ -15,6 +15,7 @@ build/
 *.js.map
 *.d.ts
 *.d.ts.map
+!vite-env.d.ts 
 
 # ============================================
 # ENTORNO Y CONFIGURACIÓN LOCAL

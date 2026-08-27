@@ -19,10 +19,10 @@ import { startAutoReload } from './infrastructure/config/config';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// M2: Production DEMO_MODE guard
-if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE === 'true') {
-  throw new Error('DEMO_MODE cannot be enabled in production');
-}
+// M2: Production DEMO_MODE guard - Currently it is necesary the demo_mode
+// if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE === 'true') {
+//   throw new Error('DEMO_MODE cannot be enabled in production');
+// }
 
 const app = express();
 // 📌 Habilita trust proxy para que req.ip sea la IP real del cliente

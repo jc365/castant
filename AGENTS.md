@@ -484,6 +484,43 @@ python3 run.py
 - Integration tests: `desktop/tests/integration/`
 - Run tests: `cd desktop && pytest`
 
+## Deployment
+
+### Base de Datos
+- **Plataforma:** Neon.tech
+- **Tipo:** PostgreSQL serverless
+- **URL:** (no documentar la URL real)
+- **Plan:** Free Tier (0.5 GB)
+- **Región:** AWS US East 2 (Ohio)
+
+### Backend
+- **Plataforma:** Render
+- **URL:** https://castant-backend.onrender.com
+- **Comando de inicio:** `npx tsx src/index.ts`
+- **Variables clave:** `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN`
+- **Plan:** Starter (750h/mes)
+
+### Frontend
+- **Plataforma:** Vercel
+- **URL:** https://castant.vercel.app
+- **Framework:** React + Vite
+- **Variables clave:** `VITE_API_URL=https://castant-backend.onrender.com/api/v1`
+
+### Orquestador (OpenClaw)
+- **Plataforma:** Render
+- **URL:** https://castant-orchestrator.onrender.com
+- **Comando de inicio:** `python -m uvicorn orchestration.webhooks.server:app --host 0.0.0.0 --port 10000`
+- **Variables clave:** `SEND_TOKEN`, `CASTANT_BACKEND_URL`
+
+### Cloudflare Worker (Ping)
+- **Plataforma:** Cloudflare Workers
+- **URL:** https://castant-ping.workers.dev
+- **Propósito:** Mantener el backend de Render activo (evitar el dormido)
+- **Cron:** `*/15 * * * *` (cada 15 minutos)
+- **Horario:** 16:00 - 20:00 (Lunes a Viernes)
+- **Variables:** `START_HOUR=16`, `END_HOUR=20`, `DAYS_ALLOWED=1-5`
+- **Código:** `docs/cloudflare-worker.js`
+
 ## Plans Location
 
 Plans are stored in `/.opencode/plans/<YYYYMMDD>_<nombre>.md`.

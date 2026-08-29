@@ -27,6 +27,7 @@ from orchestration.workflows.base import Event, WorkflowResult
 from orchestration.workflows.video_processor import VideoProcessorWorkflow
 from orchestration.workflows.cleanup import CleanupWorkflow
 from orchestration.workflows.notifications import NotificationWorkflow
+from orchestration.workflows.r2_monitor import R2MonitorWorkflow
 from orchestration.utils.backend_client import close_client
 from orchestration.utils.config import start_auto_reload, stop_auto_reload
 from orchestration.event_poller import EventPoller
@@ -37,6 +38,7 @@ WORKFLOWS = {
     "submission.created": VideoProcessorWorkflow(),
     "cleanup.daily": CleanupWorkflow(),
     "review.completed": NotificationWorkflow(),
+    "r2.monitor": R2MonitorWorkflow(),
 }
 
 poller = EventPoller(WORKFLOWS)
@@ -98,3 +100,17 @@ async def list_workflows():
         }
         for name, wf in WORKFLOWS.items()
     }
+
+
+@app.post("/webhook/r2.monitor")
+async def trigger_r2_monitor():
+    """Manual trigger for R2 storage monitor workflow."""
+    try:
+        workflow = R2MonitorWorkflow()
+        event = Event(type="r2.monitor", payload={}, event_id="")
+        result = await workflow.safe_execute(event)
+        status = "ok" if result.success else "error"
+        return {"status": status, "result": result.message, "data": result.data}
+    except Exception as e:
+        logger.exception("R2 monitor endpoint failed")
+        return {"status": "error", "result": str(e), "data": {}}

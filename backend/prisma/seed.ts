@@ -203,6 +203,8 @@ async function main() {
     { key: 'limits.max_submissions_per_round', value: '10', description: 'Max submissions per round', category: 'limits' },
     { key: 'limits.max_rounds_per_casting', value: '10', description: 'Max rounds per casting', category: 'limits' },
     { key: 'integrations.r2_enabled', value: 'true', description: 'Habilitar Cloudflare R2', category: 'integrations' },
+    { key: 'integrations.r2_threshold_gb', value: '7', description: 'Umbral de alerta para almacenamiento R2 (GB)', category: 'integrations' },
+    { key: 'integrations.r2_notify_email', value: 'admin@demo.com', description: 'Email para alertas de almacenamiento R2', category: 'integrations' },
     { key: 'integrations.webhooks_enabled', value: 'false', description: 'Habilitar webhooks', category: 'integrations' },
     { key: 'ui.theme', value: 'dark', description: 'Tema por defecto', category: 'ui' },
     { key: 'ui.language', value: 'es', description: 'Idioma por defecto', category: 'ui' },

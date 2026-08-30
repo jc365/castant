@@ -102,15 +102,16 @@ async def list_workflows():
     }
 
 
-@app.post("/webhook/r2.monitor")
+@app.get("/webhook/r2.monitor")
 async def trigger_r2_monitor():
-    """Manual trigger for R2 storage monitor workflow."""
+    """Manual trigger for R2 storage monitor workflow. No body or headers required."""
     try:
         workflow = R2MonitorWorkflow()
-        event = Event(type="r2.monitor", payload={}, event_id="")
+        event = Event(type="r2.monitor", payload={}, event_id=str(uuid.uuid4()))
         result = await workflow.safe_execute(event)
         status = "ok" if result.success else "error"
         return {"status": status, "result": result.message, "data": result.data}
     except Exception as e:
         logger.exception("R2 monitor endpoint failed")
         return {"status": "error", "result": str(e), "data": {}}
+

@@ -1,0 +1,24 @@
+Ejemplo Invocation rebound: https://back101.juancarlos.dpdns.org/rebound?url=https://tpdk.co.uk
+@rebound = https://back101.juancarlos.dpdns.org/rebound?url=
+@rebound = 
+
+# esta query toma las variables del .env que hay en este directorio
+# es una prueba que funciona (migrar todas)
+### Probar token de Cloudflare R2
+# GET {{rebound}}https://api.cloudflare.com/client/v4/accounts/{{account}}/r2/buckets
+GET https://api.cloudflare.com/client/v4/accounts/{{$dotenv account}}/r2/buckets/{{$dotenv bucket}}/objects?prefix=castant
+# GET https://api.cloudflare.com/client/v4/accounts/{{account}}/r2/buckets
+Authorization: Bearer {{$dotenv token}}
+Content-Type: application/json
+
+### validar un token
+GET https://api.cloudflare.com/client/v4/accounts/{{account}}/tokens/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Probar acceso al bucket (listar objetos)
+# GET {{rebound}}https://{{account}}.r2.cloudflarestorage.com/{{bucket}}/
+GET https://{{account}}.r2.cloudflarestorage.com/{{bucket}}/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+

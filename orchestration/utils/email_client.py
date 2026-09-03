@@ -48,15 +48,35 @@ class EmailClient:
 
     async def send_email(self, to: str, subject: str, body: str) -> bool:
         """Send email using the configured provider. Returns True on success."""
+
+        full_body = self._add_unsubscribe_footer(body)
+
         if self.provider == "console":
-            return await self._send_console(to, subject, body)
+            return await self._send_console(to, subject, full_body)
         elif self.provider == "resend":
-            return await self._send_resend(to, subject, body)
+            return await self._send_resend(to, subject, full_body)
         elif self.provider == "smtp":
-            return await self._send_smtp(to, subject, body)
+            return await self._send_smtp(to, subject, full_body)
         else:
             logger.error("Unknown email provider: %s", self.provider)
             return False
+
+    def _add_unsubscribe_footer(self, body: str) -> str:
+        """Append standard unsubscribe footer to email body."""
+        # import textwrap
+        # footer = textwrap.dedent("""
+        # \n\n\n(*) 📧 Este es un mensaje automático de Castant.
+        
+        # Si no deseas recibir más comunicaciones, puedes darte de baja 
+        # respondiendo a este correo con el asunto "unsubscribe".
+        # """)
+        footer = """
+\n\n\n(*) 📧 Este es un mensaje automático de Castant.
+Si no deseas recibir más comunicaciones, puedes darte de baja 
+respondiendo a este correo con el asunto "unsubscribe".
+"""
+        return body + footer        
+
 
     async def _send_console(self, to: str, subject: str, body: str) -> bool:
         """Log email to console (development)."""
@@ -78,6 +98,10 @@ class EmailClient:
             "to": [to],
             "subject": subject,
             "text": body,
+            "headers": {
+                "List-Unsubscribe": f"<mailto:{self.email_from}?subject=unsubscribe>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+            }
         }
 
         try:
@@ -113,6 +137,12 @@ class EmailClient:
         msg["Subject"] = subject
         msg["From"] = f"{self.from_name} <{self.email_from}>"
         msg["To"] = to
+
+        # 🔥 Añadir headers de unsubscribe (One-click)
+        # El email de unsubscribe debe ser el mismo que el remitente
+        unsubscribe_email = self.email_from  # castant@juancarlos.dpdns.org
+        msg["List-Unsubscribe"] = f"<mailto:{unsubscribe_email}?subject=unsubscribe>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"    
 
         try:
             loop = __import__("asyncio").get_running_loop()

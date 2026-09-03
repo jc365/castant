@@ -28,6 +28,7 @@ from orchestration.workflows.video_processor import VideoProcessorWorkflow
 from orchestration.workflows.cleanup import CleanupWorkflow
 from orchestration.workflows.notifications import NotificationWorkflow
 from orchestration.workflows.r2_monitor import R2MonitorWorkflow
+from orchestration.workflows.test_email import TestEmailWorkflow
 from orchestration.utils.backend_client import close_client
 from orchestration.utils.config import start_auto_reload, stop_auto_reload
 from orchestration.event_poller import EventPoller
@@ -39,6 +40,7 @@ WORKFLOWS = {
     "cleanup.daily": CleanupWorkflow(),
     "review.completed": NotificationWorkflow(),
     "r2.monitor": R2MonitorWorkflow(),
+    "test.email": TestEmailWorkflow(),
 }
 
 poller = EventPoller(WORKFLOWS)
@@ -114,4 +116,3 @@ async def trigger_r2_monitor():
     except Exception as e:
         logger.exception("R2 monitor endpoint failed")
         return {"status": "error", "result": str(e), "data": {}}
-

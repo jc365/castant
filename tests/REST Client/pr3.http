@@ -1,6 +1,6 @@
 # @name login99
-# POST http://localhost:3000/api/v1/auth/login
-POST https://castant-backend.onrender.com/api/v1/auth/login
+POST http://localhost:3000/api/v1/auth/login
+# POST https://castant-backend.onrender.com/api/v1/auth/login
 Content-Type: application/json
 
 {

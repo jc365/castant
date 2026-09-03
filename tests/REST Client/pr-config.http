@@ -1,0 +1,103 @@
+@backend = {{$dotenv back_de}}
+# @backend = {{$dotenv back_pr}}
+@orchestrator={{$dotenv orche_de}}
+
+### Autenticacion y obtencion de token
+# @name login98
+POST {{backend}}/auth/login
+Content-Type: application/json
+
+{"xUserId": "director"}
+
+###
+@token = {{login98.response.body.token}}
+
+
+### GET lee todas las variables
+GET {{backend}}/config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+### GET lee key logging.level
+GET {{backend}}/config/category/email
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+
+### PATH modifica key logging level
+PATCH {{backend}}/config/logging.level
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "info"}
+
+
+
+# Ajustes para cambio de plataforma de correo 
+# a MAILJET
+
+### ======== 1. Cambiar proveedor a SMTP ============
+PATCH {{backend}}/config/email.provider
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "smtp"}
+
+### ======== 2. Configurar SMTP Host ============
+PUT {{backend}}/config/email.smtp_host
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "in-v3.mailjet.com"}
+
+### ======== 3. Configurar SMTP Port ============
+PUT {{backend}}/config/email.smtp_port
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "587"}
+
+### ======== 4. Configurar SMTP User (API Key) ============
+PUT {{backend}}/config/email.smtp_user
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "69b4f6d39b04c8e48888122533123c02"}
+
+### ======== 5. Configurar SMTP Password (Secret Key) ============
+PUT {{backend}}/config/email.smtp_pass
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "e1e59103b727c5d90f96a20a20e2844b"}
+
+### ======== 6. Configurar Email From ============
+PUT {{backend}}/config/email.from
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "castant@juancarlos.dpdns.org"}
+
+### ======== 7. Configurar Email From Name ============
+PUT {{backend}}/config/email.from_name
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "Castant"}
+
+### ======== 8. Probar envio desde orquestador ============
+POST {{orchestrator}}/webhook/test.email
+Content-Type: application/json
+
+{"payload": {"to": "jcsantamar@yahoo.es"}}
+
+
+### ======== 9. Probar R2 Monitor ============
+GET {{orchestrator}}/webhook/r2.monitor
+
+### ======== 9. Probar R2 Monitor ============
+GET {{orchestrator}}/workflows
+### 
+{"payload": {"to": "correo.tpdk@gmail.com"}}
+{"payload": {"to": "jcsantamar@yahoo.es"}}

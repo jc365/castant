@@ -13,6 +13,7 @@
 
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio",
+    "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
 
     "db:backup": "npx tsx scripts/backup-pg.ts",
     "db:restore": "npx tsx scripts/restore-pg.ts",

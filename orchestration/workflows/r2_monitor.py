@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from orchestration.utils.config import get_config
+from orchestration.utils.email_client import EmailClient
 from orchestration.workflows.base import BaseWorkflow, Event, WorkflowResult
 
 logger = logging.getLogger(__name__)
@@ -121,10 +122,6 @@ class R2MonitorWorkflow(BaseWorkflow):
 
     async def _send_alert(self, email: str, size_gb: float, threshold_gb: float) -> None:
         """Send alert email about R2 threshold exceeded."""
-        from orchestration.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
-        import smtplib
-        from email.mime.text import MIMEText
-
         subject = f"⚠️ Castant R2 Storage Alert: {size_gb:.2f} GB used"
         body = (
             f"Alert: Cloudflare R2 bucket has exceeded the configured threshold.\n\n"
@@ -134,26 +131,7 @@ class R2MonitorWorkflow(BaseWorkflow):
             f"— Castant Orchestrator"
         )
 
-        msg = MIMEText(body, "plain", "utf-8")
-        msg["Subject"] = subject
-        msg["From"] = EMAIL_FROM
-        msg["To"] = email
-
-        if not SMTP_HOST:
-            logger.warning("SMTP not configured — R2 alert email logged only:\nTo: %s\nSubject: %s\n%s", email, subject, body)
-            return
-
-        loop = __import__("asyncio").get_running_loop()
-        await loop.run_in_executor(None, self._send_smtp, msg, email)
-
-    def _send_smtp(self, msg: Any, email: str) -> None:
-        from orchestration.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
-        import smtplib
-
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            if SMTP_PORT != 25:
-                server.starttls()
-            if SMTP_USER:
-                server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-        logger.info("R2 alert email sent to %s", email)
+        email_client = EmailClient()
+        sent = await email_client.send_email(to=email, subject=subject, body=body)
+        if not sent:
+            logger.warning("R2 alert email failed to send to %s", email)

@@ -1,0 +1,30 @@
+Para hacer uso de variables protegidas, usa el fichero .env (en este mismo dir), 
+que no sube a git (.gitignore) y que permite versionar este fichero sin que salten 
+las protecciones de info restringida.
+Ejemplo de carga de variables desde .env: 
+@bucket = {{$dotenv bucket}}
+aunque se puede usar directamente como {{$dotenv bucket}} prefiero el uso de arriba
+=======================================================================================
+
+@orchestrator={{$dotenv orche_de}}
+
+# Pruebas con correo (el proveedor depende de la config de /orch../.env)
+
+### ======== Probar R2 Monitor 
+GET {{orchestrator}}/webhook/r2.monitor
+
+### ======== Ver los workflows existentes 
+GET {{orchestrator}}/workflows
+
+### ======== Probar envio email 
+POST {{orchestrator}}/webhook/test.email
+Content-Type: application/json
+
+{"payload": {"to": "jcsantamar@yahoo.es"}}
+
+
+### variantes de json para hacer el test.email
+{"payload": {"to": "correo.tpdk@gmail.com"}}
+{"payload": {"to": "jcsantamar@yahoo.es"}}
+
+

@@ -3,7 +3,8 @@
  * @module prisma/seed
  *
  * Script de seed para insertar datos de demo en la base de datos.
- * Ejecutar con: npx tsx prisma/seed.ts
+ * Ejecutar con: npx dotenv -e .env -- npx tsx prisma/seed.ts
+ * (fundamental la parte dotenv para que lea correctamente el backend/.env)
  */
 
 import { PrismaClient } from '../src/generated/prisma/client';
@@ -22,7 +23,7 @@ const prisma = new PrismaClient({ adapter });
 const DEMO_PASSWORD_HASH = bcrypt.hashSync('changeme', 10);
 
 async function main() {
-  console.log('🌱 Ejecutando seed...');
+  console.log(`🌱 Ejecutando seed... con URL: ${url}`);
 
   // --- Users ---
   const director = await prisma.user.upsert({

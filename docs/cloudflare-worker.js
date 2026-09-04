@@ -10,15 +10,16 @@ const ENV = {
   R2_MONITOR_HOUR: globalThis.R2_MONITOR_HOUR ? parseInt(globalThis.R2_MONITOR_HOUR) : null
 };
 
-// 🔥 Función para obtener la hora en CEST (UTC+2)
-function getCESTTime() {
+// 🔥 Función para obtener la hora en España (CET/CEST automático)
+function getSpainTime() {
   const now = new Date();
-  const cest = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  // Usar la zona horaria real de España
+  const spainTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
   return {
-    hour: cest.getHours(),
-    minutes: cest.getMinutes(),
-    day: cest.getDay(),
-    isoString: cest.toISOString()
+    hour: spainTime.getHours(),
+    minutes: spainTime.getMinutes(),
+    day: spainTime.getDay(),
+    isoString: spainTime.toISOString()
   };
 }
 
@@ -36,7 +37,7 @@ function shouldTriggerR2Monitor(cron) {
     return false;
   }
 
-  const { hour, minutes } = getCESTTime();
+  const { hour, minutes, isoString } = getSpainTime();
   const interval = parseCronInterval(cron);
   
   // Ventana: desde R2_MONITOR_HOUR:00 hasta R2_MONITOR_HOUR:interval
@@ -56,22 +57,22 @@ function shouldTriggerR2Monitor(cron) {
 
 // 🔥 Función principal de ping
 async function pingBackend() {
-  const { hour, day, isoString } = getCESTTime();
+  const { hour, day, isoString } = getSpainTime();
 
   console.log(`[${isoString}] 🟢 Iniciando ping...`);
-  console.log(`[${isoString}] Hora CEST: ${hour}, Día: ${day}`);
-  console.log(`[${isoString}] START_HOUR: ${ENV.START_HOUR}, END_HOUR: ${ENV.END_HOUR}, DAYS_ALLOWED: ${ENV.DAYS_ALLOWED.join(',')}`);
+  console.log(`[${isoString}] Hora Spain: ${hour}, Día: ${day}`);
+  console.log(`[${isoString}] START_HOUR: ${ENV.START_HOUR}, END_HOUR: ${ENV.END_HOUR}, DAYS_ALLOWED: ${ENV.DAYS_ALLOWED.join(',')}, R2_MONITOR_HOUR: ${R2_MONITOR_HOUR}`);
 
   const isWithin = hour >= ENV.START_HOUR && hour < ENV.END_HOUR && ENV.DAYS_ALLOWED.includes(day);
 
   if (!isWithin) {
-    console.log(`[${isoString}] ⏰ Fuera de horario (${ENV.START_HOUR}-${ENV.END_HOUR}, días ${ENV.DAYS_ALLOWED.join(',')})`);
+    console.log(`[${isoString}] (R) ⏰ Fuera de horario (${ENV.START_HOUR}-${ENV.END_HOUR}, días ${ENV.DAYS_ALLOWED.join(',')})`);
     return;
   }
 
   try {
     const response = await fetch(BACKEND_URL + '/health');
-    console.log(`[${isoString}] ✅ Ping a ${BACKEND_URL}: Status ${response.status}`);
+    console.log(`[${isoString}] (R) ✅ Ping a ${BACKEND_URL}: Status ${response.status}`);
   } catch (error) {
     console.error(`[${isoString}] ❌ Error al hacer ping:`, error.message);
   }
@@ -79,13 +80,13 @@ async function pingBackend() {
 
 // 🔥 Trigger R2 Monitor en el orquestador
 async function triggerR2Monitor() {
-  const { isoString } = getCESTTime();
+  const { isoString } = getSpainTime();
   try {
     const response = await fetch(`${ORCHESTRATOR_URL}/webhook/r2.monitor`, {
       method: 'POST'
     });
     const data = await response.json();
-    console.log(`[${isoString}] ✅ Lanzamiento de R2 Monitor: ${data.status} — ${data.result || data.message}`);
+    console.log(`[${isoString}] (R) ✅ Lanzamiento de R2 Monitor: ${data.status} — ${data.result || data.message}`);
   } catch (error) {
     console.error(`[${isoString}] ❌ R2 Monitor error:`, error.message);
   }
@@ -100,7 +101,7 @@ async function handleScheduled(event) {
   if (shouldTriggerR2Monitor(cron)) {
     await triggerR2Monitor();
   } else {
-    const { isoString } = getCESTTime();
+    const { isoString } = getSpainTime();
     const reason = ENV.R2_MONITOR_HOUR === null ? 'R2_MONITOR_HOUR not set' : 'not in window';
     console.log(`[${isoString}] 📊 R2 Monitor skipped: ${reason}`);
   }
@@ -108,33 +109,33 @@ async function handleScheduled(event) {
 
 // 🔥 Cron trigger
 addEventListener('scheduled', event => {
-  const { isoString } = getCESTTime();
+  const { isoString } = getSpainTime();
   console.log(`[${isoString}] 🔔 Worker activado por cron: ${event.cron || '*/15 * * * *'}`);
   event.waitUntil(handleScheduled(event));
 });
 
 // 🔥 Respuesta al visitar la URL (muestra estado)
 addEventListener('fetch', event => {
-  const { hour, minutes, day, isoString } = getCESTTime();
+  const { hour, minutes, day, isoString } = getSpainTime();
   const isWithin = hour >= ENV.START_HOUR && hour < ENV.END_HOUR && ENV.DAYS_ALLOWED.includes(day);
 
   // Para mostrar el intervalo, necesitamos el cron. Como no lo tenemos aquí, usamos 15 como fallback
   const r2Configured = ENV.R2_MONITOR_HOUR !== null && !isNaN(ENV.R2_MONITOR_HOUR);
   const r2NextRun = r2Configured
-    ? `${ENV.R2_MONITOR_HOUR}:00 - ${ENV.R2_MONITOR_HOUR}:15 CEST (aprox)`
+    ? `${ENV.R2_MONITOR_HOUR}:00 - ${ENV.R2_MONITOR_HOUR}:15 minutes (aprox)`
     : 'not configured';
 
   const response = `
   🚀 Worker de ping para Render -v6.0-
 
-  📅 Hora CEST: ${isoString}
+  📅 Hora Spain: ${isoString}
   🕐 Hora: ${hour}:${minutes}, Día: ${day}
   ⏰ Horario ping: ${ENV.START_HOUR}:00 - ${ENV.END_HOUR}:00 (días ${ENV.DAYS_ALLOWED.join(',')})
   📊 Estado ping: ${isWithin ? '✅ DENTRO del horario' : '⏰ FUERA del horario'}
   🔗 Backend: ${BACKEND_URL}
 
   📊 R2 Monitor:
-  ⏱️  Ventana: ${r2NextRun}
+  ⏱️ Ventana: ${r2NextRun}
   🔗 Orquestador: ${ORCHESTRATOR_URL}
   `;
 

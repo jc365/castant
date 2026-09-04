@@ -19,8 +19,9 @@ from orchestration.workflows.base import Event, WorkflowResult
 
 logger = logging.getLogger(__name__)
 
-POLL_INTERVAL = 5
+POLL_INTERVAL = 30
 MAX_EVENTS = 10
+MAX_BACKOFF = 300  # 5 minutes
 
 
 class EventPoller:
@@ -28,6 +29,7 @@ class EventPoller:
         self.workflows = workflows
         self._running = False
         self._task: asyncio.Task | None = None
+        self._backoff = POLL_INTERVAL
 
     async def start(self):
         if self._running:
@@ -50,11 +52,14 @@ class EventPoller:
         while self._running:
             try:
                 await self._poll_once()
+                self._backoff = POLL_INTERVAL
             except asyncio.CancelledError:
                 break
             except Exception:
                 logger.exception("Poll cycle failed")
-            await asyncio.sleep(POLL_INTERVAL)
+                self._backoff = min(self._backoff * 2, MAX_BACKOFF)
+                logger.debug("Backoff increased to %ds", self._backoff)
+            await asyncio.sleep(self._backoff)
 
     async def _poll_once(self):
         client = await get_client()
@@ -65,7 +70,7 @@ class EventPoller:
         if not events:
             return
 
-        logger.info("Found %d pending events", len(events))
+        logger.debug("Found %d pending events", len(events))
 
         for ev in events:
             await self._process_event(ev)
@@ -87,7 +92,7 @@ class EventPoller:
             result = await workflow.safe_execute(event)
             if result.success:
                 await mark_event_complete(event_id)
-                logger.info("Event %s processed successfully", event_id)
+                logger.debug("Event %s processed successfully", event_id)
             else:
                 await mark_event_failed(event_id, result.message)
                 logger.warning("Event %s failed: %s", event_id, result.message)

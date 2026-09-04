@@ -1,5 +1,5 @@
-@backend = {{$dotenv back_de}}
-# @backend = {{$dotenv back_pr}}
+# @backend = {{$dotenv back_de}}
+@backend = {{$dotenv back_pr}}
 @orchestrator={{$dotenv orche_de}}
 
 ### Autenticacion y obtencion de token
@@ -85,6 +85,14 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {"value": "Castant"}
+
+
+### ======== Configurar aviso r2_monitor ============
+PUT {{backend}}/config/integrations.r2_notify_email
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"value": "jcsantamar@yahoo.es"}
 
 ### ======== 8. Probar envio desde orquestador ============
 POST {{orchestrator}}/webhook/test.email
